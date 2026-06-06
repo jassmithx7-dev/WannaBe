@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 Fantasy — League Setup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh}
+.topbar{background:#1a1d27;border-bottom:1px solid #2a2d3a;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar h1{font-size:15px;font-weight:600}
+.tag{font-size:11px;color:#6b7280;background:#252836;padding:2px 8px;border-radius:10px}
+.btn{background:#252836;border:1px solid #3a3d4a;color:#e8eaf0;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#2e3244;border-color:#4f8ef7}
+.btn-green{background:#1a3a2a;border-color:#2e7d32;color:#4ade80}
+.btn-green:hover{background:#1f4a32}
+.btn-red{background:#2d1515;border-color:#7f1d1d;color:#fca5a5}
+.btn-red:hover{background:#3d1a1a}
+.btn-export{background:#1e3a5f;border-color:#1565c0;color:#60a5fa;font-size:13px;padding:8px 20px;font-weight:600}
+.btn-export:hover{background:#1a3050}
+.main{display:grid;grid-template-columns:280px 1fr;gap:0;height:calc(100vh - 54px)}
+.sidebar{background:#1a1d27;border-right:1px solid #2a2d3a;overflow-y:auto;padding:12px}
+.sidebar h3{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:14px}
+.sidebar h3:first-child{margin-top:0}
+.team-btn{width:100%;text-align:left;padding:8px 10px;border-radius:6px;border:1px solid transparent;background:transparent;color:#9ca3af;cursor:pointer;font-size:12px;margin-bottom:3px;display:flex;align-items:center;justify-content:space-between}
+.team-btn:hover{background:#252836;color:#e8eaf0}
+.team-btn.active{background:#1e3a5f;border-color:#1565c0;color:#60a5fa}
+.team-btn .slot-tag{font-size:10px;color:#6b7280}
+.team-btn.active .slot-tag{color:#93c5fd}
+.team-btn .keeper-count{font-size:10px;padding:1px 5px;border-radius:8px;background:#1a3a2a;color:#4ade80}
+.content{overflow-y:auto;padding:16px}
+.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:10px;padding:16px;margin-bottom:12px}
+.card h2{font-size:13px;font-weight:600;margin-bottom:12px;color:#e8eaf0;display:flex;align-items:center;gap:8px}
+.card h2 .sub{font-size:11px;color:#6b7280;font-weight:400}
+select,input[type=text],input[type=number]{background:#252836;border:1px solid #3a3d4a;color:#e8eaf0;border-radius:6px;padding:6px 10px;font-size:12px;height:32px}
+select:focus,input:focus{outline:none;border-color:#4f8ef7}
+.field-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.field-row label{font-size:12px;color:#9ca3af;width:100px;flex-shrink:0}
+.keeper-row{display:flex;align-items:center;gap:8px;padding:8px;background:#252836;border-radius:6px;margin-bottom:6px;flex-wrap:wrap}
+.keeper-row .kname{font-size:12px;font-weight:500;color:#e8eaf0;flex:1}
+.keeper-row .kdetail{font-size:11px;color:#6b7280}
+.keeper-row .krd{font-size:11px;font-weight:600;color:#fbbf24}
+.keeper-add{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.keeper-add input[type=text]{flex:1;min-width:160px}
+.search-results{background:#1a1d27;border:1px solid #3a3d4a;border-radius:6px;max-height:180px;overflow-y:auto;margin-top:4px}
+.sr-item{padding:8px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #1e2130;display:flex;align-items:center;gap:8px}
+.sr-item:hover{background:#252836}
+.sr-item:last-child{border-bottom:none}
+.pos-badge{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0}
+.QB{background:#1e3a5f;color:#60a5fa}.RB{background:#1a3a2a;color:#4ade80}
+.WR{background:#3d2a0a;color:#fbbf24}.TE{background:#2e1a3d;color:#c084fc}
+.trade-row{display:grid;grid-template-columns:1fr 40px 1fr 60px;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#252836;border-radius:6px}
+.trade-row .arrow{text-align:center;color:#6b7280;font-size:14px}
+.pick-label{font-size:11px;color:#9ca3af;margin-bottom:2px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.summary-card{background:#252836;border-radius:8px;padding:10px;border:1px solid #2a2d3a}
+.sc-name{font-size:12px;font-weight:600;color:#e8eaf0;margin-bottom:4px}
+.sc-slot{font-size:11px;color:#60a5fa;margin-bottom:4px}
+.sc-keepers{font-size:11px;color:#4ade80}
+.sc-trades{font-size:11px;color:#fbbf24}
+.sc-none{color:#4b5563;font-style:italic}
+.alert{background:#3d1515;color:#fca5a5;border:1px solid #7f1d1d;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:10px}
+.success{background:#1a3a2a;color:#4ade80;border:1px solid #2e7d32;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:10px}
+.tabs{display:flex;border-bottom:1px solid #2a2d3a;margin-bottom:14px}
+.tab{font-size:12px;padding:7px 14px;cursor:pointer;color:#6b7280;border-bottom:2px solid transparent}
+.tab.on{color:#e8eaf0;border-bottom-color:#4f8ef7;font-weight:500}
+.section{display:none}.section.on{display:block}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>⚙️ 2026 League Setup</h1>
+  <span class="tag">Wannabe NFL GMs · 12 Teams · 18 Rounds · Superflex PPR</span>
+  <span style="font-size:11px;color:#fbbf24;background:#2d2008;padding:2px 10px;border-radius:10px">Step 1 of 2 — Do this before draft day → export setup.json → load in Draft Companion</span>
+  <div style="flex:1"></div>
+  <span id="statusMsg" style="font-size:12px;color:#6b7280"></span>
+  <button class="btn btn-export" onclick="exportSetup()">&#8595; Export setup.json</button>
+</div>
+
+<div style="background:#1a2a1a;border-bottom:2px solid #2e7d32;padding:10px 20px;display:flex;align-items:center;gap:20px;font-size:12px">
+  <div style="color:#4ade80;font-weight:600">📋 HOW IT WORKS:</div>
+  <div style="color:#86efac">1. <strong>Assign draft slots</strong> to each team (left sidebar → click team → set slot)</div>
+  <div style="color:#86efac">2. <strong>Add keepers</strong> for each team (same panel)</div>
+  <div style="color:#86efac">3. <strong>Record pick trades</strong> (Pick Trades section)</div>
+  <div style="color:#86efac">4. Click <strong style="color:#fbbf24">⬇ Export setup.json</strong> → load in Draft Companion on draft day</div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <h3>Teams</h3>
+    <div id="teamList"></div>
+    <h3 style="margin-top:18px">Navigation</h3>
+    <button class="btn" style="width:100%;margin-bottom:4px;text-align:left" onclick="showSection('slots')">&#9632; Draft slot assignments</button>
+    <button class="btn" style="width:100%;margin-bottom:4px;text-align:left" onclick="showSection('trades')">&#8646; Pick trades</button>
+    <button class="btn" style="width:100%;text-align:left" onclick="showSection('summary')">&#9998; Summary &amp; export</button>
+  </div>
+
+  <div class="content">
+    <!-- TEAM EDITOR -->
+    <div class="section on" id="sec-team">
+      <div id="teamEditor"></div>
+    </div>
+
+    <!-- DRAFT SLOTS -->
+    <div class="section" id="sec-slots">
+      <div class="card">
+        <h2>Draft slot assignments <span class="sub">Assign pick order 1–12 to each team</span></h2>
+        <div id="slotEditor"></div>
+      </div>
+    </div>
+
+    <!-- PICK TRADES -->
+    <div class="section" id="sec-trades">
+      <div class="card">
+        <h2>Pick trades <span class="sub">Record any picks traded between teams</span></h2>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:12px">Enter trades as: Team A traded Round X pick to Team B. The draft board will update automatically.</p>
+        <div id="tradeList"></div>
+        <button class="btn btn-green" onclick="addTrade()" style="margin-top:8px">+ Add trade</button>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="section" id="sec-summary">
+      <div class="card">
+        <h2>Summary</h2>
+        <div id="summaryContent"></div>
+      </div>
+      <div class="card">
+        <h2>Export</h2>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:12px">Click below to download your <code style="background:#252836;padding:2px 5px;border-radius:3px">league_setup.json</code> file. Load it in the Draft Companion on draft day.</p>
+        <button class="btn btn-export" onclick="exportSetup()">&#8595; Download league_setup.json</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEAMS=12,ROUNDS=18;
+const TNAMES=["The Hurts Locker","easyrunner55","FlyfromtheFuture","Team 4","Warthogs","The Flying Hutchman","JustEnuf","Brock Star","Heisenberg625","Sheduers Interviews","Shes Got Game","Frenchys Futbol Club"];
+const OWNERS=["XxDecessoxX","easyrunner55","crotzi","TBD","DeronA","hutchhutch","JustEnuf","BrockStarz","Heisenberg625","Pumace49","She_Got_Game","FrenchyFC"];
+const RD_LABELS=["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th","13th","14th","15th","16th","17th","18th"];
+
+const PLAYERS=[
+  {name:"Josh Allen",team:"BUF",pos:"QB"},{name:"Lamar Jackson",team:"BAL",pos:"QB"},
+  {name:"Jayden Daniels",team:"WAS",pos:"QB"},{name:"Drake Maye",team:"NE",pos:"QB"},
+  {name:"Jalen Hurts",team:"PHI",pos:"QB"},{name:"Joe Burrow",team:"CIN",pos:"QB"},
+  {name:"Jaxson Dart",team:"NYG",pos:"QB"},{name:"Brock Purdy",team:"SF",pos:"QB"},
+  {name:"Trevor Lawrence",team:"JAX",pos:"QB"},{name:"Bo Nix",team:"DEN",pos:"QB"},
+  {name:"Caleb Williams",team:"CHI",pos:"QB"},{name:"Patrick Mahomes",team:"KC",pos:"QB"},
+  {name:"Dak Prescott",team:"DAL",pos:"QB"},{name:"Kyler Murray",team:"MIN",pos:"QB"},
+  {name:"Jordan Love",team:"GB",pos:"QB"},{name:"Justin Herbert",team:"LAC",pos:"QB"},
+  {name:"Baker Mayfield",team:"TB",pos:"QB"},
+  {name:"Bijan Robinson",team:"ATL",pos:"RB"},{name:"Jahmyr Gibbs",team:"DET",pos:"RB"},
+  {name:"Christian McCaffrey",team:"SF",pos:"RB"},{name:"Jonathan Taylor",team:"IND",pos:"RB"},
+  {name:"De'Von Achane",team:"MIA",pos:"RB"},{name:"James Cook",team:"BUF",pos:"RB"},
+  {name:"Ashton Jeanty",team:"LV",pos:"RB"},{name:"Saquon Barkley",team:"PHI",pos:"RB"},
+  {name:"Chase Brown",team:"CIN",pos:"RB"},{name:"Kenneth Walker III",team:"KC",pos:"RB"},
+  {name:"Derrick Henry",team:"BAL",pos:"RB"},{name:"Breece Hall",team:"NYJ",pos:"RB"},
+  {name:"Travis Etienne",team:"NO",pos:"RB"},{name:"Omarion Hampton",team:"LAC",pos:"RB"},
+  {name:"Javonte Williams",team:"DAL",pos:"RB"},{name:"Quinshon Judkins",team:"CLE",pos:"RB"},
+  {name:"Kyren Williams",team:"LAR",pos:"RB"},{name:"Cam Skattebo",team:"NYG",pos:"RB"},
+  {name:"Bucky Irving",team:"TB",pos:"RB"},{name:"Chuba Hubbard",team:"CAR",pos:"RB"},
+  {name:"Ja'Marr Chase",team:"CIN",pos:"WR"},{name:"Puka Nacua",team:"LAR",pos:"WR"},
+  {name:"Jaxon Smith-Njigba",team:"SEA",pos:"WR"},{name:"Amon-Ra St. Brown",team:"DET",pos:"WR"},
+  {name:"CeeDee Lamb",team:"DAL",pos:"WR"},{name:"Justin Jefferson",team:"MIN",pos:"WR"},
+  {name:"Drake London",team:"ATL",pos:"WR"},{name:"Malik Nabers",team:"NYG",pos:"WR"},
+  {name:"Rashee Rice",team:"KC",pos:"WR"},{name:"Chris Olave",team:"NO",pos:"WR"},
+  {name:"George Pickens",team:"DAL",pos:"WR"},{name:"A.J. Brown",team:"NE",pos:"WR"},
+  {name:"Nico Collins",team:"HOU",pos:"WR"},{name:"Garrett Wilson",team:"NYJ",pos:"WR"},
+  {name:"DeVonta Smith",team:"PHI",pos:"WR"},{name:"Jaylen Waddle",team:"DEN",pos:"WR"},
+  {name:"Rome Odunze",team:"CHI",pos:"WR"},{name:"Zay Flowers",team:"BAL",pos:"WR"},
+  {name:"Davante Adams",team:"LAR",pos:"WR"},
+  {name:"Brock Bowers",team:"LV",pos:"TE"},{name:"Harold Fannin Jr.",team:"CLE",pos:"TE"},
+  {name:"Tyler Warren",team:"IND",pos:"TE"},{name:"Sam LaPorta",team:"DET",pos:"TE"},
+  {name:"Trey McBride",team:"ARI",pos:"TE"},{name:"Travis Kelce",team:"KC",pos:"TE"},
+  {name:"Isaiah Likely",team:"BAL",pos:"TE"},{name:"Jake Ferguson",team:"DAL",pos:"TE"}
+];
+
+// State
+let teams = TNAMES.map((name,i)=>({
+  name, owner:OWNERS[i], slot:0,
+  keepers:[], // {name,pos,nflTeam,rdDrafted,keeperCost,timesKept,customPlayer}
+}));
+let trades = []; // {fromTeam,round,toTeam}
+let selectedTeam = 0;
+let searchResults = [];
+let activeSection = "team";
+
+// Keeper rule: cost = rdDrafted - 2, min rd 3, no rd 1 or 2
+function keeperCostRd(rdDrafted){
+  if(rdDrafted<=2) return null; // ineligible
+  return Math.max(3, rdDrafted-2);
+}
+
+// ── Sidebar ──
+function renderSidebar(){
+  document.getElementById("teamList").innerHTML = teams.map((t,i)=>`
+    <button class="team-btn${i===selectedTeam?" active":""}" onclick="selectTeam(${i})">
+      <span>${t.name}</span>
+      <span style="display:flex;align-items:center;gap:4px">
+        ${t.slot?`<span class="slot-tag">Slot ${t.slot}</span>`:"<span class='slot-tag' style='color:#4b5563'>No slot</span>"}
+        ${t.keepers.length?`<span class="keeper-count">${t.keepers.length}K</span>`:""}
+      </span>
+    </button>`).join("");
+}
+
+// ── Team editor ──
+function selectTeam(i){
+  selectedTeam=i;
+  showSection("team");
+  renderSidebar();
+  renderTeamEditor();
+}
+
+function renderTeamEditor(){
+  const t=teams[selectedTeam];
+  document.getElementById("teamEditor").innerHTML=`
+    <div class="card">
+      <h2>${t.name} <span class="sub">${t.owner}</span></h2>
+      <div class="field-row">
+        <label>Draft slot</label>
+        <select onchange="setSlot(${selectedTeam},this.value)">
+          <option value="0">Not assigned</option>
+          ${Array.from({length:TEAMS},(_,i)=>`<option value="${i+1}"${t.slot===i+1?" selected":""}>Slot ${i+1}</option>`).join("")}
+        </select>
+        <span style="font-size:11px;color:#6b7280">${t.slot?"Picks in rounds: "+getRoundPicks(t.slot).slice(0,4).join(", ")+"...":"Assign a slot to see picks"}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Keepers <span class="sub">Max 2 · Cost = round drafted − 2 · No 1st or 2nd rounders · Max 3 seasons</span></h2>
+      <div id="keeperList">${renderKeeperList(selectedTeam)}</div>
+      ${t.keepers.length<2?`
+      <div style="margin-top:12px;border-top:1px solid #2a2d3a;padding-top:12px">
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Add keeper (search pool or type custom name):</div>
+        <div class="keeper-add">
+          <input type="text" id="keeperSearch" placeholder="Search player name..." oninput="searchPlayers(this.value)" autocomplete="off" style="width:220px">
+          <select id="keeperPos">
+            <option value="QB">QB</option><option value="RB">RB</option>
+            <option value="WR">WR</option><option value="TE">TE</option>
+          </select>
+          <input type="text" id="keeperNfl" placeholder="NFL team (e.g. BUF)" style="width:90px">
+          <select id="keeperRd">
+            ${RD_LABELS.map((l,i)=>`<option value="${i+1}">${l} round</option>`).join("")}
+          </select>
+          <input type="number" id="keeperTimes" min="0" max="3" value="0" style="width:60px" title="Times already kept (0=first year keeping)">
+          <span style="font-size:11px;color:#6b7280">times kept</span>
+          <button class="btn btn-green" onclick="addKeeper()">+ Add</button>
+        </div>
+        <div id="searchResults"></div>
+      </div>`:"<p style='font-size:12px;color:#6b7280;margin-top:8px'>Maximum 2 keepers reached.</p>"}
+    </div>
+
+    <div class="card">
+      <h2>Pick trades involving ${t.name}</h2>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:10px">Trades recorded in the Pick Trades section that involve this team:</p>
+      <div id="teamTradesSummary">${renderTeamTrades(selectedTeam)}</div>
+      <button class="btn" onclick="showSection('trades')" style="margin-top:8px;font-size:11px">Go to Pick Trades &#8594;</button>
+    </div>`;
+}
+
+function getRoundPicks(slot){
+  const picks=[];
+  for(let rd=1;rd<=ROUNDS;rd++){
+    const pick = rd%2===1 ? (rd-1)*TEAMS+slot : rd*TEAMS+1-slot;
+    picks.push(`#${pick}`);
+  }
+  return picks;
+}
+
+function renderKeeperList(ti){
+  const t=teams[ti];
+  if(!t.keepers.length) return "<p style='font-size:12px;color:#4b5563;font-style:italic'>No keepers added yet.</p>";
+  return t.keepers.map((k,i)=>{
+    const cost=keeperCostRd(k.rdDrafted);
+    const eligible = cost!==null && k.timesKept<3;
+    const costLabel = cost ? RD_LABELS[cost-1]+" round" : "INELIGIBLE";
+    const valueTag = eligible && t.slot
+      ? `<span style="font-size:10px;color:#6b7280">Pick #${pickNum(t.slot,cost)}</span>` : "";
+    return `<div class="keeper-row">
+      <span class="pos-badge ${k.pos}">${k.pos}</span>
+      <span class="kname">${k.name}</span>
+      <span class="kdetail">${k.nflTeam} · Drafted Rd ${k.rdDrafted} · Kept ${k.timesKept}x</span>
+      <span class="krd" style="${eligible?"color:#fbbf24":"color:#fca5a5"}">${costLabel}</span>
+      ${valueTag}
+      <button class="btn btn-red" style="padding:3px 8px;font-size:11px" onclick="removeKeeper(${ti},${i})">Remove</button>
+    </div>`;
+  }).join("");
+}
+
+function pickNum(slot,rd){
+  if(!slot||!rd) return "?";
+  return rd%2===1 ? (rd-1)*TEAMS+slot : rd*TEAMS+1-slot;
+}
+
+function renderTeamTrades(ti){
+  const relevant=trades.filter(tr=>tr.fromTeam===ti||tr.toTeam===ti);
+  if(!relevant.length) return "<p style='font-size:12px;color:#4b5563;font-style:italic'>No trades recorded for this team.</p>";
+  return relevant.map(tr=>`
+    <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #1e2130">
+      <span style="color:#fca5a5">${teams[tr.fromTeam].name}</span>
+      <span style="color:#6b7280"> traded their </span>
+      <span style="color:#fbbf24">${RD_LABELS[tr.round-1]}-round pick</span>
+      <span style="color:#6b7280"> to </span>
+      <span style="color:#4ade80">${teams[tr.toTeam].name}</span>
+    </div>`).join("");
+}
+
+function setSlot(ti,val){
+  const newSlot=parseInt(val);
+  // Check for conflicts
+  if(newSlot>0){
+    const conflict=teams.findIndex((t,i)=>i!==ti&&t.slot===newSlot);
+    if(conflict>=0){ alert(`Slot ${newSlot} is already assigned to ${teams[conflict].name}`); return; }
+  }
+  teams[ti].slot=newSlot;
+  renderSidebar();
+  renderTeamEditor();
+}
+
+function searchPlayers(q){
+  const el=document.getElementById("searchResults");
+  if(!q||q.length<2){el.innerHTML="";return;}
+  searchResults=PLAYERS.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  if(!searchResults.length){el.innerHTML="<p style='font-size:11px;color:#4b5563;padding:6px'>No matches — type name and fill fields below to add custom player</p>";return;}
+  el.innerHTML=`<div class="search-results">${searchResults.map((p,i)=>`
+    <div class="sr-item" onclick="selectPlayerFromSearch(${i})">
+      <span class="pos-badge ${p.pos}">${p.pos}</span>
+      <span>${p.name}</span>
+      <span style="font-size:11px;color:#6b7280">${p.team}</span>
+    </div>`).join("")}</div>`;
+}
+
+function selectPlayerFromSearch(i){
+  const p=searchResults[i];
+  document.getElementById("keeperSearch").value=p.name;
+  document.getElementById("keeperPos").value=p.pos;
+  document.getElementById("keeperNfl").value=p.team;
+  document.getElementById("searchResults").innerHTML="";
+}
+
+function addKeeper(){
+  const t=teams[selectedTeam];
+  if(t.keepers.length>=2){alert("Maximum 2 keepers per team");return;}
+  const name=document.getElementById("keeperSearch").value.trim();
+  const pos=document.getElementById("keeperPos").value;
+  const nflTeam=document.getElementById("keeperNfl").value.trim()||"?";
+  const rdDrafted=parseInt(document.getElementById("keeperRd").value);
+  const timesKept=parseInt(document.getElementById("keeperTimes").value)||0;
+  if(!name){alert("Enter player name");return;}
+  const cost=keeperCostRd(rdDrafted);
+  if(cost===null){alert("Cannot keep a 1st or 2nd round pick.");return;}
+  if(timesKept>=3){alert("Player has been kept 3 times — ineligible.");return;}
+  if(rdDrafted===1||rdDrafted===2){alert("1st and 2nd round picks cannot be kept.");return;}
+  t.keepers.push({name,pos,nflTeam,rdDrafted,keeperCost:cost,timesKept,customPlayer:!PLAYERS.find(p=>p.name===name)});
+  document.getElementById("keeperSearch").value="";
+  document.getElementById("keeperNfl").value="";
+  document.getElementById("keeperTimes").value="0";
+  document.getElementById("searchResults").innerHTML="";
+  renderSidebar();
+  renderTeamEditor();
+}
+
+function removeKeeper(ti,ki){
+  teams[ti].keepers.splice(ki,1);
+  renderSidebar();
+  renderTeamEditor();
+}
+
+// ── Draft slots editor ──
+function renderSlotEditor(){
+  const used=teams.map((t,i)=>({i,slot:t.slot})).filter(x=>x.slot>0);
+  const assigned=new Set(used.map(x=>x.slot));
+  document.getElementById("slotEditor").innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:14px">
+      ${teams.map((t,i)=>`
+        <div style="background:#252836;border-radius:6px;padding:8px 10px;border:1px solid #2a2d3a">
+          <div style="font-size:12px;font-weight:600;color:#e8eaf0;margin-bottom:5px">${t.name}</div>
+          <select style="width:100%" onchange="setSlot(${i},this.value)">
+            <option value="0">No slot</option>
+            ${Array.from({length:TEAMS},(_,s)=>`<option value="${s+1}"${t.slot===s+1?" selected":""}${assigned.has(s+1)&&t.slot!==s+1?" disabled":""}>Slot ${s+1}</option>`).join("")}
+          </select>
+        </div>`).join("")}
+    </div>
+    <div style="background:#252836;border-radius:8px;padding:10px;border:1px solid #2a2d3a">
+      <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase">Snake order preview (round 1)</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${Array.from({length:TEAMS},(_,s)=>{
+          const team=teams.find(t=>t.slot===s+1);
+          return`<div style="background:${team?"#1e3a5f":"#1a1d27"};border:1px solid ${team?"#1565c0":"#2a2d3a"};border-radius:4px;padding:4px 6px;text-align:center;min-width:60px">
+            <div style="font-size:9px;color:#6b7280">Slot ${s+1}</div>
+            <div style="font-size:10px;color:${team?"#60a5fa":"#4b5563"}">${team?team.name.substring(0,10)+"...":"—"}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
+// ── Pick trades ──
+function renderTrades(){
+  document.getElementById("tradeList").innerHTML=trades.map((tr,i)=>`
+    <div class="trade-row">
+      <div>
+        <div class="pick-label">From team</div>
+        <select onchange="updateTrade(${i},'fromTeam',this.value)">
+          ${teams.map((t,ti)=>`<option value="${ti}"${tr.fromTeam===ti?" selected":""}>${t.name}</option>`).join("")}
+        </select>
+      </div>
+      <div class="arrow">gives Rd</div>
+      <div>
+        <div class="pick-label">Round</div>
+        <select onchange="updateTrade(${i},'round',this.value)">
+          ${RD_LABELS.map((l,ri)=>`<option value="${ri+1}"${tr.round===ri+1?" selected":""}>${l}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <div class="pick-label">To team</div>
+        <select onchange="updateTrade(${i},'toTeam',this.value)">
+          ${teams.map((t,ti)=>`<option value="${ti}"${tr.toTeam===ti?" selected":""}>${t.name}</option>`).join("")}
+        </select>
+      </div>
+      <button class="btn btn-red" onclick="removeTrade(${i})" style="padding:4px 8px">Remove</button>
+    </div>`).join("")||"<p style='font-size:12px;color:#4b5563;font-style:italic'>No trades recorded yet.</p>";
+}
+
+function addTrade(){
+  trades.push({fromTeam:0,round:1,toTeam:1});
+  renderTrades();
+}
+function updateTrade(i,field,val){
+  trades[i][field]=field==="round"?parseInt(val):parseInt(val);
+  renderTrades();
+  renderSidebar();
+}
+function removeTrade(i){trades.splice(i,1);renderTrades();}
+
+// ── Summary ──
+function renderSummary(){
+  const slotsSet=teams.filter(t=>t.slot>0).length;
+  const keepersSet=teams.reduce((s,t)=>s+t.keepers.length,0);
+  let html="";
+  if(slotsSet<TEAMS) html+=`<div class="alert">${TEAMS-slotsSet} team(s) have no draft slot assigned.</div>`;
+  else html+=`<div class="success">All 12 draft slots assigned.</div>`;
+  html+=`<div style="font-size:12px;color:#9ca3af;margin-bottom:12px">${keepersSet} total keepers · ${trades.length} pick trades</div>`;
+  html+=`<div class="summary-grid">${teams.map(t=>`
+    <div class="summary-card">
+      <div class="sc-name">${t.name}</div>
+      <div class="sc-slot">${t.slot?"Slot "+t.slot+" — Pick #"+t.slot+" in Rd 1":"No slot assigned"}</div>
+      <div class="sc-keepers">${t.keepers.length?t.keepers.map(k=>`${k.name} (Rd ${k.keeperCost} cost)`).join(", "):"<span class='sc-none'>No keepers</span>"}</div>
+      ${trades.filter(tr=>tr.fromTeam===teams.indexOf(t)||tr.toTeam===teams.indexOf(t)).length?
+        `<div class="sc-trades">${trades.filter(tr=>tr.fromTeam===teams.indexOf(t)).map(tr=>`Gave Rd ${tr.round} to ${teams[tr.toTeam].name}`).join(", ")}${trades.filter(tr=>tr.toTeam===teams.indexOf(t)).map(tr=>`Got Rd ${tr.round} from ${teams[tr.fromTeam].name}`).join(", ")}</div>`:""}
+    </div>`).join("")}</div>`;
+  document.getElementById("summaryContent").innerHTML=html;
+}
+
+// ── Section navigation ──
+function showSection(name){
+  activeSection=name;
+  document.querySelectorAll(".section").forEach(el=>el.classList.remove("on"));
+  document.getElementById("sec-"+name).classList.add("on");
+  if(name==="slots") renderSlotEditor();
+  if(name==="trades") renderTrades();
+  if(name==="summary") renderSummary();
+  if(name==="team") renderTeamEditor();
+}
+
+// ── Export ──
+function exportSetup(){
+  // Validate
+  const unset=teams.filter(t=>t.slot===0);
+  if(unset.length>0){
+    if(!confirm(`${unset.length} team(s) have no slot assigned. Export anyway?`)) return;
+  }
+  const setup={
+    version:"2026v1",
+    teams:teams.map(t=>({name:t.name,owner:t.owner,slot:t.slot,keepers:t.keepers})),
+    trades:trades,
+    exportedAt:new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(setup,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="league_setup.json";a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusMsg").textContent="Exported successfully!";
+  setTimeout(()=>document.getElementById("statusMsg").textContent="",3000);
+}
+
+// Init
+renderSidebar();
+renderTeamEditor();
+</script>
+</body>
+</html>
