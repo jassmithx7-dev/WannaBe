@@ -1265,7 +1265,8 @@ function renderTradePanel(){
 }
 
 function switchTab(t){
-  document.querySelectorAll(".tab").forEach((el,i)=>el.classList.toggle("on",["roster","teams","qbs","trades"][i]===t));
+  document.querySelectorAll(".tab").forEach((el,i)=>el.classList.toggle("on",["roster","teams","qbs","trades","board"][i]===t));
+  if (t === 'board') renderBoard();
   document.querySelectorAll(".tc").forEach(el=>el.classList.remove("on"));
   document.getElementById("tc-"+t).classList.add("on");
   if(t==="teams") renderAllTeams();
@@ -1273,7 +1274,81 @@ function switchTab(t){
   if(t==="trades") renderTradePanel();
 }
 
+
+function renderBoard() {
+  var el = document.getElementById('boardGrid');
+  if (!el) return;
+
+  // Build pick→entry map from pickLog
+  var pickMap = {};
+  pickLog.forEach(function(l) { pickMap[l.pick] = l; });
+
+  // Build pick→owner map (after trades)
+  // pickOwners[pick-1] = teamIdx who drafts that pick
+  var posColors = {QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'};
+
+  // Header row: round label + one col per team
+  var html = '<table class="bg-table"><thead><tr>';
+  html += '<th style="min-width:28px">Rd</th>';
+  teamNames.forEach(function(n, ti) {
+    var isMe = ti === myTeamIdx;
+    var shortName = n.replace(/^The /,'').split(' ').slice(0,2).join(' ');
+    html += '<th class="' + (isMe ? 'my-col' : '') + '">' + shortName + (isMe ? ' ⭐' : '') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  for (var rd = 1; rd <= ROUNDS; rd++) {
+    html += '<tr>';
+    html += '<td class="bg-rd">' + rd + '</td>';
+
+    // For each team, find their pick in this round
+    for (var ti = 0; ti < TEAMS; ti++) {
+      var isMe = ti === myTeamIdx;
+
+      // Find pick number for this team in this round
+      // In snake draft: even rounds reverse order
+      var slot = teamSlots[ti] || (ti + 1);
+      var pickNum = rd % 2 === 1
+        ? (rd - 1) * TEAMS + slot
+        : (rd - 1) * TEAMS + (TEAMS + 1 - slot);
+
+      // Check if this pick was traded to someone else
+      var actualOwner = pickOwners[pickNum - 1];
+      var isTraded = actualOwner !== undefined && actualOwner !== ti;
+      // Check if someone else's traded pick lands here
+      var tradedIn = actualOwner === ti && pickOwners[pickNum - 1] === ti;
+
+      var entry = pickMap[pickNum];
+      var cellClass = 'td';
+      var extraStyle = '';
+      if (isMe) extraStyle += 'outline:1px solid #1e3a1e;';
+      if (entry && entry.isKeeper) extraStyle += 'background:#1a3a2a;';
+      if (isTraded && !entry) extraStyle += 'background:#1a1a3a;opacity:0.5;';
+
+      html += '<td style="' + extraStyle + '">';
+      if (entry) {
+        var posClass = 'bg-pos-' + (entry.pos || 'WR');
+        html += '<span class="bg-pick">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
+        html += '<span class="bg-player ' + posClass + '">' + (entry.player || '').split(' ').pop() + '</span>';
+        html += '<span style="font-size:9px;color:#4b5563">' + (entry.nfl || '') + '</span>';
+      } else if (isTraded) {
+        html += '<span class="bg-pick">#' + pickNum + '</span>';
+        html += '<span style="font-size:9px;color:#4a1d96">traded away</span>';
+      } else {
+        html += '<span class="bg-pick">#' + pickNum + '</span>';
+        html += '<span class="bg-empty">—</span>';
+      }
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
 function renderAll(){
+  if (document.querySelector('.tab.on') && document.querySelector('.tab.on').textContent === 'Board') renderBoard();
   renderClock();renderBA();renderLog();renderRoster();
   const at=document.querySelector(".tc.on");
   if(at){
