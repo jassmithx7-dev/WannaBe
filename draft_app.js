@@ -1190,7 +1190,7 @@ function renderRoster(){
             <span class="pos ${p.pos}" style="font-size:9px">${p.pos}</span>
             ${p.isKeeper ? '<span style="color:#60a5fa;font-size:9px;margin:0 2px">[K]</span>' : ''}
             <span style="font-size:11px;color:#e8eaf0">${p.name}</span>
-            <span style="color:#6b7280;font-size:9px">(${p.team||'?'})</span>
+
             ${fit ? `<span class="fit-badge" style="background:${fit.bg};color:${fit.color};margin-left:2px">${fit.grade}</span>` : ''}
             <button onclick="moveToRoster(${p.id},'remove')" style="margin-left:auto;background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:9px" title="Remove">✕</button>
            </span>`
