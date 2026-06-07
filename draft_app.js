@@ -777,6 +777,33 @@ function applySetup(){
   renderTradePanel();
 }
 
+
+function setMyTeamFromKeeper(ti) {
+  myTeamIdx = ti;
+  // Also update the topbar dropdown to stay in sync
+  var sel = document.getElementById('myTeamSel');
+  if (sel) sel.value = ti;
+  // Update the button
+  var btn = document.getElementById('kpMyTeamBtn');
+  if (btn) btn.innerHTML = '<span style="color:#4ade80;font-size:11px">★ This is your team</span>';
+  setKeeperMsg('My team set to ' + (teamNames[ti]||('Team '+(ti+1))), false);
+  renderAll();
+}
+
+
+function setMyTeamFromModal() {
+  var sel = document.getElementById('sleeperMyTeamSel');
+  if (!sel) return;
+  var ti = parseInt(sel.value);
+  if (ti < 0) return;
+  myTeamIdx = ti;
+  // Also update topbar dropdown to stay in sync
+  var topSel = document.getElementById('myTeamSel');
+  if (topSel) topSel.value = ti;
+  renderAll();
+  console.log('[MyTeam] Set to', teamNames[ti], '(index', ti, ')');
+}
+
 function setMyTeam(){
   myTeamIdx=parseInt(document.getElementById("myTeamSel").value);
   renderAll();
@@ -2197,6 +2224,19 @@ function openSleeperModal() {
   var di = document.getElementById('sleeperDraftInput');
   if (li) li.value = localStorage.getItem('ff26_leagueId') || '';
   if (di) di.value = localStorage.getItem('ff26_draftId') || '';
+
+  // Populate "My team" selector in modal
+  var myTeamInModal = document.getElementById('sleeperMyTeamSel');
+  if (myTeamInModal) {
+    myTeamInModal.innerHTML = '<option value="-1">— Which team is yours? —</option>';
+    teamNames.forEach(function(n, i) {
+      var o = document.createElement('option');
+      o.value = i; o.text = n;
+      if (i === myTeamIdx) o.selected = true;
+      myTeamInModal.appendChild(o);
+    });
+  }
+
   // Populate team owner dropdown
   var sel = document.getElementById('kpTeamOwner');
   if (sel) {
@@ -2215,10 +2255,7 @@ function applyManualKeepers() {
   var ownerTi = parseInt(document.getElementById('kpTeamOwner').value);
   if (ownerTi < 0) { setKeeperMsg('Select a team first', true); return; }
 
-  // Read myTeamIdx from "My team" topbar dropdown (NOT kpTeamOwner)
-  var myTeamSel = document.getElementById('myTeamSel');
-  var currentMyTeam = myTeamSel ? parseInt(myTeamSel.value) : -1;
-  if (currentMyTeam >= 0) myTeamIdx = currentMyTeam;
+  // myTeamIdx is set by the topbar "My team" dropdown - do not override it here
 
   // Only process CHECKED checkboxes with a filled round number
   var keepersToApply = [];
@@ -2302,6 +2339,15 @@ async function loadTeamRosterForKeepers() {
   var listEl = document.getElementById('keeperRosterList');
   listEl.innerHTML = '<div style="color:#9ca3af;font-size:11px;padding:8px">Loading roster from Sleeper...</div>';
   populateTradeDropdowns();
+
+  // Show "Set as my team" button
+  var myTeamBtnArea = document.getElementById('kpMyTeamBtn');
+  if (myTeamBtnArea) {
+    var isMine = ownerTi === myTeamIdx;
+    myTeamBtnArea.innerHTML = isMine
+      ? '<span style="color:#4ade80;font-size:11px">★ This is your team</span>'
+      : '<button onclick="setMyTeamFromKeeper(' + ownerTi + ')" style="background:#166534;border:none;color:#4ade80;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer">★ Set as my team</button>';
+  }
 
   try {
     var BASE = 'https://api.sleeper.app/v1';
