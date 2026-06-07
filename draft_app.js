@@ -27,10 +27,16 @@ function renderBoard() {
   trades.forEach(function(t) {
     var origPick = getPickNum(t.fromTeam, t.round);
     tradedPicks[origPick] = { from: t.fromTeam, to: t.toTeam };
-    console.log('[Board] Trade: team'+t.fromTeam+'→team'+t.toTeam+' rd'+t.round+' pick#'+origPick);
+    console.log('[Board] Trade: team'+t.fromTeam+'('+teamNames[t.fromTeam]+')→team'+t.toTeam+'('+teamNames[t.toTeam]+') rd'+t.round+' pick#'+origPick);
   });
-  console.log('[Board] teamSlots:', JSON.stringify(teamSlots));
-  console.log('[Board] trades count:', trades.length, 'tradedPicks keys:', Object.keys(tradedPicks).join(','));
+  console.log('[Board] teamSlots:', JSON.stringify(teamSlots), 'slotsAssigned:', teamSlots.some(function(s){return s>0;}));
+  console.log('[Board] trades.length='+trades.length+' tradedPicks keys='+Object.keys(tradedPicks).join(','));
+  // Log what each team shows as "traded" 
+  for(var dbgRd=1;dbgRd<=3;dbgRd++){for(var dbgTi=0;dbgTi<TEAMS;dbgTi++){
+    var dbgPick=getPickNum(dbgTi,dbgRd);
+    var dbgTrade=tradedPicks[dbgPick];
+    if(dbgTrade) console.log('[Board] TRADED: rd'+dbgRd+' ti'+dbgTi+'('+teamNames[dbgTi]+') pick#'+dbgPick+' from='+dbgTrade.from+' fromMatch='+(dbgTrade.from===dbgTi));
+  }}
 
   var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
 
@@ -53,7 +59,7 @@ function renderBoard() {
       var isMe = ti === myTeamIdx;
       var origPick = getPickNum(ti, rd);
       var tradeInfo = tradedPicks[origPick];
-      if (rd <= 2 && ti === 0) console.log('[Board] rd'+rd+' ti'+ti+' origPick='+origPick+' tradeInfo='+JSON.stringify(tradeInfo));
+
 
       // Look up actual pick from teamPickMap (most reliable source)
       var entry = (teamPickMap[ti] && teamPickMap[ti][rd]) ? teamPickMap[ti][rd] : null;
