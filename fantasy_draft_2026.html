@@ -207,6 +207,8 @@ html,body{overflow:hidden;height:100vh}
     <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #374151;background:#252836;color:#9ca3af;cursor:pointer">AI Chat</button>
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #166534;background:#14532d;color:#4ade80;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #854d0e;background:#2d2008;color:#fbbf24;cursor:pointer">🎯 Mock Draft</button>
+    <button onclick="openBoardModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1565c0;background:#1e3a5f;color:#60a5fa;cursor:pointer">📋 Board</button>
+    <button onclick="openTradesModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #4a1d96;background:#2e1065;color:#c084fc;cursor:pointer">🔄 Trades</button>
   </div>
   <label>My team:</label>
   <select id="myTeamSel" onchange="setMyTeam()"><option value="-1">— Select —</option></select>
@@ -302,8 +304,7 @@ html,body{overflow:hidden;height:100vh}
       <div class="tab on" onclick="switchRoster()">My roster</div>
       <div class="tab" onclick="switchTeams()">All teams</div>
       <div class="tab" onclick="switchQBs()">QB tracker</div>
-      <div class="tab" onclick="switchTrades()">Trades</div>
-      <div class="tab" onclick="switchTab('board')" style="color:#fbbf24">Board</div>
+
     </div>
     <div class="tc on" id="tc-roster">
       <div class="stats" id="statsBar"></div>
@@ -312,8 +313,8 @@ html,body{overflow:hidden;height:100vh}
     </div>
     <div class="tc" id="tc-teams"><div class="at-list" id="atList"></div></div>
     <div class="tc" id="tc-qbs"><div class="qb-panel" id="qbPanel"></div></div>
-    <div class="tc" id="tc-trades"><div style="overflow-y:auto;flex:1;padding:10px" id="tradePanel"></div></div>
-    <div class="tc" id="tc-board" style="padding:6px"><div style="font-size:11px;color:#6b7280;margin-bottom:8px">Draft board opens in full view</div><button onclick="openBoardModal()" style="width:100%;padding:10px;background:#1e3a5f;border:1px solid #1565c0;color:#60a5fa;border-radius:6px;font-size:12px;cursor:pointer">📋 Open Full Draft Board</button></div>
+
+
   </div>
 
   <!-- AI ADVISOR -->
@@ -490,6 +491,18 @@ html,body{overflow:hidden;height:100vh}
   </div>
 </div>
 
+
+
+<!-- Trades Modal -->
+<div id="tradesModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;align-items:center;justify-content:center">
+  <div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;width:460px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #2a2d3a;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700;color:#c084fc">🔄 Pick Trades</span>
+      <button onclick="document.getElementById('tradesModal').style.display='none'" style="background:transparent;border:none;color:#6b7280;font-size:20px;cursor:pointer">&times;</button>
+    </div>
+    <div style="overflow-y:auto;padding:16px" id="tradePanel"></div>
+  </div>
+</div>
 
 <!-- Draft Board Modal -->
 <div id="boardModal" style="display:none;position:fixed;inset:0;background:#0f1117;z-index:300;flex-direction:column">
