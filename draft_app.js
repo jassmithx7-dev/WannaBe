@@ -2215,11 +2215,10 @@ function applyManualKeepers() {
   var ownerTi = parseInt(document.getElementById('kpTeamOwner').value);
   if (ownerTi < 0) { setKeeperMsg('Select a team first', true); return; }
 
-  // Sync myTeamIdx from dropdown if needed
-  if (myTeamIdx < 0) {
-    var sel = document.getElementById('myTeamSel');
-    if (sel && parseInt(sel.value) >= 0) myTeamIdx = parseInt(sel.value);
-  }
+  // Read myTeamIdx from "My team" topbar dropdown (NOT kpTeamOwner)
+  var myTeamSel = document.getElementById('myTeamSel');
+  var currentMyTeam = myTeamSel ? parseInt(myTeamSel.value) : -1;
+  if (currentMyTeam >= 0) myTeamIdx = currentMyTeam;
 
   // Only process CHECKED checkboxes with a filled round number
   var keepersToApply = [];
