@@ -328,6 +328,10 @@ html,body{overflow:hidden;height:100vh}
 </div>
 
 <script>
+window.onerror = function(msg, src, line, col, err) {
+  console.error('[Global Error]', msg, 'at line', line);
+};
+
 // ── Supabase Auth ──
 const SUPA_URL = 'https://cbjzvazwkkpjwobiqxsf.supabase.co';
 const SUPA_KEY = 'sb_publishable_Wy-lbd-fC5ujiMI0m6SGpw_oEXnpTaj';
@@ -357,7 +361,14 @@ function showAuthSuccess(msg) {
 }
 
 async function signIn() {
-  if (!supa && !initSupabase()) { showAuthError('Auth service not loaded yet — wait a moment and try again'); return; }
+  showAuthError('');
+  if (!supa) { 
+    if (!initSupabase()) { 
+      showAuthError('Connecting to auth service... please try again in a moment'); 
+      setTimeout(function(){ if(!supa) initSupabase(); }, 2000);
+      return; 
+    } 
+  }
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
   if (!email || !password) { showAuthError('Enter email and password'); return; }
@@ -1886,6 +1897,7 @@ function switchTrades() { switchTab('trades'); }
 
 
 (function init(){
+  try {
   const sel=document.getElementById("myTeamSel");
   // Populate with generic team names until Sleeper is connected
   sel.innerHTML='<option value="-1">— Select your team —</option>';
@@ -1901,6 +1913,12 @@ function switchTrades() { switchTab('trades'); }
   renderAll();
   // Check Supabase session — shows auth modal or loads saved settings
   checkSession();
+  } catch(e) {
+    console.error('[Init error]', e);
+    // Show auth modal even if init fails
+    var am = document.getElementById('authModal');
+    if (am) am.style.display = 'flex';
+  }
 })();
 
 
