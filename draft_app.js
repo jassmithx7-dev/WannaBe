@@ -81,7 +81,8 @@ function renderBoard() {
         html += '<div style="font-size:8px;color:#4b5563">#' + displayPick + (entry.isKeeper ? ' 🔒' : '') + (receivedPick && !pickMap[origPick] ? ' 🔄' : '') + '</div>';
         html += '<div style="font-size:10px;font-weight:600;color:' + c + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (entry.player||'').split(' ').pop() + '</div>';
         html += '<div style="font-size:8px;color:#4b5563">' + (entry.nfl||'') + '</div>';
-      } else if (tradeInfo) {
+      } else if (tradeInfo && tradeInfo.from === ti) {
+        // Only show "traded" if THIS team traded away this pick
         var toName = (teamNames[tradeInfo.to]||'').replace(/^The /,'').split(' ')[0];
         html += '<div style="font-size:8px;color:#4b5563">#' + origPick + '</div>';
         html += '<div style="font-size:9px;color:#7c3aed">→ ' + toName + '</div>';
@@ -2925,7 +2926,11 @@ function closeMockModal() {
   if(mockState&&mockState.savedPickLog!==undefined){
     pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;
     currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;
-    if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;
+    if(mockState.savedMyTeamIdx!==undefined){
+      myTeamIdx=mockState.savedMyTeamIdx;
+      var topSel=document.getElementById('myTeamSel');
+      if(topSel)topSel.value=myTeamIdx; // sync dropdown
+    }
   }
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   mockState=null;calcVORP();renderAll();
@@ -2950,7 +2955,8 @@ function startMockDraft() {
   pickLog=[];teamRosters=Array.from({length:TEAMS},function(){return [];});currentPick=1;
   myRosterSlots=Array(ROUNDS+8).fill(null);
   mockState.savedMyRosterSlots.forEach(function(s){if(s&&s.isKeeper)smartAssign(s);});
-  myTeamIdx=myTi;
+  mockState.savedMyTeamIdx = myTeamIdx; // ensure we save the real one
+  myTeamIdx=myTi; // temporarily set for mock roster tracking
   document.getElementById('mockModal').style.display='none';
   var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
   document.body.setAttribute('data-mock','1');
