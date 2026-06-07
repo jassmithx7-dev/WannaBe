@@ -25,10 +25,12 @@ function renderBoard() {
   // tradedPicks[pickNum] = toTeamIdx (if this pick was traded away by its original owner)
   var tradedPicks = {};
   trades.forEach(function(t) {
-    // Find original pick for fromTeam in t.round
     var origPick = getPickNum(t.fromTeam, t.round);
     tradedPicks[origPick] = { from: t.fromTeam, to: t.toTeam };
+    console.log('[Board] Trade: team'+t.fromTeam+'→team'+t.toTeam+' rd'+t.round+' pick#'+origPick);
   });
+  console.log('[Board] teamSlots:', JSON.stringify(teamSlots));
+  console.log('[Board] trades count:', trades.length, 'tradedPicks keys:', Object.keys(tradedPicks).join(','));
 
   var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
 
@@ -51,6 +53,7 @@ function renderBoard() {
       var isMe = ti === myTeamIdx;
       var origPick = getPickNum(ti, rd);
       var tradeInfo = tradedPicks[origPick];
+      if (rd <= 2 && ti === 0) console.log('[Board] rd'+rd+' ti'+ti+' origPick='+origPick+' tradeInfo='+JSON.stringify(tradeInfo));
 
       // Look up actual pick from teamPickMap (most reliable source)
       var entry = (teamPickMap[ti] && teamPickMap[ti][rd]) ? teamPickMap[ti][rd] : null;
@@ -905,9 +908,10 @@ function setMyTeamFromModal() {
 }
 
 function setMyTeam(){
-  myTeamIdx=parseInt(document.getElementById("myTeamSel").value);
-  if(myTeamIdx>=0) localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
-  renderAll();
+  // Topbar dropdown is display-only — team is set via Sleeper modal
+  // Revert selection back to actual myTeamIdx
+  var sel = document.getElementById("myTeamSel");
+  if (sel) sel.value = myTeamIdx >= 0 ? myTeamIdx : -1;
 }
 
 function clockTeamIdx(){
