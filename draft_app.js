@@ -2,12 +2,20 @@ function renderBoard() {
   var el = document.getElementById('boardGrid');
   if (!el) return;
 
+  // Map pick# -> log entry
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
+  // Map teamIdx -> picks they made (from pickLog directly)
+  var teamPickMap = {}; // teamIdx -> {rd -> logEntry}
+  pickLog.forEach(function(l) {
+    if (!teamPickMap[l.teamIdx]) teamPickMap[l.teamIdx] = {};
+    var rd = l.rd || Math.ceil(l.pick/TEAMS);
+    teamPickMap[l.teamIdx][rd] = l;
+  });
+
   var slotsAssigned = teamSlots.some(function(s){ return s > 0; });
 
-  // Get the pick number for a team in a given round (before trades)
   function getPickNum(ti, rd) {
     var slot = (slotsAssigned && teamSlots[ti] > 0) ? teamSlots[ti] : ti + 1;
     return rd % 2 === 1 ? (rd-1)*TEAMS + slot : (rd-1)*TEAMS + (TEAMS+1-slot);
@@ -42,17 +50,26 @@ function renderBoard() {
     for (var ti = 0; ti < TEAMS; ti++) {
       var isMe = ti === myTeamIdx;
       var origPick = getPickNum(ti, rd);
-      var tradeInfo = tradedPicks[origPick]; // did they trade this pick away?
+      var tradeInfo = tradedPicks[origPick];
 
-      // Did they receive a traded pick this round?
+      // Look up actual pick from teamPickMap (most reliable source)
+      var entry = (teamPickMap[ti] && teamPickMap[ti][rd]) ? teamPickMap[ti][rd] : null;
+      // Fall back to origPick in pickMap
+      if (!entry) entry = pickMap[origPick];
+      var displayPick = entry ? entry.pick : origPick;
+
+      // Check if they received a traded pick this round
       var receivedPick = null;
-      Object.keys(tradedPicks).forEach(function(p) {
-        var t = tradedPicks[p];
-        if (t.to === ti && Math.ceil(parseInt(p)/TEAMS) === rd) receivedPick = parseInt(p);
-      });
-
-      var entry = pickMap[origPick] || (receivedPick ? pickMap[receivedPick] : null);
-      var displayPick = pickMap[origPick] ? origPick : receivedPick;
+      if (!entry) {
+        Object.keys(tradedPicks).forEach(function(p) {
+          var t = tradedPicks[parseInt(p)];
+          if (t && t.to === ti && Math.ceil(parseInt(p)/TEAMS) === rd) {
+            receivedPick = parseInt(p);
+            entry = pickMap[receivedPick];
+            displayPick = receivedPick;
+          }
+        });
+      }
 
       var bg = isMe ? '#0d1f0d' : (rd%2===0 ? '#0f1117' : '#12141e');
       if (entry && entry.isKeeper) bg = '#1a3a2a';
@@ -258,16 +275,8 @@ async function loadUserSettings() {
     localStorage.setItem('ff26_apiKey', apiKey);
     showKeyActive();
   }
-  if (data.my_team_idx !== null && data.my_team_idx !== undefined) {
-    var savedTi = parseInt(data.my_team_idx);
-    // Only restore if user hasn't manually selected a team this session
-    var manualSel = localStorage.getItem('ff26_myTeamIdx_manual');
-    if (!manualSel) {
-      myTeamIdx = savedTi;
-      const sel = document.getElementById('myTeamSel');
-      if (sel) sel.value = myTeamIdx;
-    }
-  }
+  // myTeamIdx is stored in localStorage only - not restored from Supabase
+  // to prevent async overwrite of user's manual selection
   if (data.team_names) {
     try {
       const names = JSON.parse(data.team_names);
@@ -737,7 +746,7 @@ let teamSlots=[]; // slot per team index (1-based, 0=unset)
 let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick
 let keeperPicks=[]; // {pick,teamIdx,player} — pre-placed keepers
 let trades=[];
-let myTeamIdx=-1;
+let myTeamIdx=(function(){var v=localStorage.getItem('ff26_myTeamIdx');return v!==null?parseInt(v):-1;})();
 let sleeperLeagueId=localStorage.getItem('ff26_leagueId')||'';
 let sleeperDraftId=localStorage.getItem('ff26_draftId')||'';
 let sleeperSyncing=false;
@@ -869,7 +878,7 @@ function applySetup(){
 
 function setMyTeamFromKeeper(ti) {
   myTeamIdx = ti;
-  localStorage.setItem('ff26_myTeamIdx_manual', ti); // prevent Supabase from overriding
+  localStorage.setItem('ff26_myTeamIdx', String(ti));
   // Also update the topbar dropdown to stay in sync
   var sel = document.getElementById('myTeamSel');
   if (sel) sel.value = ti;
@@ -887,8 +896,7 @@ function setMyTeamFromModal() {
   var ti = parseInt(sel.value);
   if (ti < 0) return;
   myTeamIdx = ti;
-  localStorage.setItem('ff26_myTeamIdx_manual', ti); // marks manual selection, prevents Supabase override
-  localStorage.setItem('ff26_myTeamIdx', ti); // persist across reloads
+  localStorage.setItem('ff26_myTeamIdx', String(ti)); reloads
   var topSel = document.getElementById('myTeamSel');
   if (topSel) topSel.value = ti;
   renderAll();
@@ -897,7 +905,7 @@ function setMyTeamFromModal() {
 
 function setMyTeam(){
   myTeamIdx=parseInt(document.getElementById("myTeamSel").value);
-  if(myTeamIdx>=0) localStorage.setItem('ff26_myTeamIdx_manual', myTeamIdx);
+  if(myTeamIdx>=0) localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
   renderAll();
 }
 
