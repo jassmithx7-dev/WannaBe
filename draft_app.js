@@ -897,7 +897,7 @@ function setMyTeamFromModal() {
   var ti = parseInt(sel.value);
   if (ti < 0) return;
   myTeamIdx = ti;
-  localStorage.setItem('ff26_myTeamIdx', String(ti)); reloads
+  localStorage.setItem('ff26_myTeamIdx', String(ti));
   var topSel = document.getElementById('myTeamSel');
   if (topSel) topSel.value = ti;
   renderAll();
