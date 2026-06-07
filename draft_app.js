@@ -2215,6 +2215,12 @@ function applyManualKeepers() {
   var ownerTi = parseInt(document.getElementById('kpTeamOwner').value);
   if (ownerTi < 0) { setKeeperMsg('Select a team first', true); return; }
 
+  // Sync myTeamIdx from dropdown if needed
+  if (myTeamIdx < 0) {
+    var sel = document.getElementById('myTeamSel');
+    if (sel && parseInt(sel.value) >= 0) myTeamIdx = parseInt(sel.value);
+  }
+
   // Only process CHECKED checkboxes with a filled round number
   var keepersToApply = [];
   var allChecks = document.querySelectorAll('#keeperRosterList input[type=checkbox]');
@@ -2284,6 +2290,7 @@ function applyManualKeepers() {
 
   calcVORP();
   renderAll();
+  if (ownerTi === myTeamIdx) renderRoster();
   setKeeperMsg('Applied ' + applied + ' keeper(s) for ' + (teamNames[ownerTi]||('Team '+(ownerTi+1))), false);
   clearKeeperChecks();
 }
@@ -2414,9 +2421,13 @@ function removePickTrade(i) { pendingPickTrades.splice(i,1); renderPickTradesLis
 
 function applyPickTrades() {
   if (!pendingPickTrades.length) { setKeeperMsg('No trades to apply', true); return; }
-  pendingPickTrades.forEach(function(t) { trades.push({ fromTeam: t.fromTi, toTeam: t.toTi, round: t.round }); });
-  buildPickOwners(); renderAll();
-  setKeeperMsg('Applied ' + pendingPickTrades.length + ' pick trade(s)', false);
+  pendingPickTrades.forEach(function(t) {
+    trades.push({ fromTeam: t.fromTi, toTeam: t.toTi, round: t.round });
+    console.log('[Trade] Rd ' + t.round + ': ' + (teamNames[t.fromTi]||'T'+(t.fromTi+1)) + ' -> ' + (teamNames[t.toTi]||'T'+(t.toTi+1)));
+  });
+  buildPickOwners(); // rebuilds all 216 pick owners with traded picks applied
+  renderAll();
+  setKeeperMsg('Applied ' + pendingPickTrades.length + ' pick trade(s) to board', false);
   pendingPickTrades = []; renderPickTradesList();
 }
 
