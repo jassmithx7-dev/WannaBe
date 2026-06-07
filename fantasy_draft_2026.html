@@ -141,7 +141,6 @@ html,body{overflow:hidden;height:100vh}
 
 .kp-dd-item:hover{background:#252836}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body style="overflow:hidden;height:100vh">
 
@@ -340,11 +339,30 @@ let currentUser = null;
 
 function initSupabase() {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
-    supa = supabase.createClient(SUPA_URL, SUPA_KEY);
-    console.log('[Supabase] Client initialized');
-    return true;
+    try {
+      supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+      console.log('[Supabase] Client initialized');
+      return true;
+    } catch(e) {
+      console.error('[Supabase] createClient failed:', e);
+      return false;
+    }
   }
+  // Load SDK lazily if not yet loaded
   return false;
+}
+
+function loadSupabaseSDK(callback) {
+  if (typeof supabase !== 'undefined') { callback(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  s.onload = function() { 
+    console.log('[Supabase] SDK loaded');
+    if(initSupabase()) callback();
+    else console.error('[Supabase] Failed to init after load');
+  };
+  s.onerror = function() { console.error('[Supabase] SDK failed to load'); };
+  document.head.appendChild(s);
 }
 
 function showAuthError(msg) {
@@ -362,12 +380,10 @@ function showAuthSuccess(msg) {
 
 async function signIn() {
   showAuthError('');
-  if (!supa) { 
-    if (!initSupabase()) { 
-      showAuthError('Connecting to auth service... please try again in a moment'); 
-      setTimeout(function(){ if(!supa) initSupabase(); }, 2000);
-      return; 
-    } 
+  if (!supa) {
+    loadSupabaseSDK(async function() { await signIn(); });
+    showAuthError('Loading auth service...');
+    return;
   }
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
@@ -516,8 +532,8 @@ async function loadUserSettings() {
 
 // Check if already signed in on page load
 async function checkSession() {
-  if (!supa && !initSupabase()) {
-    // SDK not loaded yet — show auth modal anyway
+  if (!supa) {
+    loadSupabaseSDK(async function() { await checkSession(); });
     document.getElementById('authModal').style.display = 'flex';
     return;
   }
