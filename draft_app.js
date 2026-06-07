@@ -6,55 +6,71 @@ function renderBoard() {
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
   var slotsAssigned = teamSlots.some(function(s){ return s > 0; });
-  function getSlot(ti) { return (slotsAssigned && teamSlots[ti] > 0) ? teamSlots[ti] : ti + 1; }
+
+  // Get the pick number for a team in a given round (before trades)
   function getPickNum(ti, rd) {
-    var slot = getSlot(ti);
+    var slot = (slotsAssigned && teamSlots[ti] > 0) ? teamSlots[ti] : ti + 1;
     return rd % 2 === 1 ? (rd-1)*TEAMS + slot : (rd-1)*TEAMS + (TEAMS+1-slot);
   }
 
-  // Build traded-away set: pickNum -> toTeamIdx
-  var tradedAwayMap = {};
+  // Build traded-away map using original pick ownership (not post-trade pickOwners)
+  // tradedPicks[pickNum] = toTeamIdx (if this pick was traded away by its original owner)
+  var tradedPicks = {};
   trades.forEach(function(t) {
-    for (var pick = 1; pick <= TOTAL; pick++) {
-      var rd = Math.ceil(pick/TEAMS);
-      if (rd !== t.round) continue;
-      if (pickOwners[pick-1] !== t.fromTeam) continue;
-      tradedAwayMap[pick] = { from: t.fromTeam, to: t.toTeam };
-      break;
-    }
+    // Find original pick for fromTeam in t.round
+    var origPick = getPickNum(t.fromTeam, t.round);
+    tradedPicks[origPick] = { from: t.fromTeam, to: t.toTeam };
   });
 
   var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
 
-  var html = '<table class="bg-table"><thead><tr><th>Rd</th>';
+  var html = '<table class="bg-table"><thead><tr>';
+  html += '<th style="width:28px;background:#1a1d27;position:sticky;left:0;z-index:3">Rd</th>';
   teamNames.forEach(function(n, ti) {
     var isMe = ti === myTeamIdx;
-    var short = n.replace(/^The /,'').split(' ').slice(0,2).join(' ');
-    html += '<th' + (isMe ? ' class="my-col"' : '') + '>' + short + (isMe ? ' ⭐' : '') + '</th>';
+    var short = n.replace(/^(The |Team )/,'').split(' ')[0];
+    html += '<th style="min-width:70px' + (isMe ? ';color:#4ade80;background:#0d1f0d' : '') + '">' +
+      short + (isMe ? ' ⭐' : '') + '</th>';
   });
   html += '</tr></thead><tbody>';
 
   for (var rd = 1; rd <= ROUNDS; rd++) {
+    var isOdd = rd % 2 === 1;
     html += '<tr>';
-    html += '<td class="bg-rd">' + rd + '</td>';
+    html += '<td class="bg-rd" style="position:sticky;left:0;background:#1a1d27;z-index:1">Rd ' + rd + '</td>';
+
     for (var ti = 0; ti < TEAMS; ti++) {
       var isMe = ti === myTeamIdx;
-      var pickNum = getPickNum(ti, rd);
-      var entry = pickMap[pickNum];
-      var tradeInfo = tradedAwayMap[pickNum];
-      var bg = isMe ? 'background:#0d1f0d;' : '';
-      if (entry && entry.isKeeper) bg = 'background:#1a3a2a;';
-      html += '<td style="' + bg + '">';
+      var origPick = getPickNum(ti, rd);
+      var tradeInfo = tradedPicks[origPick]; // did they trade this pick away?
+
+      // Did they receive a traded pick this round?
+      var receivedPick = null;
+      Object.keys(tradedPicks).forEach(function(p) {
+        var t = tradedPicks[p];
+        if (t.to === ti && Math.ceil(parseInt(p)/TEAMS) === rd) receivedPick = parseInt(p);
+      });
+
+      var entry = pickMap[origPick] || (receivedPick ? pickMap[receivedPick] : null);
+      var displayPick = pickMap[origPick] ? origPick : receivedPick;
+
+      var bg = isMe ? '#0d1f0d' : (rd%2===0 ? '#0f1117' : '#12141e');
+      if (entry && entry.isKeeper) bg = '#1a3a2a';
+
+      html += '<td style="background:' + bg + ';padding:3px 4px;border:1px solid #1a1d27;vertical-align:top;min-width:68px">';
+
       if (entry) {
         var c = posColors[entry.pos] || '#9ca3af';
-        html += '<span class="bg-pick">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
-        html += '<span class="bg-player" style="color:' + c + ';display:block">' + (entry.player||'').split(' ').pop() + '</span>';
-      } else if (tradeInfo && tradeInfo.from === ti) {
-        html += '<span class="bg-pick">#' + pickNum + '</span>';
-        html += '<span style="font-size:9px;color:#7c3aed">→ ' + (teamNames[tradeInfo.to]||'').split(' ')[0] + '</span>';
+        html += '<div style="font-size:8px;color:#4b5563">#' + displayPick + (entry.isKeeper ? ' 🔒' : '') + (receivedPick && !pickMap[origPick] ? ' 🔄' : '') + '</div>';
+        html += '<div style="font-size:10px;font-weight:600;color:' + c + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (entry.player||'').split(' ').pop() + '</div>';
+        html += '<div style="font-size:8px;color:#4b5563">' + (entry.nfl||'') + '</div>';
+      } else if (tradeInfo) {
+        var toName = (teamNames[tradeInfo.to]||'').replace(/^The /,'').split(' ')[0];
+        html += '<div style="font-size:8px;color:#4b5563">#' + origPick + '</div>';
+        html += '<div style="font-size:9px;color:#7c3aed">→ ' + toName + '</div>';
       } else {
-        html += '<span class="bg-pick">#' + pickNum + '</span>';
-        html += '<span style="color:#2a2d3a">—</span>';
+        html += '<div style="font-size:8px;color:#2a2d3a">#' + origPick + '</div>';
+        html += '<div style="font-size:9px;color:#2a2d3a">—</div>';
       }
       html += '</td>';
     }
@@ -62,8 +78,9 @@ function renderBoard() {
   }
   html += '</tbody></table>';
   el.innerHTML = html;
+
   var status = document.getElementById('boardModalStatus');
-  if (status) status.textContent = pickLog.length + ' / ' + TOTAL + ' picks made';
+  if (status) status.textContent = pickLog.length + ' of ' + TOTAL + ' picks made · ' + trades.length + ' pick trades';
 }
 
 window.onerror = function(msg, src, line, col, err) {
