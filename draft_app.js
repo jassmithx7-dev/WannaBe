@@ -1973,8 +1973,15 @@ async function fetchSleeperLeague() {
       currentTrades.forEach(tp => {
         // tp.roster_id = who NOW owns it, tp.previous_owner_id = who traded it away
         // tp.owner_id = current owner, tp.round = round number
-        const fromTi = rosterMap[tp.previous_owner_id];
-        const toTi = rosterMap[tp.owner_id || tp.roster_id];
+        // Use roster_id directly - previous_owner_id is a user_id, need roster lookup
+        // Build owner_id->roster_id map
+        const ownerToRoster = {};
+        rosters.forEach(r => { if(r.owner_id) ownerToRoster[r.owner_id] = r.roster_id; });
+        const fromRosterId = ownerToRoster[tp.previous_owner_id];
+        const toRosterId = tp.roster_id;
+        const fromTi = fromRosterId !== undefined ? rosterMap[fromRosterId] : undefined;
+        const toTi = rosterMap[toRosterId];
+        console.log('[Trade] raw: prev_owner='+tp.previous_owner_id+' fromRoster='+fromRosterId+' toRoster='+toRosterId+' fromTi='+fromTi+' toTi='+toTi+' rd='+tp.round+' season='+tp.season);
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
           trades.push({
             fromTeam: fromTi,
@@ -2101,10 +2108,15 @@ async function syncSleeperDraft() {
       const rosters = await sleeperFetch(`${BASE}/league/${sleeperLeagueId}/rosters`);
       const rosterMap = {};
       rosters.forEach((r,i) => { rosterMap[r.roster_id] = i; });
-      const season = league.season || '2026';
-      tradedPicks.filter(tp => tp.season === season).forEach(tp => {
-        const fromTi = rosterMap[tp.previous_owner_id];
-        const toTi = rosterMap[tp.owner_id || tp.roster_id];
+      const ownerToRoster2 = {};
+      rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
+      const allSeasons = tradedPicks.map(tp=>tp.season).filter(Boolean);
+      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b)=>a>b?a:b) : '2026';
+      console.log('[Sleeper] Trade seasons in data:', [...new Set(allSeasons)].join(','), '→ using', maxSeason);
+      tradedPicks.filter(tp => tp.season === maxSeason).forEach(tp => {
+        const fromRoster = ownerToRoster2[tp.previous_owner_id];
+        const fromTi = fromRoster !== undefined ? rosterMap[fromRoster] : undefined;
+        const toTi = rosterMap[tp.roster_id];
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
           trades.push({ fromTeam: fromTi, toTeam: toTi, round: tp.round });
         }
