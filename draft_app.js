@@ -2561,3 +2561,242 @@ function showAIChatTab() { showMainTab('aiChat'); }
   }
 })();
 
+
+// ── Load All Players from Sleeper ──
+async function loadAllPlayersFromSleeper() {
+  const btn = document.getElementById('loadAllPlayersBtn');
+  const status = document.getElementById('playerLoadStatus');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading...'; }
+  if (status) { status.style.display = 'inline'; status.textContent = 'Fetching from Sleeper...'; }
+  try {
+    const playerMap = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
+    const VALID_POS = ['QB','RB','WR','TE','K','DEF'];
+    const normalize = n => n.toLowerCase().replace(/[''`']/g,"'").replace(/\s+/g,' ').trim();
+    const existing = new Set(players.map(p => normalize(p.name)));
+    let added = 0;
+    let maxId = Math.max(...players.map(p => p.id||0), 200);
+    const playerList = Object.values(playerMap)
+      .filter(p => {
+        if (!p.active) return false;
+        if (!p.team || p.team === 'FA') return false;
+        const pos = p.fantasy_positions && p.fantasy_positions[0];
+        if (!VALID_POS.includes(pos)) return false;
+        if (!p.last_name) return false;
+        if (p.search_rank && p.search_rank > 500) return false;
+        return true;
+      })
+      .sort((a,b) => (a.search_rank||999) - (b.search_rank||999));
+    playerList.forEach(p => {
+      const fullName = ((p.first_name||'') + ' ' + (p.last_name||'')).trim();
+      if (!fullName || existing.has(normalize(fullName))) return;
+      const pos = (p.fantasy_positions && p.fantasy_positions[0]) || 'WR';
+      maxId++;
+      players.push({
+        rank: maxId, name: fullName, pos, team: p.team, bye: 'TBD',
+        adp: p.search_rank||999, sf: p.search_rank||999,
+        note: p.college||'Sleeper import', fit: '?',
+        drafted: false, isKeeper: false, customScore: 0,
+        customRank: 9999, vorp: null, vorpRank: 9999,
+        sleeperPlayerId: p.player_id,
+      });
+      existing.add(normalize(fullName));
+      added++;
+    });
+    calcVORP(); renderBA();
+    const total = players.length;
+    if (status) status.textContent = `✅ ${added} players added — ${total} total in pool`;
+    if (btn) btn.textContent = `✅ ${total} players loaded`;
+  } catch(e) {
+    if (status) status.textContent = '❌ ' + e.message;
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Load 500+ players from Sleeper'; }
+  }
+}
+
+
+async function loadAllPlayersFromSleeper() {
+  const btn = document.getElementById('loadAllPlayersBtn');
+  const status = document.getElementById('playerLoadStatus');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+  if (status) { status.style.display = 'inline'; status.textContent = 'Fetching...'; }
+  try {
+    const playerMap = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
+    const VALID_POS = ['QB','RB','WR','TE','K','DEF'];
+    const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+    const existing = new Set(players.map(p => norm(p.name)));
+    let added = 0, maxId = Math.max(...players.map(p=>p.id||0), 200);
+    Object.values(playerMap).filter(p=>{
+      if(!p.active||!p.team||p.team==='FA') return false;
+      const pos=p.fantasy_positions&&p.fantasy_positions[0];
+      return VALID_POS.includes(pos)&&p.last_name&&(!p.search_rank||p.search_rank<=500);
+    }).sort((a,b)=>(a.search_rank||999)-(b.search_rank||999)).forEach(p=>{
+      const fn=((p.first_name||'')+' '+(p.last_name||'')).trim();
+      if(!fn||existing.has(norm(fn))) return;
+      maxId++;
+      players.push({rank:maxId,name:fn,pos:p.fantasy_positions[0],team:p.team,bye:'TBD',
+        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',
+        drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999});
+      existing.add(norm(fn)); added++;
+    });
+    calcVORP(); renderBA();
+    if(status) status.textContent = added+' added — '+players.length+' total';
+    if(btn) btn.textContent = players.length+' players loaded';
+  } catch(e) {
+    if(status) status.textContent = 'Error: '+e.message;
+    if(btn){btn.disabled=false;btn.textContent='Load 500+ players from Sleeper';}
+  }
+}
+
+// ── MOCK DRAFT ──
+var mockState = null;
+
+function openMockDraft() {
+  ['mockSettings','mockLive','mockResults'].forEach(function(id,i){
+    var el=document.getElementById(id); if(el) el.style.display=i===0?'block':'none';
+  });
+  document.getElementById('mockModal').style.display='flex';
+  var sel=document.getElementById('mockMySlot');
+  if(sel){sel.innerHTML='<option value="">Select slot...</option>';
+    for(var i=1;i<=TEAMS;i++){var o=document.createElement('option');o.value=i;o.text='Slot '+i;if(myTeamIdx>=0&&teamSlots[myTeamIdx]===i)o.selected=true;sel.appendChild(o);}
+  }
+  var keepers=myRosterSlots.filter(function(s){return s&&s.isKeeper;});
+  var kd=document.getElementById('mockKeepersSummary');if(kd)kd.style.display=keepers.length?'block':'none';
+  var kt=document.getElementById('mockKeepersText');if(kt)kt.textContent=keepers.map(function(p){return p.pos+' '+p.name;}).join(' · ');
+}
+
+function closeMockModal() {
+  document.getElementById('mockModal').style.display='none';
+  document.body.removeAttribute('data-mock');
+  var b=document.getElementById('mockBanner');if(b)b.style.display='none';
+  if(mockState&&mockState.timerInterval)clearInterval(mockState.timerInterval);
+  if(mockState&&mockState.savedPickLog!==undefined){
+    pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;
+    currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;
+    if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;
+  }
+  players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
+  mockState=null;calcVORP();renderAll();
+}
+
+function startMockDraft() {
+  var mySlot=parseInt(document.getElementById('mockMySlot').value);
+  if(!mySlot){alert('Select your draft slot');return;}
+  var strategy=document.getElementById('mockStrategy').value;
+  var myStrategy=document.getElementById('mockMyStrategy').value;
+  var timerSecs=parseInt(document.getElementById('mockTimer').value);
+  var po=[];
+  for(var pick=1;pick<=TOTAL;pick++){var rd=Math.ceil(pick/TEAMS),pos=pick-(rd-1)*TEAMS;po.push(rd%2===1?pos:TEAMS+1-pos);}
+  var myTi=mySlot-1;
+  var mr=Array.from({length:TEAMS},function(){return [];});
+  myRosterSlots.forEach(function(p){if(p&&p.isKeeper)mr[myTi].push(p);});
+  mockState={players:players.map(function(p){return Object.assign({},p,{mockDrafted:p.isKeeper||false});}),
+    pickOwners:po,rosters:mr,mySlot:mySlot,myTi:myTi,strategy:strategy,myStrategy:myStrategy,
+    timerSecs:timerSecs,currentPick:1,totalPicks:TOTAL,log:[],timerInterval:null,timerLeft:timerSecs,waiting:false,
+    savedPickLog:pickLog.slice(),savedTeamRosters:teamRosters.map(function(r){return r.slice();}),
+    savedCurrentPick:currentPick,savedMyRosterSlots:myRosterSlots.slice(),savedMyTeamIdx:myTeamIdx};
+  pickLog=[];teamRosters=Array.from({length:TEAMS},function(){return [];});currentPick=1;
+  myRosterSlots=Array(ROUNDS+8).fill(null);
+  mockState.savedMyRosterSlots.forEach(function(s){if(s&&s.isKeeper)smartAssign(s);});
+  myTeamIdx=myTi;
+  document.getElementById('mockModal').style.display='none';
+  var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
+  document.body.setAttribute('data-mock','1');
+  runMockDraft();
+}
+
+function cpuPick(ti,strategy,mp,mr){
+  var roster=mr[ti]||[],available=mp.filter(function(p){return !p.mockDrafted;});
+  var qbs=roster.filter(function(p){return p.pos==='QB';}).length;
+  var rbs=roster.filter(function(p){return p.pos==='RB';}).length;
+  var wrs=roster.filter(function(p){return p.pos==='WR';}).length;
+  var tes=roster.filter(function(p){return p.pos==='TE';}).length;
+  var size=roster.length;
+  if(strategy==='vorp'){
+    var f=available.filter(function(p){if(!p.customScore||p.customScore<=0)return false;if(p.pos==='QB'&&qbs>=3)return false;if(p.pos==='QB'&&qbs>=2&&size<12)return false;if((p.pos==='K'||p.pos==='DEF')&&size<14)return false;return true;});
+    f.sort(function(a,b){return (b.vorp||0)-(a.vorp||0);});return f[0]||available[0];
+  }
+  if(strategy==='adp'){available.sort(function(a,b){return (a.adp||999)-(b.adp||999);});for(var i=0;i<available.length;i++){if(available[i].pos==='QB'&&qbs>=2&&size<14)continue;return available[i];}return available[0];}
+  var byPos={};['QB','RB','WR','TE','K','DEF'].forEach(function(p){byPos[p]=available.filter(function(x){return x.pos===p&&x.customScore>0;}).sort(function(a,b){return (b.customScore||0)-(a.customScore||0);});});
+  var ps={QB:qbs===0?80:qbs===1&&size>7?50:qbs>=2?-999:0,RB:rbs===0?75:rbs===1?60:rbs===2?40:rbs===3?20:5,WR:wrs===0?70:wrs===1?55:wrs===2?35:wrs===3?15:5,TE:tes===0?65:tes===1?0:-20,K:size>=14?30:-999,DEF:size>=15?25:-999};
+  var best=null,bs=-9999;
+  ['QB','RB','WR','TE','K','DEF'].forEach(function(p){var ns=ps[p]||0;if(ns<=-999)return;var tp=byPos[p]&&byPos[p][0];if(!tp)return;var total=ns+Math.min((tp.customScore||0)/5,60);if(total>bs){bs=total;best=tp;}});
+  if(best)return best;
+  available.sort(function(a,b){return (b.customScore||0)-(a.customScore||0);});
+  return available.find(function(p){return p.pos!=='K'&&p.pos!=='DEF';})||available[0];
+}
+
+function mockAutoPick(){if(!mockState||!mockState.waiting)return;var p=cpuPick(mockState.myTi,mockState.myStrategy||'vorp',mockState.players,mockState.rosters);if(p){var mp=mockState.players.find(function(x){return x.name===p.name;});executeMockPick(mp||p);}}
+
+function executeMockPick(p){
+  if(!mockState||p.drafted)return;
+  var pick=mockState.currentPick,slot=mockState.pickOwners[pick-1],ti=slot-1,rd=Math.ceil(pick/TEAMS),isMe=slot===mockState.mySlot;
+  p.drafted=true;p.mockDrafted=true;
+  if(!mockState.rosters[ti])mockState.rosters[ti]=[];
+  mockState.rosters[ti].push(p);
+  var entry=Object.assign({},p,{pickNum:pick,rd:rd,isKeeper:false});
+  if(!teamRosters[ti])teamRosters[ti]=[];
+  teamRosters[ti].push(entry);
+  pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
+  currentPick=pick+1;renderLog();
+  if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);}
+  var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
+  mockState.log.push({pick:pick,rd:rd,slot:slot,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
+  mockState.currentPick++;mockState.waiting=false;
+  if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}
+  var bt=document.getElementById('mockBannerTimer');if(bt)bt.textContent='';
+  var bc=document.getElementById('mockBannerPick');if(bc)bc.textContent='Pick '+mockState.currentPick+'/'+mockState.totalPicks;
+  renderBA();setTimeout(runMockDraft,isMe?300:60);
+}
+
+function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,slot=mockState.pickOwners[pick-1],ti=slot-1,rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,slot:slot,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;}
+
+function runMockDraft(){
+  if(!mockState)return;
+  if(mockState.currentPick>mockState.totalPicks){showMockResults();return;}
+  var slot=mockState.pickOwners[mockState.currentPick-1],ti=slot-1,rd=Math.ceil(mockState.currentPick/TEAMS),isMe=slot===mockState.mySlot;
+  var clk=document.getElementById('clk');
+  if(isMe){
+    setTimeout(showPickSuggestions,50);
+    if(clk){clk.textContent='MOCK — Pick #'+mockState.currentPick+' · Rd '+rd+' · YOUR PICK';clk.style.background='#1e3a5f';}
+    var te=document.getElementById('mockBannerTimer');
+    if(mockState.myStrategy!=='manual'){setTimeout(mockAutoPick,1200);return;}
+    mockState.waiting=true;renderBA();
+    if(mockState.timerSecs>0){mockState.timerLeft=mockState.timerSecs;if(te)te.textContent=mockState.timerLeft+'s';
+      mockState.timerInterval=setInterval(function(){mockState.timerLeft--;if(te)te.textContent=mockState.timerLeft+'s';if(mockState.timerLeft<=0){clearInterval(mockState.timerInterval);mockState.timerInterval=null;if(te)te.textContent='';mockAutoPick();}},1000);}
+  } else {
+    var pp=cpuPick(ti,mockState.strategy,mockState.players,mockState.rosters);
+    if(pp)setTimeout(function(){executeMockPick(pp);},120);else{mockState.currentPick++;setTimeout(runMockDraft,50);}
+  }
+}
+
+function skipToMyPick(){if(!mockState)return;if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}mockState.waiting=false;function ff(){if(!mockState||mockState.currentPick>mockState.totalPicks){showMockResults();return;}var slot=mockState.pickOwners[mockState.currentPick-1];if(slot===mockState.mySlot){runMockDraft();return;}var p=cpuPick(slot-1,mockState.strategy,mockState.players,mockState.rosters);if(p)executeMockPickSilent(p);else mockState.currentPick++;setTimeout(ff,5);}ff();}
+
+function finishMockDraft(){if(!mockState)return;if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}while(mockState.currentPick<=mockState.totalPicks){var slot=mockState.pickOwners[mockState.currentPick-1],ti=slot-1,isMe=slot===mockState.mySlot;var p=isMe?cpuPick(mockState.myTi,mockState.myStrategy||'vorp',mockState.players,mockState.rosters):cpuPick(ti,mockState.strategy,mockState.players,mockState.rosters);if(p)executeMockPickSilent(p);else mockState.currentPick++;}showMockResults();}
+
+function showMockResults(){
+  document.body.removeAttribute('data-mock');var b=document.getElementById('mockBanner');if(b)b.style.display='none';
+  if(mockState&&mockState.savedPickLog!==undefined){pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;}
+  players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
+  calcVORP();renderAll();
+  document.getElementById('mockModal').style.display='flex';
+  var ms=document.getElementById('mockSettings'),ml=document.getElementById('mockLive'),mr=document.getElementById('mockResults');
+  if(ms)ms.style.display='none';if(ml)ml.style.display='none';if(mr)mr.style.display='block';
+  var myRoster=mockState.rosters[mockState.myTi]||[];
+  var proj=myRoster.slice(0,10).reduce(function(s,p){return s+(p.customScore||0);},0);
+  var all=mockState.rosters.map(function(r){return r.slice(0,10).reduce(function(s,p){return s+(p.customScore||0);},0);});
+  var avg=all.reduce(function(a,b){return a+b;},0)/TEAMS;
+  var rank=all.filter(function(x){return x>proj;}).length+1;
+  var grade=rank<=2?'A+':rank<=4?'A':rank<=6?'B+':rank<=8?'B':'C';
+  var gc=grade.startsWith('A')?'#4ade80':grade.startsWith('B')?'#60a5fa':'#f87171';
+  var picks=mockState.log.filter(function(e){return e.isMe;});
+  var best=picks.reduce(function(b,e){return e.vorp>b.vorp?e:b;},picks[0]||{vorp:0,name:'—',rd:0});
+  var worst=picks.reduce(function(w,e){return e.vorp<w.vorp?e:w;},picks[0]||{vorp:0,name:'—',rd:0});
+  var rc=document.getElementById('mockResultsContent');if(!rc)return;
+  rc.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
+    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:36px;font-weight:700;color:'+gc+'">'+grade+'</div><div style="font-size:11px;color:#6b7280">Draft grade</div></div>'+
+    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80">'+proj.toFixed(0)+'</div><div style="font-size:11px;color:#6b7280">Proj pts · Rank #'+rank+' of '+TEAMS+'</div></div></div>'+
+    '<div style="background:#252836;border-radius:8px;padding:12px;font-size:11px;margin-bottom:10px"><div style="font-weight:600;color:#9ca3af;margin-bottom:6px">YOUR ROSTER ('+myRoster.length+' picks)</div>'+
+    myRoster.map(function(p,i){var c=p.pos==='QB'?'#60a5fa':p.pos==='RB'?'#4ade80':p.pos==='WR'?'#fb923c':'#c084fc';return '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1a1d27"><span style="width:18px;color:#4b5563;font-size:10px">'+(i+1)+'</span><span style="font-weight:700;width:24px;color:'+c+';font-size:10px">'+p.pos+'</span><span style="flex:1;color:#e8eaf0;font-size:11px">'+p.name+'</span><span style="color:#4ade80;font-size:10px">'+(p.vorp>0?'+':'')+(p.vorp||0).toFixed(0)+'V</span></div>';}).join('')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'+
+    '<div style="background:#1a3a2a;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Best pick</div><div style="color:#4ade80;font-weight:600">'+best.name+'</div><div style="color:#6b7280">Rd '+(best.rd||'?')+' · VORP '+(best.vorp>0?'+':'')+best.vorp.toFixed(0)+'</div></div>'+
+    '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>';
+}
