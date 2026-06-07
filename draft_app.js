@@ -259,9 +259,14 @@ async function loadUserSettings() {
     showKeyActive();
   }
   if (data.my_team_idx !== null && data.my_team_idx !== undefined) {
-    myTeamIdx = data.my_team_idx;
-    const sel = document.getElementById('myTeamSel');
-    if (sel) sel.value = myTeamIdx;
+    var savedTi = parseInt(data.my_team_idx);
+    // Only restore if user hasn't manually selected a team this session
+    var manualSel = localStorage.getItem('ff26_myTeamIdx_manual');
+    if (!manualSel) {
+      myTeamIdx = savedTi;
+      const sel = document.getElementById('myTeamSel');
+      if (sel) sel.value = myTeamIdx;
+    }
   }
   if (data.team_names) {
     try {
@@ -864,6 +869,7 @@ function applySetup(){
 
 function setMyTeamFromKeeper(ti) {
   myTeamIdx = ti;
+  localStorage.setItem('ff26_myTeamIdx_manual', ti); // prevent Supabase from overriding
   // Also update the topbar dropdown to stay in sync
   var sel = document.getElementById('myTeamSel');
   if (sel) sel.value = ti;
@@ -881,6 +887,7 @@ function setMyTeamFromModal() {
   var ti = parseInt(sel.value);
   if (ti < 0) return;
   myTeamIdx = ti;
+  localStorage.setItem('ff26_myTeamIdx_manual', ti); // marks manual selection, prevents Supabase override
   localStorage.setItem('ff26_myTeamIdx', ti); // persist across reloads
   var topSel = document.getElementById('myTeamSel');
   if (topSel) topSel.value = ti;
@@ -890,6 +897,7 @@ function setMyTeamFromModal() {
 
 function setMyTeam(){
   myTeamIdx=parseInt(document.getElementById("myTeamSel").value);
+  if(myTeamIdx>=0) localStorage.setItem('ff26_myTeamIdx_manual', myTeamIdx);
   renderAll();
 }
 
@@ -1366,8 +1374,6 @@ function openTradesModal() {
 }
 
 function openBoardModal() {
-  var topSel = document.getElementById('myTeamSel');
-  if (topSel && parseInt(topSel.value) >= 0) myTeamIdx = parseInt(topSel.value);
   var modal = document.getElementById('boardModal');
   if (modal) modal.style.display = 'flex';
   renderBoard();
