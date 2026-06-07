@@ -2237,15 +2237,19 @@ function openSleeperModal() {
     });
   }
 
-  // Populate team owner dropdown
+  // Populate team owner dropdown - pre-select my team
   var sel = document.getElementById('kpTeamOwner');
   if (sel) {
-    sel.innerHTML = '<option value="-1">— Select team that owns keeper —</option>';
+    sel.innerHTML = '<option value="-1">— Select team —</option>';
     teamNames.forEach(function(n, i) {
       var o = document.createElement('option');
-      o.value = i; o.text = n;
+      o.value = i;
+      o.text = (i === myTeamIdx ? '⭐ ' : '') + n;
+      if (i === myTeamIdx) o.selected = true;
       sel.appendChild(o);
     });
+    // Auto-load my team's roster
+    if (myTeamIdx >= 0) setTimeout(loadTeamRosterForKeepers, 100);
   }
   renderKeeperRows();
   document.getElementById('sleeperModal').style.display = 'flex';
