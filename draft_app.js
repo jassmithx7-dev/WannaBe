@@ -1043,7 +1043,8 @@ const QB_STATS = {
 
 // ── Next Pick Suggestions ──
 function showPickSuggestions() {
-  if (myTeamIdx < 0) return;
+  var mockTi = (mockState && document.body.getAttribute('data-mock')==='1') ? mockState.myTi : myTeamIdx;
+  if (mockTi < 0) return;
   var roster = myRosterSlots.filter(Boolean);
   var available = players.filter(function(p){ return !p.drafted && !p.mockDrafted && p.customScore > 0; });
   
@@ -1958,8 +1959,11 @@ async function fetchSleeperLeague() {
     trades = []; // reset
     if (tradedPicks && tradedPicks.length > 0) {
       // Filter to current season only
-      const season = (league.season || '2026');
-      const currentTrades = tradedPicks.filter(tp => tp.season === season);
+      // Use the highest season in traded picks (upcoming draft year)
+      const allSeasons = tradedPicks.map(tp => tp.season).filter(Boolean);
+      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b) => a > b ? a : b) : '2026';
+      const currentTrades = tradedPicks.filter(tp => tp.season === maxSeason);
+      console.log('[Sleeper] Trade seasons found:', [...new Set(allSeasons)].join(','), '→ using', maxSeason);
 
       currentTrades.forEach(tp => {
         // tp.roster_id = who NOW owns it, tp.previous_owner_id = who traded it away
@@ -2936,11 +2940,7 @@ function closeMockModal() {
   if(mockState&&mockState.savedPickLog!==undefined){
     pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;
     currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;
-    if(mockState.savedMyTeamIdx!==undefined){
-      myTeamIdx=mockState.savedMyTeamIdx;
-      var topSel=document.getElementById('myTeamSel');
-      if(topSel)topSel.value=myTeamIdx; // sync dropdown
-    }
+    // myTeamIdx was not changed during mock, no need to restore
   }
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   mockState=null;calcVORP();renderAll();
@@ -2965,8 +2965,7 @@ function startMockDraft() {
   pickLog=[];teamRosters=Array.from({length:TEAMS},function(){return [];});currentPick=1;
   myRosterSlots=Array(ROUNDS+8).fill(null);
   mockState.savedMyRosterSlots.forEach(function(s){if(s&&s.isKeeper)smartAssign(s);});
-  mockState.savedMyTeamIdx = myTeamIdx; // ensure we save the real one
-  myTeamIdx=myTi; // temporarily set for mock roster tracking
+  // Don't change myTeamIdx during mock - use mockState.myTi for mock logic
   document.getElementById('mockModal').style.display='none';
   var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
   document.body.setAttribute('data-mock','1');
