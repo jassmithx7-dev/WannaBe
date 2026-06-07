@@ -303,6 +303,7 @@ html,body{overflow:hidden;height:100vh}
       <div class="tab" onclick="switchTeams()">All teams</div>
       <div class="tab" onclick="switchQBs()">QB tracker</div>
       <div class="tab" onclick="switchTrades()">Trades</div>
+      <div class="tab" onclick="switchTab('board')" style="color:#fbbf24">Board</div>
     </div>
     <div class="tc on" id="tc-roster">
       <div class="stats" id="statsBar"></div>
@@ -312,7 +313,7 @@ html,body{overflow:hidden;height:100vh}
     <div class="tc" id="tc-teams"><div class="at-list" id="atList"></div></div>
     <div class="tc" id="tc-qbs"><div class="qb-panel" id="qbPanel"></div></div>
     <div class="tc" id="tc-trades"><div style="overflow-y:auto;flex:1;padding:10px" id="tradePanel"></div></div>
-    <div class="tc" id="tc-board"><div id="boardGrid" style="overflow:auto;flex:1;padding:4px"></div></div>
+    <div class="tc" id="tc-board" style="padding:6px"><div style="font-size:11px;color:#6b7280;margin-bottom:8px">Draft board opens in full view</div><button onclick="openBoardModal()" style="width:100%;padding:10px;background:#1e3a5f;border:1px solid #1565c0;color:#60a5fa;border-radius:6px;font-size:12px;cursor:pointer">📋 Open Full Draft Board</button></div>
   </div>
 
   <!-- AI ADVISOR -->
@@ -487,6 +488,17 @@ html,body{overflow:hidden;height:100vh}
       </div>
     </div>
   </div>
+</div>
+
+
+<!-- Draft Board Modal -->
+<div id="boardModal" style="display:none;position:fixed;inset:0;background:#0f1117;z-index:300;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:#1a1d27;border-bottom:1px solid #2a2d3a;flex-shrink:0">
+    <span style="font-size:14px;font-weight:700;color:#e8eaf0">📋 Draft Board</span>
+    <span style="font-size:11px;color:#6b7280;flex:1" id="boardModalStatus"></span>
+    <button onclick="document.getElementById('boardModal').style.display='none'" style="background:#252836;border:1px solid #374151;color:#9ca3af;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">✕ Close</button>
+  </div>
+  <div id="boardGrid" style="overflow:auto;flex:1;padding:8px"></div>
 </div>
 
 </body>
