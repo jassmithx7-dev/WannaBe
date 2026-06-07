@@ -1266,7 +1266,7 @@ function renderTradePanel(){
 
 function switchTab(t){
   document.querySelectorAll(".tab").forEach((el,i)=>el.classList.toggle("on",["roster","teams","qbs","trades","board"][i]===t));
-  if (t === 'board') renderBoard();
+  if (t === 'board') openBoardModal();
   document.querySelectorAll(".tc").forEach(el=>el.classList.remove("on"));
   document.getElementById("tc-"+t).classList.add("on");
   if(t==="teams") renderAllTeams();
@@ -1274,6 +1274,13 @@ function switchTab(t){
   if(t==="trades") renderTradePanel();
 }
 
+
+
+function openBoardModal() {
+  var modal = document.getElementById('boardModal');
+  if (modal) modal.style.display = 'flex';
+  renderBoard();
+}
 
 function renderBoard() {
   var el = document.getElementById('boardGrid');
