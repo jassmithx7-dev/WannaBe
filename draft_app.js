@@ -1959,11 +1959,16 @@ async function fetchSleeperLeague() {
     trades = []; // reset
     if (tradedPicks && tradedPicks.length > 0) {
       // Filter to current season only
+      // Log ALL raw traded picks from Sleeper
+      console.log('[Sleeper] Raw traded_picks count:', tradedPicks.length);
+      tradedPicks.forEach(function(tp, i) {
+        console.log('[Sleeper] Pick['+i+']:', JSON.stringify(tp));
+      });
       // Use the highest season in traded picks (upcoming draft year)
       const allSeasons = tradedPicks.map(tp => tp.season).filter(Boolean);
       const maxSeason = allSeasons.length ? allSeasons.reduce((a,b) => a > b ? a : b) : '2026';
       const currentTrades = tradedPicks.filter(tp => tp.season === maxSeason);
-      console.log('[Sleeper] Trade seasons found:', [...new Set(allSeasons)].join(','), '→ using', maxSeason);
+      console.log('[Sleeper] Trade seasons found:', [...new Set(allSeasons)].join(','), '→ using', maxSeason, '→ matched', currentTrades.length);
 
       currentTrades.forEach(tp => {
         // tp.roster_id = who NOW owns it, tp.previous_owner_id = who traded it away
