@@ -1952,20 +1952,25 @@ async function fetchSleeperLeague() {
       const currentTrades = tradedPicks.filter(tp => tp.season === maxSeason);
       console.log('[Sleeper] Trade seasons found:', [...new Set(allSeasons)].join(','), '→ using', maxSeason, '→ matched', currentTrades.length);
 
+      // Build user_id→roster_id map as fallback (previous_owner_id may be user_id in some leagues)
+      const ownerToRoster = {};
+      rosters.forEach(r => { if(r.owner_id) ownerToRoster[r.owner_id] = r.roster_id; });
+
       currentTrades.forEach(tp => {
-        // In Sleeper's traded_picks API: previous_owner_id and roster_id are both roster_ids (1-based integers)
-        const fromTi = rosterMap[tp.previous_owner_id];
+        // Sleeper's previous_owner_id is typically a roster_id (integer 1-12)
+        // Fall back to user_id lookup in case the league uses a different format
+        let fromTi = rosterMap[tp.previous_owner_id];
+        if (fromTi === undefined) {
+          const fromRoster = ownerToRoster[tp.previous_owner_id];
+          fromTi = fromRoster !== undefined ? rosterMap[fromRoster] : undefined;
+        }
         const toTi = rosterMap[tp.roster_id];
-        console.log('[Trade] raw: prev_owner_roster='+tp.previous_owner_id+' to_roster='+tp.roster_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+tp.round+' season='+tp.season);
+        console.log('[Trade] prev_owner='+tp.previous_owner_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+tp.round);
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
-          trades.push({
-            fromTeam: fromTi,
-            toTeam: toTi,
-            round: tp.round,
-            season: tp.season,
-          });
+          trades.push({ fromTeam: fromTi, toTeam: toTi, round: tp.round, season: tp.season });
         }
       });
+      console.log('[Sleeper] Trades loaded:', trades.length);
       // Rebuild pick owners with traded picks applied
       buildPickOwners();
     }
@@ -2087,9 +2092,14 @@ async function syncSleeperDraft() {
       const allSeasons = tradedPicks.map(tp=>tp.season).filter(Boolean);
       const maxSeason = allSeasons.length ? allSeasons.reduce((a,b)=>a>b?a:b) : '2026';
       console.log('[Sleeper] Trade seasons in data:', [...new Set(allSeasons)].join(','), '→ using', maxSeason);
+      const ownerToRoster2 = {};
+      rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
       tradedPicks.filter(tp => tp.season === maxSeason).forEach(tp => {
-        // previous_owner_id and roster_id are both roster_ids in Sleeper's API
-        const fromTi = rosterMap[tp.previous_owner_id];
+        let fromTi = rosterMap[tp.previous_owner_id];
+        if (fromTi === undefined) {
+          const fromRoster = ownerToRoster2[tp.previous_owner_id];
+          fromTi = fromRoster !== undefined ? rosterMap[fromRoster] : undefined;
+        }
         const toTi = rosterMap[tp.roster_id];
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
           trades.push({ fromTeam: fromTi, toTeam: toTi, round: tp.round });
@@ -2946,9 +2956,12 @@ function startMockDraft() {
   var strategy=document.getElementById('mockStrategy').value;
   var myStrategy=document.getElementById('mockMyStrategy').value;
   var timerSecs=parseInt(document.getElementById('mockTimer').value);
+  // Build slot→teamIdx map from Sleeper assignments; fall back to slot-1 if no Sleeper data
+  var slotToTi={};
+  teamSlots.forEach(function(slot,ti){if(slot>0)slotToTi[slot]=ti;});
   var po=[];
-  for(var pick=1;pick<=TOTAL;pick++){var rd=Math.ceil(pick/TEAMS),pos=pick-(rd-1)*TEAMS;po.push(rd%2===1?pos:TEAMS+1-pos);}
-  var myTi=mySlot-1;
+  for(var pick=1;pick<=TOTAL;pick++){var rd=Math.ceil(pick/TEAMS),pos=pick-(rd-1)*TEAMS,s=rd%2===1?pos:TEAMS+1-pos;po.push(slotToTi[s]!==undefined?slotToTi[s]:s-1);}
+  var myTi=slotToTi[mySlot]!==undefined?slotToTi[mySlot]:mySlot-1;
   var mr=Array.from({length:TEAMS},function(){return [];});
   myRosterSlots.forEach(function(p){if(p&&p.isKeeper)mr[myTi].push(p);});
   mockState={players:players.map(function(p){return Object.assign({},p,{mockDrafted:p.isKeeper||false});}),
@@ -2991,7 +3004,7 @@ function mockAutoPick(){if(!mockState||!mockState.waiting)return;var p=cpuPick(m
 
 function executeMockPick(p){
   if(!mockState||p.drafted)return;
-  var pick=mockState.currentPick,slot=mockState.pickOwners[pick-1],ti=slot-1,rd=Math.ceil(pick/TEAMS),isMe=slot===mockState.mySlot;
+  var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS),isMe=(ti===mockState.myTi);
   p.drafted=true;p.mockDrafted=true;
   if(!mockState.rosters[ti])mockState.rosters[ti]=[];
   mockState.rosters[ti].push(p);
@@ -3002,7 +3015,7 @@ function executeMockPick(p){
   currentPick=pick+1;renderLog();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);}
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
-  mockState.log.push({pick:pick,rd:rd,slot:slot,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
+  mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
   mockState.currentPick++;mockState.waiting=false;
   if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}
   var bt=document.getElementById('mockBannerTimer');if(bt)bt.textContent='';
@@ -3010,12 +3023,12 @@ function executeMockPick(p){
   renderBA();setTimeout(runMockDraft,isMe?300:60);
 }
 
-function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,slot=mockState.pickOwners[pick-1],ti=slot-1,rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,slot:slot,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;}
+function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;}
 
 function runMockDraft(){
   if(!mockState)return;
   if(mockState.currentPick>mockState.totalPicks){showMockResults();return;}
-  var slot=mockState.pickOwners[mockState.currentPick-1],ti=slot-1,rd=Math.ceil(mockState.currentPick/TEAMS),isMe=slot===mockState.mySlot;
+  var ti=mockState.pickOwners[mockState.currentPick-1],rd=Math.ceil(mockState.currentPick/TEAMS),isMe=(ti===mockState.myTi);
   var clk=document.getElementById('clk');
   if(isMe){
     setTimeout(showPickSuggestions,50);
