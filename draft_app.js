@@ -1378,6 +1378,14 @@ function renderBoard() {
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
+  // Build teamIdx→round→entry map so keepers/traded picks appear in the correct column
+  var teamRdMap = {};
+  pickLog.forEach(function(l) {
+    var entryRd = l.rd || Math.ceil(l.pick / TEAMS);
+    if (!teamRdMap[l.teamIdx]) teamRdMap[l.teamIdx] = {};
+    teamRdMap[l.teamIdx][entryRd] = l;
+  });
+
   // Build pick→owner map (after trades)
   // pickOwners[pick-1] = teamIdx who drafts that pick
   var posColors = {QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'};
@@ -1408,12 +1416,12 @@ function renderBoard() {
         : (rd - 1) * TEAMS + (TEAMS + 1 - slot);
 
       // Check if this pick was traded to someone else
+      // Guard actualOwner >= 0: pickOwners contains -1 when slots aren't assigned yet
       var actualOwner = pickOwners[pickNum - 1];
-      var isTraded = actualOwner !== undefined && actualOwner !== ti;
-      // Check if someone else's traded pick lands here
-      var tradedIn = actualOwner === ti && pickOwners[pickNum - 1] === ti;
+      var isTraded = actualOwner !== undefined && actualOwner >= 0 && actualOwner !== ti;
 
-      var entry = pickMap[pickNum];
+      // Use teamRdMap so drafted picks appear in the correct column regardless of trades
+      var entry = (teamRdMap[ti] && teamRdMap[ti][rd]) ? teamRdMap[ti][rd] : null;
       var cellClass = 'td';
       var extraStyle = '';
       if (isMe) extraStyle += 'outline:1px solid #1e3a1e;';
@@ -2491,7 +2499,10 @@ function applyManualKeepers() {
     p.rd = k.round;
 
     var slot    = (teamSlots[ownerTi] && teamSlots[ownerTi] > 0) ? teamSlots[ownerTi] : (ownerTi + 1);
-    var pickNum = (k.round - 1) * TEAMS + slot;
+    // Snake draft: even rounds reverse slot order — must match renderBoard's formula
+    var pickNum = k.round % 2 === 1
+      ? (k.round - 1) * TEAMS + slot
+      : (k.round - 1) * TEAMS + (TEAMS + 1 - slot);
 
     // Only add to pickLog if slot not already taken
     if (!pickLog.find(function(l){ return l.pick === pickNum; })) {
@@ -2928,7 +2939,7 @@ function closeMockModal() {
   if(mockState&&mockState.savedPickLog!==undefined){
     pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;
     currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;
-    // myTeamIdx was not changed during mock, no need to restore
+    if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;
   }
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   mockState=null;calcVORP();renderAll();
