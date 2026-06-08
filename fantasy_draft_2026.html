@@ -211,7 +211,7 @@ html,body{overflow:hidden;height:100vh}
     <button onclick="openTradesModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #4a1d96;background:#2e1065;color:#c084fc;cursor:pointer">🔄 Trades</button>
   </div>
   <label>My team:</label>
-  <select id="myTeamSel" onchange="setMyTeam()"><option value="-1">— Select —</option></select>
+  <select id="myTeamSel" disabled style="pointer-events:none;opacity:0.8"><option value="-1">— Select —</option></select>
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
     <option value="custom">Custom score</option>
