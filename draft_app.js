@@ -1863,6 +1863,19 @@ async function fetchSleeperLeague() {
 
     sleeperMsg('⏳ Step 3/5 — Loading traded picks...', false);
     const tradedPicks = await sleeperFetch(`${BASE}/league/${leagueId}/traded_picks`);
+    // Also fetch transactions (rounds 0-4) to catch off-season inter-team pick trades
+    // Sleeper stores completed trade transactions with draft_picks separately from traded_picks
+    const txRounds = [0,1,2,3,4];
+    const txResults = await Promise.all(txRounds.map(r => sleeperFetch(`${BASE}/league/${leagueId}/transactions/${r}`).catch(()=>[])));
+    const allTransactions = txResults.flat();
+    // Extract draft_picks from completed trade transactions
+    const txPickTrades = [];
+    allTransactions.forEach(tx => {
+      if (tx.type === 'trade' && tx.status === 'complete' && tx.draft_picks && tx.draft_picks.length) {
+        tx.draft_picks.forEach(dp => { txPickTrades.push(dp); });
+      }
+    });
+    console.log('[Sleeper] Transaction pick trades found:', txPickTrades.length);
 
     sleeperMsg('⏳ Step 4/5 — Loading draft info...', false);
     const drafts = await sleeperFetch(`${BASE}/league/${leagueId}/drafts`);
@@ -1977,21 +1990,41 @@ async function fetchSleeperLeague() {
       rosters.forEach(r => { if(r.owner_id) ownerToRoster[r.owner_id] = r.roster_id; });
 
       currentTrades.forEach(tp => {
-        // Sleeper's previous_owner_id is typically a roster_id (integer 1-12)
-        // Fall back to user_id lookup in case the league uses a different format
         let fromTi = rosterMap[tp.previous_owner_id];
         if (fromTi === undefined) {
           const fromRoster = ownerToRoster[tp.previous_owner_id];
           fromTi = fromRoster !== undefined ? rosterMap[fromRoster] : undefined;
         }
-        const toTi = rosterMap[tp.roster_id];
-        console.log('[Trade] prev_owner='+tp.previous_owner_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+tp.round);
+        const toTi = rosterMap[tp.owner_id || tp.roster_id];
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
           trades.push({ fromTeam: fromTi, toTeam: toTi, round: tp.round, season: tp.season });
         }
       });
-      console.log('[Sleeper] Trades loaded:', trades.length);
-      // Rebuild pick owners with traded picks applied
+      console.log('[Sleeper] traded_picks loaded:', trades.length);
+      buildPickOwners();
+    }
+
+    // Also apply transaction-based pick trades (off-season inter-team trades)
+    if (txPickTrades.length > 0) {
+      const ownerToRoster2 = {};
+      rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
+      const txSeason = league.season || String(new Date().getFullYear());
+      txPickTrades.forEach(dp => {
+        if (dp.season && dp.season !== txSeason) return; // skip other seasons
+        let fromTi = rosterMap[dp.previous_owner_id];
+        if (fromTi === undefined) {
+          const fr = ownerToRoster2[dp.previous_owner_id];
+          fromTi = fr !== undefined ? rosterMap[fr] : undefined;
+        }
+        const toTi = rosterMap[dp.owner_id || dp.roster_id];
+        console.log('[TxTrade] prev='+dp.previous_owner_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+dp.round+' season='+dp.season);
+        if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
+          // Avoid duplicates already loaded from traded_picks
+          const exists = trades.some(t => t.fromTeam===fromTi && t.toTeam===toTi && t.round===dp.round);
+          if (!exists) trades.push({ fromTeam: fromTi, toTeam: toTi, round: dp.round, season: dp.season });
+        }
+      });
+      console.log('[Sleeper] After transactions, total trades:', trades.length);
       buildPickOwners();
     }
 
@@ -2040,9 +2073,10 @@ async function fetchSleeperLeague() {
       const realSamp = realTrades[0];
       const selfSamp = selfPicks[0];
       if (realTrades.length === 0) {
-        tradeNote = ` | ℹ️ ${rawTradeCount} Sleeper picks all show prev=roster (no cross-team trades recorded in API yet). Sample: prev=${selfSamp.previous_owner_id} roster=${selfSamp.roster_id} rd=${selfSamp.round}`;
+        const txNote = txPickTrades.length > 0 ? ` · ${txPickTrades.length} from transactions` : ' · checking transactions...';
+        tradeNote = ` | ℹ️ traded_picks: all prev=roster (keeper cost picks only)${txNote}`;
       } else {
-        tradeNote = ` | ⚠️ ${realTrades.length} real trades found but still 0 loaded. Sample trade: prev=${realSamp.previous_owner_id} roster=${realSamp.roster_id} rd=${realSamp.round}; rosterMap keys: ${rKeys}`;
+        tradeNote = ` | ⚠️ ${realTrades.length} traded_picks cross-team but 0 loaded. Sample: prev=${realSamp.previous_owner_id} roster=${realSamp.roster_id} rd=${realSamp.round}; rosterMap: ${rKeys}`;
       }
     }
 
