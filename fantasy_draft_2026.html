@@ -206,34 +206,48 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 <div class="main">
 
-  <!-- LEFT + CENTER: Board (top) · Players (bottom) -->
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:hidden">
-
-    <!-- Inline Draft Board -->
-    <div class="panel" style="flex:0 0 210px;display:flex;flex-direction:column;overflow:hidden">
-      <div class="panel-hdr">
-        <h2>Draft Board</h2>
-        <div class="clock" id="clk">Waiting for draft to start...</div>
-        <button onclick="scrollToBoardCurrentRound()" title="Jump to current pick" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:3px 8px;cursor:pointer;margin-left:auto;flex-shrink:0">📍 Current</button>
+  <!-- LEFT: Top Picks (always visible) -->
+  <div class="panel" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+    <div class="panel-hdr" style="padding:7px 10px">
+      <span style="font-size:12px;font-weight:700;color:#e6edf3">💡 Top Picks</span>
+      <span id="factorStatus" style="font-size:9px;color:#7d8590;margin-left:auto"></span>
+    </div>
+    <div id="suggBar" style="flex:1;overflow-y:auto">
+      <div id="suggCards">
+        <div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">Loading suggestions...</div>
       </div>
-      <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:8px 14px;flex-shrink:0;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:13px;font-weight:700;color:#e3b341">🎯 MOCK DRAFT</span>
-        <span id="mockBannerPick" style="font-size:12px;color:#c9982b"></span>
-        <span id="mockBannerTimer" style="font-size:16px;font-weight:700;color:#e3b341;width:40px"></span>
-        <span style="font-size:11px;color:#9e6a03;flex:1">Click any player · CPU auto-advances</span>
-        <button onclick="mockAutoPick()" style="font-size:11px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:4px 10px;cursor:pointer">Auto pick</button>
-        <button onclick="skipToMyPick()" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:4px 10px;cursor:pointer">Skip to mine</button>
-        <button onclick="finishMockDraft()" style="font-size:11px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:4px 10px;cursor:pointer">Finish</button>
-        <button onclick="closeMockModal()" style="font-size:11px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:4px 10px;cursor:pointer">Quit</button>
+    </div>
+  </div>
+
+  <!-- CENTER: Draft Board (top, expandable) + Players (bottom) -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;overflow:hidden">
+
+    <!-- Draft Board -->
+    <div class="panel" id="boardPanel" style="flex:0 0 260px;display:flex;flex-direction:column;overflow:hidden;transition:flex-basis .2s">
+      <div class="panel-hdr" style="padding:6px 10px">
+        <h2 style="font-size:12px">Draft Board</h2>
+        <div class="clock" id="clk">Waiting for draft to start...</div>
+        <button onclick="toggleBoard()" id="boardToggleBtn" title="Expand/collapse board" style="font-size:13px;background:transparent;border:none;color:#7d8590;cursor:pointer;padding:0 4px;margin-left:4px;flex-shrink:0" aria-label="Toggle board size">⤢</button>
+        <button onclick="scrollToBoardCurrentRound()" title="Jump to current pick" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:2px 6px;cursor:pointer;flex-shrink:0">📍</button>
+      </div>
+      <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:6px 12px;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:#e3b341">🎯 MOCK</span>
+        <span id="mockBannerPick" style="font-size:11px;color:#c9982b"></span>
+        <span id="mockBannerTimer" style="font-size:15px;font-weight:700;color:#e3b341;width:36px"></span>
+        <span style="font-size:10px;color:#9e6a03;flex:1">Click any player · CPU auto-advances</span>
+        <button onclick="mockAutoPick()" style="font-size:10px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:3px 8px;cursor:pointer">Auto pick</button>
+        <button onclick="skipToMyPick()" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:3px 8px;cursor:pointer">Skip</button>
+        <button onclick="finishMockDraft()" style="font-size:10px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:3px 8px;cursor:pointer">Finish</button>
+        <button onclick="closeMockModal()" style="font-size:10px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:3px 8px;cursor:pointer">Quit</button>
       </div>
       <div id="boardGrid" style="overflow:auto;flex:1;padding:4px;font-size:10px"></div>
     </div>
 
     <!-- Available Players -->
     <div class="panel" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
-      <div class="ctrl" style="gap:8px">
-        <input type="text" id="srch" placeholder="🔍 Search players..." oninput="renderBA()" style="width:150px;border-radius:20px;padding:4px 12px">
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <div class="ctrl" style="gap:6px;padding:5px 8px">
+        <input type="text" id="srch" placeholder="🔍 Search..." oninput="renderBA()" style="width:130px;border-radius:20px;padding:3px 10px">
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
           <button class="pos-pill active" onclick="setPosFilter('ALL',this)">ALL</button>
           <button class="pos-pill qb" onclick="setPosFilter('QB',this)">QB</button>
           <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
@@ -251,7 +265,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
       </div>
-      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:680px">
+      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:660px">
         <span>#</span><span>Pos</span><span>Player</span>
         <span style="text-align:center">ADP</span>
         <span style="text-align:center" title="Projected pts">Proj</span>
@@ -265,12 +279,11 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
   </div>
 
-  <!-- RIGHT PANEL: My Draft | AI | Picks -->
-  <div class="panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+  <!-- RIGHT: My Draft | AI Chat -->
+  <div class="panel" style="width:250px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
     <div class="sp-tabs">
       <button class="sp-tab sp-on" id="rpt-roster" onclick="switchRP('roster')">My Draft</button>
       <button class="sp-tab" id="rpt-ai" onclick="switchRP('ai')">🤖 AI</button>
-      <button class="sp-tab" id="rpt-picks" onclick="switchRP('picks')">💡 Picks</button>
     </div>
 
     <!-- My Draft tab -->
@@ -282,14 +295,14 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
     <!-- AI tab -->
     <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <div style="padding:8px 12px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <div style="padding:8px 10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span id="aiActiveTag" style="font-size:10px;color:#3fb950;display:none">✓ Active</span>
         <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
           <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#0e2a1a;color:#3fb950;border:1px solid #2ea043;border-radius:4px;padding:3px 8px;cursor:pointer">⚡ My pick</button>
           <button onclick="doAskAIFull()" style="font-size:10px;background:#0e1f3d;color:#388bfd;border:1px solid #1f6feb;border-radius:4px;padding:3px 8px;cursor:pointer">🧠 Full</button>
         </div>
       </div>
-      <div id="aiKeyEntry" style="padding:8px 12px;border-bottom:1px solid #30363d;flex-shrink:0">
+      <div id="aiKeyEntry" style="padding:8px 10px;border-bottom:1px solid #30363d;flex-shrink:0">
         <div style="font-size:10px;color:#7d8590;margin-bottom:5px">Paste Anthropic API key:</div>
         <div style="display:flex;gap:4px">
           <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
@@ -298,7 +311,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#388bfd;display:block;margin-top:4px">Get key ↗</a>
       </div>
       <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #30363d;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
-      <div id="aiResponse" style="padding:8px 12px;font-size:11px;color:#cdd9e5;line-height:1.6;overflow-y:auto;flex:1">
+      <div id="aiResponse" style="padding:8px 10px;font-size:11px;color:#cdd9e5;line-height:1.6;overflow-y:auto;flex:1">
         <span style="color:#7d8590;font-style:italic">Add your API key above for live draft advice.</span>
       </div>
       <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #30363d;flex-shrink:0">
@@ -311,19 +324,8 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
       </div>
     </div>
 
-    <!-- Picks tab -->
-    <div id="rp-picks" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <div style="padding:5px 10px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#21262d">
-        <span style="font-size:10px;font-weight:600;color:#e6edf3">💡 Suggested picks</span>
-        <span id="factorStatus" style="font-size:9px;color:#7d8590"></span>
-      </div>
-      <div id="suggBar" style="flex:1;overflow-y:auto">
-        <div id="suggCards"></div>
-      </div>
-    </div>
-
-    <!-- Hidden: pick log + legacy stubs -->
-    <div style="display:none"><div id="pLog"></div></div>
+    <!-- Hidden stubs -->
+    <div style="display:none"><div id="pLog"></div><div id="rp-picks"></div></div>
     <div id="tc-teams" style="display:none"></div>
     <div id="tc-qbs" style="display:none"><div id="atList"></div><div id="qbPanel"></div></div>
   </div>

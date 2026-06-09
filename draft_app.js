@@ -2799,12 +2799,22 @@ function switchLP(tab) {
   });
 }
 function switchRP(tab) {
-  ['roster','ai','picks'].forEach(function(t) {
+  ['roster','ai'].forEach(function(t) {
     var el = document.getElementById('rp-' + t);
     var btn = document.getElementById('rpt-' + t);
     if (el) el.style.display = t === tab ? 'flex' : 'none';
     if (btn) btn.classList.toggle('sp-on', t === tab);
   });
+}
+
+var _boardExpanded = false;
+function toggleBoard() {
+  var panel = document.getElementById('boardPanel');
+  var btn = document.getElementById('boardToggleBtn');
+  if (!panel) return;
+  _boardExpanded = !_boardExpanded;
+  panel.style.flex = _boardExpanded ? '1 1 auto' : '0 0 260px';
+  if (btn) btn.textContent = _boardExpanded ? '⤡' : '⤢';
 }
 function switchRPanel(tab) { switchRP(tab === 'ai' ? 'roster' : tab); }
 
