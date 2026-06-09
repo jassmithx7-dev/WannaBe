@@ -1249,7 +1249,8 @@ function renderBA(){
     // If this player has no stats AND no ranked version exists, keep it
     return true;
   });
-  if(filt!=="ALL") list=list.filter(p=>p.pos===filt);
+  if(filt==='SFLX') list=list.filter(p=>['QB','RB','WR','TE'].includes(p.pos));
+  else if(filt!=="ALL") list=list.filter(p=>p.pos===filt);
   if(q) list=list.filter(p=>p.name.toLowerCase().includes(q)||p.team.toLowerCase().includes(q));
   if(fit==="A") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return f&&(f.grade==="A"||f.grade==="A+");});
   if(fit==="B") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return !f||!f.grade.startsWith("C");});
@@ -2991,6 +2992,7 @@ function switchRPanel(tab) {
 
 function setPosFilter(pos, btn) {
   document.getElementById('posFilt').value = pos;
+  if (pos === 'SFLX') document.getElementById('sortSel').value = 'sf';
   document.querySelectorAll('.pos-pill').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   renderBA();
