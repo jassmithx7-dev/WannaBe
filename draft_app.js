@@ -52,16 +52,24 @@ function showAuthSuccess(msg) {
 async function signIn() {
   showAuthError('');
   if (!supa) {
-    loadSupabaseSDK(async function() { await signIn(); });
-    showAuthError('Loading auth service...');
+    loadSupabaseSDK(async function() {
+      if (!initSupabase()) { showAuthError('Auth service failed to load — check internet connection'); return; }
+      await signIn();
+    });
+    showAuthError('Loading auth service…');
     return;
   }
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
   if (!email || !password) { showAuthError('Enter email and password'); return; }
-  const { data, error } = await supa.auth.signInWithPassword({ email, password });
-  if (error) { showAuthError(error.message); return; }
-  await onSignedIn(data.user);
+  showAuthSuccess('Signing in…');
+  try {
+    const { data, error } = await supa.auth.signInWithPassword({ email, password });
+    if (error) { showAuthError(error.message); return; }
+    await onSignedIn(data.user);
+  } catch(e) {
+    showAuthError('Sign in failed: ' + (e.message || 'network error'));
+  }
 }
 
 async function signUp() {
