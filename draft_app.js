@@ -647,7 +647,7 @@ function customRank(name){
 var TEAMS=12, ROUNDS=18, TOTAL=216;
 let players=[];
 let setup=null; // loaded from JSON
-let teamNames=["Team 1","Team 2","Team 3","Team 4","Team 5","Team 6","Team 7","Team 8","Team 9","Team 10","Team 11","Team 12"];
+let teamNames=[];
 let teamSlots=[]; // slot per team index (1-based, 0=unset)
 let teamRosterIds=(function(){try{var v=localStorage.getItem('ff26_teamRosterIds');return v?JSON.parse(v):[];}catch(e){return[];}})();
 let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick (after trades)
@@ -1111,14 +1111,14 @@ function renderClock(){
   if(currentPick>TOTAL){el.textContent="Draft complete!";el.className="clock done";return;}
   const ti=clockTeamIdx();
   const rd=ptRd(currentPick);
-  const tname=ti>=0?(teamNames[ti]||"Team "+(ti+1)):"Unknown";
+  const tname=ti>=0?(teamNames[ti]||"Team "+(ti+1)):(teamNames.length?"Unknown":"Import league →");
   const me=myTeamIdx>=0&&ti===myTeamIdx;
   const traded=isTradedPick(currentPick);
   el.textContent=`Pick ${currentPick} \u00b7 Rd ${rd} \u00b7 ${tname}${me?" \u2014 YOUR PICK":""}${traded?" [TRADED PICK]":""}`;
   el.className="clock"+(me?" me":"");
   const ta=document.getElementById("tradedAlert");
   if(traded){ta.style.display="block";ta.textContent=`Pick #${currentPick} is a traded pick`;} else ta.style.display="none";
-  document.getElementById("pickCounter").textContent=`(${currentPick-1}/${TOTAL} picks made)`;
+  var pc=document.getElementById("pickCounter");if(pc)pc.textContent=`(${currentPick-1}/${TOTAL} picks made)`;
 }
 
 const QB_STATS = {
@@ -1538,14 +1538,15 @@ function renderBoard() {
   var el = document.getElementById('boardGrid');
   if (!el) return;
 
+  if (!teamNames.length) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;gap:8px">🔗 Connect a Sleeper league to see the draft board</div>';
+    return;
+  }
+
   // Build pick→entry map from pickLog
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
-  // pickMap is the authoritative source: slot-based, shows whoever actually drafted at each pick
-
-  // Build pick→owner map (after trades)
-  // pickOwners[pick-1] = teamIdx who drafts that pick
   var posColors = {QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'};
 
   // Header row: round label + one col per team
