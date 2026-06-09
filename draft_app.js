@@ -3169,3 +3169,47 @@ function showMockResults(){
     '<div style="background:#1a3a2a;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Best pick</div><div style="color:#4ade80;font-weight:600">'+best.name+'</div><div style="color:#6b7280">Rd '+(best.rd||'?')+' · VORP '+(best.vorp>0?'+':'')+best.vorp.toFixed(0)+'</div></div>'+
     '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>';
 }
+
+// ── Resizable board/bottom splitter ──────────────────────────────────────
+(function() {
+  function init() {
+    var resizer = document.getElementById('mainResizer');
+    var board   = document.getElementById('boardPanel');
+    var main    = document.querySelector('.main');
+    if (!resizer || !board || !main) return;
+
+    var startY, startH;
+
+    resizer.addEventListener('mousedown', function(e) {
+      startY = e.clientY;
+      startH = board.getBoundingClientRect().height;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+
+    function onMove(e) {
+      var delta = e.clientY - startY;
+      var mainH = main.getBoundingClientRect().height;
+      var newH  = Math.max(80, Math.min(startH + delta, mainH - 120));
+      board.style.flex = '0 0 ' + newH + 'px';
+    }
+
+    function onUp() {
+      resizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

@@ -10,6 +10,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow:hidden;height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d1117;color:#e6edf3;font-size:14px}
+.resizer{height:5px;background:#21262d;cursor:row-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;user-select:none;position:relative}
+.resizer:hover,.resizer.dragging{background:#388bfd}
+.resizer::after{content:'';display:block;width:40px;height:3px;border-radius:2px;background:#484f58}
+.resizer:hover::after,.resizer.dragging::after{background:#388bfd}
 .topbar{background:#161b22;border-bottom:1px solid #30363d;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .topbar h1{font-size:14px;font-weight:700;color:#e6edf3;white-space:nowrap}
 .tag{font-size:11px;color:#7d8590;background:#21262d;padding:2px 8px;border-radius:10px;white-space:nowrap;border:1px solid #30363d}
@@ -226,6 +230,9 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
     </div>
     <div id="boardGrid" style="overflow:auto;flex:1;padding:4px;font-size:10px"></div>
   </div>
+
+  <!-- Drag handle -->
+  <div class="resizer" id="mainResizer" title="Drag to resize"></div>
 
   <!-- BOTTOM: 3-column row -->
   <div style="flex:1;min-height:0;display:flex;gap:6px;overflow:hidden">
