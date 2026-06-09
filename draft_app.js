@@ -1938,10 +1938,6 @@ function sendStrip() {
 function askAIChip(el){askAICustom(el.getAttribute("data-c"));}
 function doAskAIQuick() { askAI('quick'); }
 function doAskAIFull()  { askAI('full'); }
-function switchRoster() { switchTab('roster'); }
-function switchTeams()  { switchTab('teams'); }
-function switchQBs()    { switchTab('qbs'); }
-function switchTrades() { switchTab('trades'); }
 
 
 (function init(){
@@ -2978,11 +2974,27 @@ function sendStrip() {
 function doAskAIQuick() { askAI('quick'); }
 function doAskAIFull()  { askAI('full'); }
 function switchRoster() { switchTab('roster'); }
-function switchTeams()  { switchTab('teams'); }
-function switchQBs()    { switchTab('qbs'); }
-function switchTrades() { switchTab('trades'); }
+function switchTeams()  { /* removed — All teams tab gone */ }
+function switchQBs()    { /* removed — QB tracker tab gone */ }
+function switchTrades() { /* removed — Trades tab gone */ }
 function showDraftTab()  { showMainTab('draft'); }
 function showAIChatTab() { showMainTab('aiChat'); }
+
+function switchRPanel(tab) {
+  ['roster','ai'].forEach(function(t) {
+    var el = document.getElementById('rp-' + t);
+    var btn = document.getElementById('rpt-' + t);
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('rp-on', t === tab);
+  });
+}
+
+function setPosFilter(pos, btn) {
+  document.getElementById('posFilt').value = pos;
+  document.querySelectorAll('.pos-pill').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  renderBA();
+}
 
 // ── Init ──
 (function init() {

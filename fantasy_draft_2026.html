@@ -162,6 +162,32 @@ html,body{overflow:hidden;height:100vh}
 .bg-empty { color:#2a2d3a; }
 .bg-my-col td { background:#131a13 !important; }
 
+/* ── DK-inspired additions ── */
+/* Position filter pills */
+.pos-pill{background:transparent;border:1px solid #3a3d4a;color:#6b7280;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;height:26px}
+.pos-pill:hover{border-color:#6b7280;color:#e8eaf0}
+.pos-pill.active{color:#0f1117;border-color:transparent}
+.pos-pill.qb.active{background:#60a5fa}
+.pos-pill.rb.active{background:#4ade80}
+.pos-pill.wr.active{background:#fb923c}
+.pos-pill.te.active{background:#c084fc}
+.pos-pill:not(.qb):not(.rb):not(.wr):not(.te).active{background:#e8eaf0}
+
+/* Combined right-panel tabs */
+.rp-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:12px;font-weight:600;padding:10px 4px;cursor:pointer;transition:all .15s}
+.rp-tab:hover{color:#e8eaf0}
+.rp-tab.rp-on{color:#4ade80;border-bottom-color:#4ade80}
+
+/* Sharper clock */
+.clock{font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px;background:#0f2a1a;color:#4ade80;border:1px solid #166534;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em}
+.clock.me{background:#0e2040;color:#60a5fa;border-color:#1565c0}
+.clock.done{background:#1a1d27;color:#4b5563;border-color:#2a2d3a}
+
+/* Cleaner player rows */
+.ba{display:grid;grid-template-columns:28px 30px 180px 36px 36px 46px 44px 42px 38px 50px 120px 36px 30px;gap:4px;align-items:center;padding:6px 8px;border-bottom:1px solid #12141f;cursor:pointer;transition:background .1s}
+.ba:hover{background:#1e2236}
+.ba.out{opacity:.25;pointer-events:none;text-decoration:line-through}
+
 </style>
 </head>
 <body style="overflow:hidden;height:100vh">
@@ -208,7 +234,6 @@ html,body{overflow:hidden;height:100vh}
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #166534;background:#14532d;color:#4ade80;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #854d0e;background:#2d2008;color:#fbbf24;cursor:pointer">🎯 Mock Draft</button>
     <button onclick="openBoardModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1565c0;background:#1e3a5f;color:#60a5fa;cursor:pointer">📋 Board</button>
-    <button onclick="openTradesModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #4a1d96;background:#2e1065;color:#c084fc;cursor:pointer">🔄 Trades</button>
   </div>
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
@@ -254,8 +279,15 @@ html,body{overflow:hidden;height:100vh}
       <h2>Live draft board</h2>
       <div class="clock" id="clk">Waiting for draft to start...</div>
     </div>
-    <div class="ctrl">
-      <input type="text" id="srch" placeholder="Search players..." oninput="renderBA()" style="width:150px">
+    <div class="ctrl" style="gap:8px">
+      <input type="text" id="srch" placeholder="🔍 Search players..." oninput="renderBA()" style="width:160px;border-radius:20px;padding:4px 12px">
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="pos-pill active" onclick="setPosFilter('ALL',this)">ALL</button>
+        <button class="pos-pill qb" onclick="setPosFilter('QB',this)">QB</button>
+        <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
+        <button class="pos-pill wr" onclick="setPosFilter('WR',this)">WR</button>
+        <button class="pos-pill te" onclick="setPosFilter('TE',this)">TE</button>
+      </div>
       <div id="qbAlert" style="display:none;background:#3d1515;color:#fca5a5;font-size:11px;padding:3px 8px;border-radius:4px">&#9888; QB run — 8+ gone</div>
       <div id="tradedAlert" style="display:none;background:#3d2a10;color:#fbbf24;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
     </div>
@@ -288,55 +320,55 @@ html,body{overflow:hidden;height:100vh}
     <div class="scroll" id="pLog" style="flex:1;overflow-y:auto"></div>
   </div>
 
-  <!-- RIGHT: Roster / Teams / QBs / Trades -->
-  <div class="panel" style="width:240px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-    <div class="tabs">
-      <div class="tab on" onclick="switchRoster()">My roster</div>
-      <div class="tab" onclick="switchTeams()">All teams</div>
-      <div class="tab" onclick="switchQBs()">QB tracker</div>
-
+  <!-- RIGHT: My Draft + AI (combined) -->
+  <div class="panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:1px solid #2a2d3a;flex-shrink:0">
+      <button class="rp-tab rp-on" id="rpt-roster" onclick="switchRPanel('roster')">My Draft</button>
+      <button class="rp-tab" id="rpt-ai" onclick="switchRPanel('ai')">🤖 AI</button>
     </div>
-    <div class="tc on" id="tc-roster">
+
+    <!-- My Draft tab -->
+    <div id="rp-roster" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
       <div class="stats" id="statsBar"></div>
       <div class="rnote" id="rNote">Select your team above.</div>
-      <div class="rlist" id="rList"></div>
+      <div class="rlist" id="rList" style="flex:1;overflow-y:auto"></div>
     </div>
-    <div class="tc" id="tc-teams"><div class="at-list" id="atList"></div></div>
-    <div class="tc" id="tc-qbs"><div class="qb-panel" id="qbPanel"></div></div>
 
-
-  </div>
-
-  <!-- AI ADVISOR -->
-  <div class="panel" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:8px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;gap:6px;flex-shrink:0">
-      <span style="font-size:12px;font-weight:600;color:#f3f4f6">🤖 AI Advisor</span>
-      <span id="aiActiveTag" style="font-size:10px;color:#4ade80;display:none">✓ Active</span>
-      <div id="aiActionBtns" style="margin-left:auto;display:none;gap:4px">
-        <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#14532d;color:#4ade80;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">⚡</button>
-        <button onclick="doAskAIFull()" style="font-size:10px;background:#1e3a5f;color:#60a5fa;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">🧠</button>
+    <!-- AI tab -->
+    <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span id="aiActiveTag" style="font-size:10px;color:#4ade80;display:none">✓ Active</span>
+        <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
+          <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#14532d;color:#4ade80;border:none;border-radius:4px;padding:3px 8px;cursor:pointer">⚡ My pick</button>
+          <button onclick="doAskAIFull()" style="font-size:10px;background:#1e3a5f;color:#60a5fa;border:none;border-radius:4px;padding:3px 8px;cursor:pointer">🧠 Full</button>
+        </div>
+      </div>
+      <div id="aiKeyEntry" style="padding:8px 12px;border-bottom:1px solid #2a2d3a;flex-shrink:0">
+        <div style="font-size:10px;color:#6b7280;margin-bottom:5px">Paste Anthropic API key:</div>
+        <div style="display:flex;gap:4px">
+          <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
+          <button onclick="saveApiKey()" style="font-size:10px;background:#1d4ed8;color:white;border:none;border-radius:4px;padding:4px 6px;cursor:pointer">Save</button>
+        </div>
+        <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#60a5fa;display:block;margin-top:4px">Get key ↗</a>
+      </div>
+      <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #2a2d3a;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
+      <div id="aiResponse" style="padding:8px 12px;font-size:11px;color:#d1d5db;line-height:1.5;overflow-y:auto;flex:1">
+        <span style="color:#4b5563;font-style:italic">Add your API key above for live draft advice.</span>
+      </div>
+      <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #2a2d3a;flex-shrink:0">
+        <div style="display:flex;gap:4px">
+          <input type="text" id="aiStripInputEl" placeholder="Ask anything..."
+            onkeydown="if(event.key==='Enter'&&this.value.trim()){askAICustom(this.value);this.value=''}"
+            style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;outline:none;min-width:0">
+          <button onclick="sendStrip()" style="font-size:10px;background:#374151;color:#d1d5db;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">↵</button>
+        </div>
       </div>
     </div>
-    <div id="aiKeyEntry" style="padding:8px 12px;border-bottom:1px solid #2a2d3a;flex-shrink:0">
-      <div style="font-size:10px;color:#6b7280;margin-bottom:5px">Paste Anthropic API key:</div>
-      <div style="display:flex;gap:4px">
-        <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
-        <button onclick="saveApiKey()" style="font-size:10px;background:#1d4ed8;color:white;border:none;border-radius:4px;padding:4px 6px;cursor:pointer">Save</button>
-      </div>
-      <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#60a5fa;display:block;margin-top:4px">Get key ↗</a>
-    </div>
-    <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #2a2d3a;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
-    <div id="aiResponse" style="padding:8px 12px;font-size:11px;color:#d1d5db;line-height:1.5;overflow-y:auto;flex:1">
-      <span style="color:#4b5563;font-style:italic">Add your API key above for live draft advice.</span>
-    </div>
-    <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #2a2d3a;flex-shrink:0">
-      <div style="display:flex;gap:4px">
-        <input type="text" id="aiStripInputEl" placeholder="Ask anything..."
-          onkeydown="if(event.key==='Enter'&&this.value.trim()){askAICustom(this.value);this.value=''}"
-          style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;outline:none;min-width:0">
-        <button onclick="sendStrip()" style="font-size:10px;background:#374151;color:#d1d5db;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">↵</button>
-      </div>
-    </div>
+
+    <!-- hidden stubs so existing JS can still find tc-teams / tc-qbs without errors -->
+    <div id="tc-teams" style="display:none"></div>
+    <div id="tc-qbs" style="display:none"><div id="atList"></div><div id="qbPanel"></div></div>
   </div>
 
 </div>
