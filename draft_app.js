@@ -2809,12 +2809,10 @@ function switchRP(tab) {
 
 var _boardExpanded = false;
 function toggleBoard() {
-  var panel = document.getElementById('boardPanel');
-  var btn = document.getElementById('boardToggleBtn');
-  if (!panel) return;
+  var section = document.getElementById('topSection');
+  if (!section) return;
   _boardExpanded = !_boardExpanded;
-  panel.style.flex = _boardExpanded ? '1 1 auto' : '0 0 260px';
-  if (btn) btn.textContent = _boardExpanded ? '⤡' : '⤢';
+  section.style.flex = _boardExpanded ? '1 1 auto' : '0 0 280px';
 }
 function switchRPanel(tab) { switchRP(tab === 'ai' ? 'roster' : tab); }
 
@@ -3173,16 +3171,16 @@ function showMockResults(){
 // ── Resizable board/bottom splitter ──────────────────────────────────────
 (function() {
   function init() {
-    var resizer = document.getElementById('mainResizer');
-    var board   = document.getElementById('boardPanel');
-    var main    = document.querySelector('.main');
-    if (!resizer || !board || !main) return;
+    var resizer  = document.getElementById('mainResizer');
+    var section  = document.getElementById('topSection');
+    var main     = document.querySelector('.main');
+    if (!resizer || !section || !main) return;
 
     var startY, startH;
 
     resizer.addEventListener('mousedown', function(e) {
       startY = e.clientY;
-      startH = board.getBoundingClientRect().height;
+      startH = section.getBoundingClientRect().height;
       resizer.classList.add('dragging');
       document.body.style.cursor = 'row-resize';
       document.body.style.userSelect = 'none';
@@ -3195,7 +3193,7 @@ function showMockResults(){
       var delta = e.clientY - startY;
       var mainH = main.getBoundingClientRect().height;
       var newH  = Math.max(80, Math.min(startH + delta, mainH - 120));
-      board.style.flex = '0 0 ' + newH + 'px';
+      section.style.flex = '0 0 ' + newH + 'px';
     }
 
     function onUp() {

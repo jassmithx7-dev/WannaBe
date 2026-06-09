@@ -210,34 +210,10 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 <div class="main" style="flex-direction:column">
 
-  <!-- TOP: Full-width Draft Board -->
-  <div class="panel" id="boardPanel" style="flex:0 0 250px;display:flex;flex-direction:column;overflow:hidden">
-    <div class="panel-hdr" style="padding:6px 12px">
-      <h2 style="font-size:12px">Draft Board</h2>
-      <div class="clock" id="clk">Waiting for draft to start...</div>
-      <button onclick="toggleBoard()" id="boardToggleBtn" title="Expand/collapse board" style="font-size:13px;background:transparent;border:none;color:#7d8590;cursor:pointer;padding:0 2px;margin-left:6px;flex-shrink:0">⤢</button>
-      <button onclick="scrollToBoardCurrentRound()" title="Current pick" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:2px 7px;cursor:pointer;flex-shrink:0;margin-left:4px">📍</button>
-    </div>
-    <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:6px 12px;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:12px;font-weight:700;color:#e3b341">🎯 MOCK</span>
-      <span id="mockBannerPick" style="font-size:11px;color:#c9982b"></span>
-      <span id="mockBannerTimer" style="font-size:15px;font-weight:700;color:#e3b341;width:36px"></span>
-      <span style="font-size:10px;color:#9e6a03;flex:1">Click any player · CPU auto-advances</span>
-      <button onclick="mockAutoPick()" style="font-size:10px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:3px 8px;cursor:pointer">Auto pick</button>
-      <button onclick="skipToMyPick()" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:3px 8px;cursor:pointer">Skip</button>
-      <button onclick="finishMockDraft()" style="font-size:10px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:3px 8px;cursor:pointer">Finish</button>
-      <button onclick="closeMockModal()" style="font-size:10px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:3px 8px;cursor:pointer">Quit</button>
-    </div>
-    <div id="boardGrid" style="overflow:auto;flex:1;padding:4px;font-size:10px"></div>
-  </div>
+  <!-- TOP: Picks (left) + Board (right), same height -->
+  <div id="topSection" style="flex:0 0 280px;display:flex;gap:6px;overflow:hidden;min-height:80px">
 
-  <!-- Drag handle -->
-  <div class="resizer" id="mainResizer" title="Drag to resize"></div>
-
-  <!-- BOTTOM: 3-column row -->
-  <div style="flex:1;min-height:0;display:flex;gap:6px;overflow:hidden">
-
-    <!-- BOTTOM LEFT: Top Picks -->
+    <!-- Top Picks panel -->
     <div class="panel" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
       <div class="panel-hdr" style="padding:7px 10px">
         <span style="font-size:12px;font-weight:700;color:#e6edf3">💡 Top Picks</span>
@@ -250,7 +226,35 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
       </div>
     </div>
 
-    <!-- BOTTOM CENTER: Available Players -->
+    <!-- Draft Board panel -->
+    <div class="panel" id="boardPanel" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+      <div class="panel-hdr" style="padding:6px 12px">
+        <h2 style="font-size:12px">Draft Board</h2>
+        <div class="clock" id="clk">Waiting for draft to start...</div>
+        <button onclick="scrollToBoardCurrentRound()" title="Current pick" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:2px 7px;cursor:pointer;flex-shrink:0;margin-left:6px">📍</button>
+      </div>
+      <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:6px 12px;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:#e3b341">🎯 MOCK</span>
+        <span id="mockBannerPick" style="font-size:11px;color:#c9982b"></span>
+        <span id="mockBannerTimer" style="font-size:15px;font-weight:700;color:#e3b341;width:36px"></span>
+        <span style="font-size:10px;color:#9e6a03;flex:1">Click any player · CPU auto-advances</span>
+        <button onclick="mockAutoPick()" style="font-size:10px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:3px 8px;cursor:pointer">Auto pick</button>
+        <button onclick="skipToMyPick()" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:3px 8px;cursor:pointer">Skip</button>
+        <button onclick="finishMockDraft()" style="font-size:10px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:3px 8px;cursor:pointer">Finish</button>
+        <button onclick="closeMockModal()" style="font-size:10px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:3px 8px;cursor:pointer">Quit</button>
+      </div>
+      <div id="boardGrid" style="overflow:auto;flex:1;padding:4px;font-size:10px"></div>
+    </div>
+
+  </div>
+
+  <!-- Drag handle -->
+  <div class="resizer" id="mainResizer" title="Drag to resize"></div>
+
+  <!-- BOTTOM: Players (left, flex) + My Draft/AI (right, fixed) -->
+  <div style="flex:1;min-height:0;display:flex;gap:6px;overflow:hidden">
+
+    <!-- Available Players -->
     <div class="panel" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
       <div class="ctrl" style="gap:6px;padding:5px 8px">
         <input type="text" id="srch" placeholder="🔍 Search players..." oninput="renderBA()" style="width:140px;border-radius:20px;padding:3px 10px">
@@ -272,7 +276,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
       </div>
-      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:560px">
+      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:520px">
         <span>#</span><span>Pos</span><span>Player</span>
         <span style="text-align:center">ADP</span>
         <span style="text-align:center" title="Projected pts">Proj</span>
@@ -284,21 +288,19 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
       <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
     </div>
 
-    <!-- BOTTOM RIGHT: My Draft | AI -->
+    <!-- My Draft | AI Chat -->
     <div class="panel" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
       <div class="sp-tabs">
         <button class="sp-tab sp-on" id="rpt-roster" onclick="switchRP('roster')">My Draft</button>
         <button class="sp-tab" id="rpt-ai" onclick="switchRP('ai')">🤖 AI Chat</button>
       </div>
 
-      <!-- My Draft tab -->
       <div id="rp-roster" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
         <div class="stats" id="statsBar"></div>
         <div class="rnote" id="rNote">Select your team above.</div>
         <div class="rlist" id="rList" style="flex:1;overflow-y:auto"></div>
       </div>
 
-      <!-- AI tab -->
       <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div style="padding:8px 10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span id="aiActiveTag" style="font-size:10px;color:#3fb950;display:none">✓ Active</span>
@@ -329,7 +331,6 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </div>
       </div>
 
-      <!-- Hidden stubs -->
       <div style="display:none"><div id="pLog"></div><div id="rp-picks"></div></div>
       <div id="tc-teams" style="display:none"></div>
       <div id="tc-qbs" style="display:none"><div id="atList"></div><div id="qbPanel"></div></div>
