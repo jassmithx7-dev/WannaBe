@@ -642,7 +642,8 @@ let setup=null; // loaded from JSON
 let teamNames=["Team 1","Team 2","Team 3","Team 4","Team 5","Team 6","Team 7","Team 8","Team 9","Team 10","Team 11","Team 12"];
 let teamSlots=[]; // slot per team index (1-based, 0=unset)
 let teamRosterIds=(function(){try{var v=localStorage.getItem('ff26_teamRosterIds');return v?JSON.parse(v):[];}catch(e){return[];}})();
-let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick
+let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick (after trades)
+let origPickOwners=[]; // origPickOwners[pick-1] = slot-based owner before any trades
 let keeperPicks=[]; // {pick,teamIdx,player} — pre-placed keepers
 let trades=[];
 let myTeamIdx=(function(){var v=localStorage.getItem('ff26_myTeamIdx');return v!==null?parseInt(v):-1;})();
@@ -744,6 +745,7 @@ function ptSlotInRound(pick){return pick-(ptRd(pick)-1)*TEAMS;}
 // Given slot assignments, compute which teamIdx is on the clock for each pick
 function buildPickOwners(){
   pickOwners=[];
+  origPickOwners=[];
   // Build slot->teamIdx map
   const slotMap={};
   teamSlots.forEach((slot,ti)=>{if(slot>0)slotMap[slot]=ti;});
@@ -752,6 +754,7 @@ function buildPickOwners(){
     const posInRound=pick-(rd-1)*TEAMS;
     const slot=rd%2===1?posInRound:TEAMS+1-posInRound;
     const ti=slotMap[slot];
+    origPickOwners.push(ti!==undefined?ti:-1);
     pickOwners.push(ti!==undefined?ti:-1);
   }
   // Apply trades: reassign pick ownership
@@ -852,10 +855,8 @@ function clockTeamIdx(){
 
 function isKeeperPick(pick){return keeperPicks.find(kp=>kp.pick===pick);}
 isTradedPick=(pick)=>{
-  if(!trades.length) return false;
-  const rd=ptRd(pick);
-  // true if the ACTUAL owner of this pick differs from the original slot owner
-  return pickOwners[pick-1] !== undefined && trades.some(tr=>tr.round===rd&&tr.fromTeam!==tr.toTeam);
+  if(!trades.length||pickOwners[pick-1]===undefined||origPickOwners[pick-1]===undefined) return false;
+  return pickOwners[pick-1] !== origPickOwners[pick-1];
 };
 
 function draftPlayer(rank){
