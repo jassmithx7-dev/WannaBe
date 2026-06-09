@@ -875,9 +875,17 @@ function setMyTeamFromModal() {
   if (ti < 0) return;
   myTeamIdx = ti;
   localStorage.setItem('ff26_myTeamIdx', String(ti));
-  // Sync keeper panel team selector and auto-load their roster
+  // Rebuild kpTeamOwner with current team names (post-import) then select and load
   var ownerSel = document.getElementById('kpTeamOwner');
-  if (ownerSel) { ownerSel.value = ti; loadTeamRosterForKeepers(); }
+  if (ownerSel) {
+    ownerSel.innerHTML = '<option value="-1">— Select team —</option>';
+    teamNames.forEach(function(n, i) {
+      var o = document.createElement('option'); o.value = i; o.text = n;
+      if (i === ti) o.selected = true;
+      ownerSel.appendChild(o);
+    });
+    loadTeamRosterForKeepers();
+  }
   renderAll();
 }
 
@@ -2021,6 +2029,13 @@ async function fetchSleeperLeague() {
     const tradesFound = trades.length;
     const draftStatus = draftData ? ` · Draft ${draftData.status}` : ' · No draft created yet';
     const draftIdMsg = draftData ? ` · Draft ID saved` : '';
+    const rawTradeCount = (tradedPicks && tradedPicks.length) || 0;
+    let tradeNote = '';
+    if (rawTradeCount > 0 && tradesFound === 0) {
+      const samp = tradedPicks[0];
+      const rKeys = Object.keys(rosterMap).slice(0,4).join(',');
+      tradeNote = ` | ⚠️ ${rawTradeCount} Sleeper picks unmapped — sample: prev=${samp.previous_owner_id} roster=${samp.roster_id} rd=${samp.round} season=${samp.season}; rosterMap keys: ${rKeys}`;
+    }
 
     // Auto-pull my team's players if myTeamIdx is set
     if (myTeamIdx >= 0 && rosters[myTeamIdx]) {
@@ -2047,19 +2062,19 @@ async function fetchSleeperLeague() {
           });
 
           renderKeeperRows();
-          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${tradesFound} pick trades · ${myPlayers.length} players on your roster — select team above, then check keepers & enter cost round`, false);
+          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${tradesFound} pick trades · ${myPlayers.length} players on your roster — select team above, then check keepers & enter cost round${tradeNote}`, false);
         } catch(e) {
-          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}`, false);
+          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${tradeNote}`, false);
         }
       } else {
         sleeperMsg(
-          `✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${draftIdMsg}`,
+          `✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${draftIdMsg}${tradeNote}`,
           false
         );
       }
     } else {
       sleeperMsg(
-        `✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${draftIdMsg}`,
+        `✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${draftIdMsg}${tradeNote}`,
         false
       );
     }
