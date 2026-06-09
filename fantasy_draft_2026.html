@@ -184,7 +184,6 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
     <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#7d8590;cursor:pointer">AI Chat</button>
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #2ea043;background:#0e2a1a;color:#3fb950;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9e6a03;background:#2d2008;color:#e3b341;cursor:pointer">🎯 Mock Draft</button>
-    <button onclick="openBoardModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1f6feb;background:#1158c7;color:#e6edf3;cursor:pointer">📋 Board</button>
   </div>
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
@@ -207,22 +206,82 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 <div class="main">
 
-  <!-- LEFT PANEL: Top Picks | AI -->
-  <div class="panel" style="width:280px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+  <!-- LEFT + CENTER: Board (top) · Players (bottom) -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:hidden">
+
+    <!-- Inline Draft Board -->
+    <div class="panel" style="flex:0 0 210px;display:flex;flex-direction:column;overflow:hidden">
+      <div class="panel-hdr">
+        <h2>Draft Board</h2>
+        <div class="clock" id="clk">Waiting for draft to start...</div>
+        <button onclick="scrollToBoardCurrentRound()" title="Jump to current pick" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:3px 8px;cursor:pointer;margin-left:auto;flex-shrink:0">📍 Current</button>
+      </div>
+      <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:8px 14px;flex-shrink:0;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;color:#e3b341">🎯 MOCK DRAFT</span>
+        <span id="mockBannerPick" style="font-size:12px;color:#c9982b"></span>
+        <span id="mockBannerTimer" style="font-size:16px;font-weight:700;color:#e3b341;width:40px"></span>
+        <span style="font-size:11px;color:#9e6a03;flex:1">Click any player · CPU auto-advances</span>
+        <button onclick="mockAutoPick()" style="font-size:11px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:4px 10px;cursor:pointer">Auto pick</button>
+        <button onclick="skipToMyPick()" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:4px 10px;cursor:pointer">Skip to mine</button>
+        <button onclick="finishMockDraft()" style="font-size:11px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:4px 10px;cursor:pointer">Finish</button>
+        <button onclick="closeMockModal()" style="font-size:11px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:4px 10px;cursor:pointer">Quit</button>
+      </div>
+      <div id="boardGrid" style="overflow:auto;flex:1;padding:4px;font-size:10px"></div>
+    </div>
+
+    <!-- Available Players -->
+    <div class="panel" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+      <div class="ctrl" style="gap:8px">
+        <input type="text" id="srch" placeholder="🔍 Search players..." oninput="renderBA()" style="width:150px;border-radius:20px;padding:4px 12px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="pos-pill active" onclick="setPosFilter('ALL',this)">ALL</button>
+          <button class="pos-pill qb" onclick="setPosFilter('QB',this)">QB</button>
+          <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
+          <button class="pos-pill wr" onclick="setPosFilter('WR',this)">WR</button>
+          <button class="pos-pill te" onclick="setPosFilter('TE',this)">TE</button>
+          <button class="pos-pill sf" onclick="setPosFilter('SFLX',this)">Superflex</button>
+          <button class="pos-pill def" onclick="setPosFilter('DEF',this)">DEF</button>
+          <button class="pos-pill k" onclick="setPosFilter('K',this)">K</button>
+        </div>
+        <select id="posFilt" onchange="renderBA()" style="display:none">
+          <option value="ALL">All</option><option value="QB">QB</option><option value="RB">RB</option>
+          <option value="WR">WR</option><option value="TE">TE</option><option value="SFLX">Superflex</option>
+          <option value="DEF">DEF</option><option value="K">K</option>
+        </select>
+        <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
+        <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+      </div>
+      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:680px">
+        <span>#</span><span>Pos</span><span>Player</span>
+        <span style="text-align:center">ADP</span>
+        <span style="text-align:center" title="Projected pts">Proj</span>
+        <span style="text-align:center" title="Value over replacement">VORP</span>
+        <span style="text-align:center" title="OL grade">OL</span>
+        <span style="text-align:center" title="Schedule difficulty">SoS</span>
+        <span></span>
+      </div>
+      <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL: My Draft | AI | Picks -->
+  <div class="panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
     <div class="sp-tabs">
-      <button class="sp-tab sp-on" id="lpt-picks" onclick="switchLP('picks')">Top Picks</button>
-      <button class="sp-tab" id="lpt-ai" onclick="switchLP('ai')">🤖 AI</button>
+      <button class="sp-tab sp-on" id="rpt-roster" onclick="switchRP('roster')">My Draft</button>
+      <button class="sp-tab" id="rpt-ai" onclick="switchRP('ai')">🤖 AI</button>
+      <button class="sp-tab" id="rpt-picks" onclick="switchRP('picks')">💡 Picks</button>
     </div>
-    <div id="lp-picks" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-      <div style="padding:5px 10px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#21262d">
-        <span style="font-size:10px;font-weight:600;color:#e6edf3">💡 Suggested picks</span>
-        <span id="factorStatus" style="font-size:9px;color:#7d8590"></span>
-      </div>
-      <div id="suggBar" style="flex:1;overflow-y:auto">
-        <div id="suggCards"></div>
-      </div>
+
+    <!-- My Draft tab -->
+    <div id="rp-roster" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="stats" id="statsBar"></div>
+      <div class="rnote" id="rNote">Select your team above.</div>
+      <div class="rlist" id="rList" style="flex:1;overflow-y:auto"></div>
     </div>
-    <div id="lp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+
+    <!-- AI tab -->
+    <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
       <div style="padding:8px 12px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span id="aiActiveTag" style="font-size:10px;color:#3fb950;display:none">✓ Active</span>
         <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
@@ -251,71 +310,20 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- CENTER: Draft Board + Player List -->
-  <div class="panel" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
-    <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:8px 14px;flex-shrink:0;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;font-weight:700;color:#e3b341">🎯 MOCK DRAFT</span>
-      <span id="mockBannerPick" style="font-size:12px;color:#c9982b"></span>
-      <span id="mockBannerTimer" style="font-size:16px;font-weight:700;color:#e3b341;width:40px"></span>
-      <span style="font-size:11px;color:#9e6a03;flex:1">Click any player to draft · CPU picks auto-advance</span>
-      <button onclick="mockAutoPick()" style="font-size:11px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:4px 10px;cursor:pointer">Auto pick</button>
-      <button onclick="skipToMyPick()" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:4px 10px;cursor:pointer">Skip to my pick</button>
-      <button onclick="finishMockDraft()" style="font-size:11px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:4px 10px;cursor:pointer">Finish</button>
-      <button onclick="closeMockModal()" style="font-size:11px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:4px 10px;cursor:pointer">Quit mock</button>
-    </div>
-    <div class="panel-hdr">
-      <h2>Live Draft Board</h2>
-      <div class="clock" id="clk">Waiting for draft to start...</div>
-    </div>
-    <div class="ctrl" style="gap:8px">
-      <input type="text" id="srch" placeholder="🔍 Search players..." oninput="renderBA()" style="width:160px;border-radius:20px;padding:4px 12px">
-      <div style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="pos-pill active" onclick="setPosFilter('ALL',this)">ALL</button>
-        <button class="pos-pill qb" onclick="setPosFilter('QB',this)">QB</button>
-        <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
-        <button class="pos-pill wr" onclick="setPosFilter('WR',this)">WR</button>
-        <button class="pos-pill te" onclick="setPosFilter('TE',this)">TE</button>
-        <button class="pos-pill sf" onclick="setPosFilter('SFLX',this)">Superflex</button>
-        <button class="pos-pill def" onclick="setPosFilter('DEF',this)">DEF</button>
-        <button class="pos-pill k" onclick="setPosFilter('K',this)">K</button>
+    <!-- Picks tab -->
+    <div id="rp-picks" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:5px 10px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#21262d">
+        <span style="font-size:10px;font-weight:600;color:#e6edf3">💡 Suggested picks</span>
+        <span id="factorStatus" style="font-size:9px;color:#7d8590"></span>
       </div>
-      <select id="posFilt" onchange="renderBA()" style="display:none">
-        <option value="ALL">All</option><option value="QB">QB</option><option value="RB">RB</option>
-        <option value="WR">WR</option><option value="TE">TE</option><option value="SFLX">Superflex</option>
-        <option value="DEF">DEF</option><option value="K">K</option>
-      </select>
-      <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
-      <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+      <div id="suggBar" style="flex:1;overflow-y:auto">
+        <div id="suggCards"></div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:680px">
-      <span>#</span><span>Pos</span><span>Player</span>
-      <span style="text-align:center">ADP</span>
-      <span style="text-align:center" title="Projected pts">Proj</span>
-      <span style="text-align:center" title="Value over replacement">VORP</span>
-      <span style="text-align:center" title="OL grade">OL</span>
-      <span style="text-align:center" title="Schedule difficulty">SoS</span>
-      <span></span>
-    </div>
-    <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
-  </div>
 
-  <!-- RIGHT PANEL: My Draft | Queue -->
-  <div class="panel" style="width:240px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-    <div class="sp-tabs">
-      <button class="sp-tab sp-on" id="rpt-roster" onclick="switchRP('roster')">My Draft</button>
-      <button class="sp-tab" id="rpt-queue" onclick="switchRP('queue')">Queue</button>
-    </div>
-    <div id="rp-roster" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-      <div class="stats" id="statsBar"></div>
-      <div class="rnote" id="rNote">Select your team above.</div>
-      <div class="rlist" id="rList" style="flex:1;overflow-y:auto"></div>
-    </div>
-    <div id="rp-queue" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <div class="col-hdr">Pick queue <span id="pickCounter" style="font-weight:400;color:#484f58"></span></div>
-      <div id="pLog" style="flex:1;overflow-y:auto"></div>
-    </div>
+    <!-- Hidden: pick log + legacy stubs -->
+    <div style="display:none"><div id="pLog"></div></div>
     <div id="tc-teams" style="display:none"></div>
     <div id="tc-qbs" style="display:none"><div id="atList"></div><div id="qbPanel"></div></div>
   </div>
@@ -470,16 +478,8 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
   </div>
 </div>
 
-<!-- Draft Board Modal -->
-<div id="boardModal" style="display:none;position:fixed;inset:0;background:#0f1117;z-index:300;flex-direction:column">
-  <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:#1a1d27;border-bottom:1px solid #2a2d3a;flex-shrink:0">
-    <span style="font-size:14px;font-weight:700;color:#e8eaf0">📋 Draft Board</span>
-    <span style="font-size:11px;color:#6b7280;flex:1" id="boardModalStatus"></span>
-    <button onclick="scrollToBoardCurrentRound()" style="background:#1e3a5f;border:1px solid #1565c0;color:#60a5fa;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">📍 Current</button>
-    <button onclick="document.getElementById('boardModal').style.display='none'" style="background:#252836;border:1px solid #374151;color:#9ca3af;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">✕ Close</button>
-  </div>
-  <div id="boardGrid" style="overflow:auto;flex:1;padding:8px"></div>
-</div>
+<!-- Draft Board Modal (full-screen view, board renders inline by default) -->
+<div id="boardModal" style="display:none"></div>
 
 </body>
 </html>

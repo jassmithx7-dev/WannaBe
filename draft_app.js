@@ -1616,9 +1616,7 @@ function renderBoard() {
 }
 
 function renderAll(){
-  // Re-render board if its modal is currently open
-  var bm = document.getElementById('boardModal');
-  if (bm && bm.style.display !== 'none') renderBoard();
+  renderBoard();
   renderClock();renderBA();renderLog();renderRoster();
   const at=document.querySelector(".tc.on");
   if(at){
@@ -2310,11 +2308,7 @@ async function syncSleeperDraft() {
     calcVORP();
     renderAll();
 
-    // If board modal is open, scroll to current round
-    var boardModal = document.getElementById('boardModal');
-    if (boardModal && boardModal.style.display !== 'none') {
-      setTimeout(scrollToBoardCurrentRound, 100);
-    }
+    setTimeout(scrollToBoardCurrentRound, 100);
 
     const unmatchedNote = unmatched.length ? ` · ${unmatched.length} unmatched (custom players)` : '';
     sleeperMsg(`✅ Synced ${picks.length} picks · ${matched} matched · ${keepers} keepers${unmatchedNote}`, false);
@@ -2804,7 +2798,7 @@ function switchLP(tab) {
   });
 }
 function switchRP(tab) {
-  ['roster','queue'].forEach(function(t) {
+  ['roster','ai','picks'].forEach(function(t) {
     var el = document.getElementById('rp-' + t);
     var btn = document.getElementById('rpt-' + t);
     if (el) el.style.display = t === tab ? 'flex' : 'none';
