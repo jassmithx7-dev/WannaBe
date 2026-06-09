@@ -3005,6 +3005,7 @@ function showAIChatTab() { showMainTab('aiChat'); }
     }
     checkSession();
     setTimeout(fetchNFLFactors, 2000);
+    setTimeout(loadAllPlayersFromSleeper, 2000);
   } catch(e) {
     console.error('[Init error]', e);
     var am = document.getElementById('authModal');
@@ -3013,88 +3014,50 @@ function showAIChatTab() { showMainTab('aiChat'); }
 })();
 
 
-// ── Load All Players from Sleeper ──
+// ── Load All Players from Sleeper (auto on startup, 7-day cache) ──
 async function loadAllPlayersFromSleeper() {
-  const btn = document.getElementById('loadAllPlayersBtn');
-  const status = document.getElementById('playerLoadStatus');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading...'; }
-  if (status) { status.style.display = 'inline'; status.textContent = 'Fetching from Sleeper...'; }
+  const CACHE_KEY = 'ff26_sleeperPlayers_v1';
+  const TTL = 7 * 24 * 60 * 60 * 1000;
   try {
-    const playerMap = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
-    const VALID_POS = ['QB','RB','WR','TE','K','DEF'];
-    const normalize = n => n.toLowerCase().replace(/[''`']/g,"'").replace(/\s+/g,' ').trim();
-    const existing = new Set(players.map(p => normalize(p.name)));
-    let added = 0;
-    let maxId = Math.max(...players.map(p => p.id||0), 200);
-    const playerList = Object.values(playerMap)
-      .filter(p => {
-        if (!p.active) return false;
-        if (!p.team || p.team === 'FA') return false;
-        const pos = p.fantasy_positions && p.fantasy_positions[0];
-        if (!VALID_POS.includes(pos)) return false;
-        if (!p.last_name) return false;
-        if (p.search_rank && p.search_rank > 500) return false;
-        return true;
-      })
-      .sort((a,b) => (a.search_rank||999) - (b.search_rank||999));
-    playerList.forEach(p => {
-      const fullName = ((p.first_name||'') + ' ' + (p.last_name||'')).trim();
-      if (!fullName || existing.has(normalize(fullName))) return;
-      const pos = (p.fantasy_positions && p.fantasy_positions[0]) || 'WR';
-      maxId++;
-      players.push({
-        rank: maxId, name: fullName, pos, team: p.team, bye: 'TBD',
-        adp: p.search_rank||999, sf: p.search_rank||999,
-        note: p.college||'Sleeper import', fit: '?',
-        drafted: false, isKeeper: false, customScore: 0,
-        customRank: 9999, vorp: null, vorpRank: 9999,
-        sleeperPlayerId: p.player_id,
-      });
-      existing.add(normalize(fullName));
-      added++;
-    });
-    calcVORP(); renderBA();
-    const total = players.length;
-    if (status) status.textContent = `✅ ${added} players added — ${total} total in pool`;
-    if (btn) btn.textContent = `✅ ${total} players loaded`;
-  } catch(e) {
-    if (status) status.textContent = '❌ ' + e.message;
-    if (btn) { btn.disabled = false; btn.textContent = '📥 Load 500+ players from Sleeper'; }
-  }
-}
-
-
-async function loadAllPlayersFromSleeper() {
-  const btn = document.getElementById('loadAllPlayersBtn');
-  const status = document.getElementById('playerLoadStatus');
-  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
-  if (status) { status.style.display = 'inline'; status.textContent = 'Fetching...'; }
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      var obj = JSON.parse(cached);
+      if (Date.now() - obj.ts < TTL) { _applySleeperList(obj.list); return; }
+    }
+  } catch(e) {}
   try {
     const playerMap = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
     const VALID_POS = ['QB','RB','WR','TE','K','DEF'];
     const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
-    const existing = new Set(players.map(p => norm(p.name)));
-    let added = 0, maxId = Math.max(...players.map(p=>p.id||0), 200);
+    let maxId = Math.max(...players.map(p=>p.id||0), 200);
+    var toCache = [];
     Object.values(playerMap).filter(p=>{
       if(!p.active||!p.team||p.team==='FA') return false;
       const pos=p.fantasy_positions&&p.fantasy_positions[0];
       return VALID_POS.includes(pos)&&p.last_name&&(!p.search_rank||p.search_rank<=500);
     }).sort((a,b)=>(a.search_rank||999)-(b.search_rank||999)).forEach(p=>{
       const fn=((p.first_name||'')+' '+(p.last_name||'')).trim();
-      if(!fn||existing.has(norm(fn))) return;
+      if(!fn) return;
       maxId++;
-      players.push({rank:maxId,name:fn,pos:p.fantasy_positions[0],team:p.team,bye:'TBD',
-        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',
-        drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999});
-      existing.add(norm(fn)); added++;
+      toCache.push({rank:maxId,name:fn,pos:p.fantasy_positions[0],team:p.team,bye:'TBD',
+        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?'});
     });
-    calcVORP(); renderBA();
-    if(status) status.textContent = added+' added — '+players.length+' total';
-    if(btn) btn.textContent = players.length+' players loaded';
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache})); } catch(e){}
+    _applySleeperList(toCache);
   } catch(e) {
-    if(status) status.textContent = 'Error: '+e.message;
-    if(btn){btn.disabled=false;btn.textContent='Load 500+ players from Sleeper';}
+    console.warn('[AutoLoad] Sleeper fetch failed:', e.message);
   }
+}
+
+function _applySleeperList(list) {
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  const existing = new Set(players.map(p => norm(p.name)));
+  list.forEach(function(p) {
+    if (!p.name || existing.has(norm(p.name))) return;
+    players.push(Object.assign({}, p, {drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999}));
+    existing.add(norm(p.name));
+  });
+  calcVORP(); renderBA();
 }
 
 // ── MOCK DRAFT ──

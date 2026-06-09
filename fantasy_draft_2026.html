@@ -260,13 +260,11 @@ html,body{overflow:hidden;height:100vh}
       <div id="tradedAlert" style="display:none;background:#3d2a10;color:#fbbf24;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
     </div>
     <div class="add-player-row" style="flex-wrap:wrap;gap:4px">
-      <span style="font-size:11px;color:#6b7280;white-space:nowrap">Add player:</span>
-      <input type="text" id="addName" placeholder="Player name" autocomplete="off" style="width:130px">
+      <span style="font-size:11px;color:#6b7280;white-space:nowrap">Add custom player:</span>
+      <input type="text" id="addName" placeholder="Player name" autocomplete="new-password" style="width:130px">
       <select id="addPos"><option value="QB">QB</option><option value="RB">RB</option><option value="WR" selected>WR</option><option value="TE">TE</option><option value="K">K</option><option value="DEF">DEF</option></select>
-      <input type="text" id="addNfl" placeholder="Team" autocomplete="off" style="width:50px">
+      <input type="text" id="addNfl" placeholder="Team" autocomplete="new-password" style="width:50px">
       <button class="btn btn-green" onclick="addCustomPlayer()">+ Add</button>
-      <button id="loadAllPlayersBtn" onclick="loadAllPlayersFromSleeper()" class="btn btn-blue" style="white-space:nowrap;margin-left:8px">📥 Load 500+ players from Sleeper</button>
-      <span id="playerLoadStatus" style="font-size:11px;color:#4ade80;display:none"></span>
     </div>
     <!-- Next pick suggestions -->
     <div id="suggBar">
