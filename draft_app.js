@@ -875,10 +875,10 @@ function setMyTeamFromModal() {
   if (ti < 0) return;
   myTeamIdx = ti;
   localStorage.setItem('ff26_myTeamIdx', String(ti));
-  var topSel = document.getElementById('myTeamSel');
-  if (topSel) topSel.value = ti;
+  // Sync keeper panel team selector and auto-load their roster
+  var ownerSel = document.getElementById('kpTeamOwner');
+  if (ownerSel) { ownerSel.value = ti; loadTeamRosterForKeepers(); }
   renderAll();
-  console.log('[MyTeam] Set to', teamNames[ti], '(index', ti, ')');
 }
 
 function setMyTeam(){
@@ -1964,11 +1964,11 @@ async function fetchSleeperLeague() {
       tradedPicks.forEach(function(tp, i) {
         console.log('[Sleeper] Pick['+i+']:', JSON.stringify(tp));
       });
-      // Use the highest season in traded picks (upcoming draft year)
+      // Use the highest season; if season is always null, include all picks
       const allSeasons = tradedPicks.map(tp => tp.season).filter(Boolean);
-      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b) => a > b ? a : b) : '2026';
-      const currentTrades = tradedPicks.filter(tp => tp.season === maxSeason);
-      console.log('[Sleeper] Trade seasons found:', [...new Set(allSeasons)].join(','), '→ using', maxSeason, '→ matched', currentTrades.length);
+      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b) => a > b ? a : b) : null;
+      const currentTrades = maxSeason ? tradedPicks.filter(tp => tp.season === maxSeason) : tradedPicks;
+      console.log('[Sleeper] Trade seasons:', [...new Set(allSeasons)].join(',') || 'none', '→ maxSeason:', maxSeason, '→', currentTrades.length, 'trades');
 
       // Build user_id→roster_id map as fallback (previous_owner_id may be user_id in some leagues)
       const ownerToRoster = {};
@@ -2046,20 +2046,8 @@ async function fetchSleeperLeague() {
             manualKeepers.push({ name: p.name, team: p.team, pos: p.pos, round: 9 });
           });
 
-          // Auto-select my team in the owner dropdown
-          const ownerSel = document.getElementById('kpTeamOwner');
-          if (ownerSel) {
-            ownerSel.innerHTML = '<option value="-1">— Select team —</option>';
-            teamNames.forEach((n,i) => {
-              const o = document.createElement('option');
-              o.value = i; o.text = n;
-              if (i === myTeamIdx) o.selected = true;
-              ownerSel.appendChild(o);
-            });
-          }
-
           renderKeeperRows();
-          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${myPlayers.length} players on your roster loaded as keepers — adjust rounds then click Apply`, false);
+          sleeperMsg(`✅ Imported! ${rosters.length} teams · ${tradesFound} pick trades · ${myPlayers.length} players on your roster — select team above, then check keepers & enter cost round`, false);
         } catch(e) {
           sleeperMsg(`✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}`, false);
         }
@@ -2111,11 +2099,12 @@ async function syncSleeperDraft() {
       const rosterMap = {};
       rosters.forEach((r,i) => { rosterMap[r.roster_id] = i; });
       const allSeasons = tradedPicks.map(tp=>tp.season).filter(Boolean);
-      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b)=>a>b?a:b) : '2026';
-      console.log('[Sleeper] Trade seasons in data:', [...new Set(allSeasons)].join(','), '→ using', maxSeason);
+      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b)=>a>b?a:b) : null;
+      const currentTrades2 = maxSeason ? tradedPicks.filter(tp => tp.season === maxSeason) : tradedPicks;
+      console.log('[Sleeper sync] Trade seasons:', [...new Set(allSeasons)].join(',') || 'none', '→', currentTrades2.length, 'trades');
       const ownerToRoster2 = {};
       rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
-      tradedPicks.filter(tp => tp.season === maxSeason).forEach(tp => {
+      currentTrades2.forEach(tp => {
         let fromTi = rosterMap[tp.previous_owner_id];
         if (fromTi === undefined) {
           const fromRoster = ownerToRoster2[tp.previous_owner_id];
