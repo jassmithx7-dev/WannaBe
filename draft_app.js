@@ -724,6 +724,7 @@ let players=[];
 let setup=null; // loaded from JSON
 let teamNames=["Team 1","Team 2","Team 3","Team 4","Team 5","Team 6","Team 7","Team 8","Team 9","Team 10","Team 11","Team 12"];
 let teamSlots=[]; // slot per team index (1-based, 0=unset)
+let teamRosterIds=[]; // teamRosterIds[teamIdx] = Sleeper roster_id
 let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick
 let keeperPicks=[]; // {pick,teamIdx,player} — pre-placed keepers
 let trades=[];
@@ -1894,10 +1895,12 @@ async function fetchSleeperLeague() {
     // ── Process rosters — sorted by roster_id = draft slot ──
     rosters.sort((a,b) => (a.roster_id||0) - (b.roster_id||0));
     const rosterMap = {}; // roster_id → teamIdx
+    teamRosterIds = []; // reset global
     rosters.forEach((roster, i) => {
       if (i < teamNames.length) {
         teamNames[i] = umap[roster.owner_id] || ('Team ' + (i+1));
         rosterMap[roster.roster_id] = i;
+        teamRosterIds[i] = roster.roster_id; // store for keeper roster lookup
       }
     });
 
@@ -2022,9 +2025,17 @@ async function fetchSleeperLeague() {
     const rawTradeCount = (tradedPicks && tradedPicks.length) || 0;
     let tradeNote = '';
     if (rawTradeCount > 0 && tradesFound === 0) {
-      const samp = tradedPicks[0];
       const rKeys = Object.keys(rosterMap).slice(0,4).join(',');
-      tradeNote = ` | ⚠️ ${rawTradeCount} Sleeper picks unmapped — sample: prev=${samp.previous_owner_id} roster=${samp.roster_id} rd=${samp.round} season=${samp.season}; rosterMap keys: ${rKeys}`;
+      // Categorize why each pick failed to map
+      const selfPicks = tradedPicks.filter(tp => String(tp.previous_owner_id) === String(tp.roster_id));
+      const realTrades = tradedPicks.filter(tp => String(tp.previous_owner_id) !== String(tp.roster_id));
+      const realSamp = realTrades[0];
+      const selfSamp = selfPicks[0];
+      if (realTrades.length === 0) {
+        tradeNote = ` | ℹ️ ${rawTradeCount} Sleeper picks all show prev=roster (no cross-team trades recorded in API yet). Sample: prev=${selfSamp.previous_owner_id} roster=${selfSamp.roster_id} rd=${selfSamp.round}`;
+      } else {
+        tradeNote = ` | ⚠️ ${realTrades.length} real trades found but still 0 loaded. Sample trade: prev=${realSamp.previous_owner_id} roster=${realSamp.roster_id} rd=${realSamp.round}; rosterMap keys: ${rKeys}`;
+      }
     }
 
     // Auto-pull my team's players if myTeamIdx is set
@@ -2260,65 +2271,6 @@ document.addEventListener('click', function(e) {
 
 
 var pendingPickTrades = []; // {fromTi, toTi, round}
-
-async function loadTeamRosterForKeepers() {
-  var ownerTi = parseInt(document.getElementById('kpTeamOwner').value);
-  if (ownerTi < 0) return;
-  if (!sleeperLeagueId) { setKeeperMsg('Import your league first', true); return; }
-
-  var listEl = document.getElementById('keeperRosterList');
-  listEl.innerHTML = '<div style="color:#9ca3af;font-size:11px;padding:8px">Loading roster from Sleeper...</div>';
-
-  // Also populate pick trade dropdowns
-  populateTradeDropdowns();
-
-  try {
-    const BASE = 'https://api.sleeper.app/v1';
-    const [rosters, allPlayers] = await Promise.all([
-      sleeperFetch(BASE + '/league/' + sleeperLeagueId + '/rosters'),
-      sleeperFetch(BASE + '/players/nfl')
-    ]);
-    rosters.sort(function(a,b){ return (a.roster_id||0)-(b.roster_id||0); });
-    const myRosterData = rosters[ownerTi];
-    if (!myRosterData || !myRosterData.players || !myRosterData.players.length) {
-      listEl.innerHTML = '<div style="color:#f87171;font-size:11px;padding:8px">No players on this roster in Sleeper</div>';
-      return;
-    }
-
-    const posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
-    const validPos = ['QB','RB','WR','TE','K','DEF'];
-    const rosterPlayers = myRosterData.players.map(function(pid) {
-      const pd = allPlayers[pid];
-      if (!pd) return null;
-      const pos = (pd.fantasy_positions && pd.fantasy_positions[0]) || '?';
-      if (validPos.indexOf(pos) < 0) return null;
-      return {
-        name: ((pd.first_name||'') + ' ' + (pd.last_name||'')).trim(),
-        pos: pos, team: pd.team || 'FA'
-      };
-    }).filter(Boolean).sort(function(a,b){
-      return validPos.indexOf(a.pos) - validPos.indexOf(b.pos);
-    });
-
-    listEl.innerHTML = rosterPlayers.map(function(p, i) {
-      var color = posColors[p.pos] || '#9ca3af';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid #1a1d27">' +
-        '<input type="checkbox" id="kp_' + i + '" onchange="keeperCheckChange()" style="cursor:pointer;width:14px;height:14px">' +
-        '<span style="font-weight:700;font-size:10px;color:' + color + ';width:24px">' + p.pos + '</span>' +
-        '<span style="flex:1;font-size:12px;color:#e8eaf0">' + p.name + '</span>' +
-        '<span style="font-size:10px;color:#6b7280;width:30px">' + p.team + '</span>' +
-        '<span style="font-size:10px;color:#6b7280;margin-right:2px">Rd</span>' +
-        '<input type="number" id="kpr_' + i + '" min="1" max="18" placeholder="—" disabled ' +
-          'style="width:40px;background:#252836;border:1px solid #374151;color:#fbbf24;border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;outline:none" ' +
-          'data-name="' + p.name + '" data-pos="' + p.pos + '" data-team="' + p.team + '">' +
-      '</div>';
-    }).join('');
-
-    setKeeperMsg('Loaded ' + rosterPlayers.length + ' players — check up to 2 keepers and enter cost round', false);
-  } catch(e) {
-    listEl.innerHTML = '<div style="color:#f87171;font-size:11px;padding:8px">Error: ' + e.message + '</div>';
-  }
-}
 
 function keeperCheckChange() {
   // Max 2 keepers — disable other checkboxes if 2 checked
@@ -2566,8 +2518,11 @@ async function loadTeamRosterForKeepers() {
     ]);
     var rosters = results[0];
     var allPlayers = results[1];
-    rosters.sort(function(a,b){ return (a.roster_id||0)-(b.roster_id||0); });
-    var myRosterData = rosters[ownerTi];
+    // Find by stored roster_id to avoid positional index mismatch between imports
+    var myRosterId = teamRosterIds[ownerTi];
+    var myRosterData = myRosterId !== undefined
+      ? rosters.find(function(r){ return r.roster_id === myRosterId; })
+      : (rosters.sort(function(a,b){ return (a.roster_id||0)-(b.roster_id||0); }), rosters[ownerTi]);
     if (!myRosterData || !myRosterData.players || !myRosterData.players.length) {
       listEl.innerHTML = '<div style="color:#f87171;font-size:11px;padding:8px">No players on this roster in Sleeper</div>';
       return;
