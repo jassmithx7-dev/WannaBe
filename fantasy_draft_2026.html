@@ -406,7 +406,10 @@ html,body{overflow:hidden;height:100vh}
         </select>
         <button onclick="addPickTrade()" style="background:#4a1d96;border:none;color:#c084fc;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer">+ Add</button>
       </div>
-      <button onclick="applyPickTrades()" style="width:100%;background:#2e1065;border:1px solid #4a1d96;color:#c084fc;border-radius:5px;padding:6px;font-size:11px;cursor:pointer">✓ Apply trades to board</button>
+      <div style="display:flex;gap:6px">
+        <button onclick="applyPickTrades()" style="flex:1;background:#2e1065;border:1px solid #4a1d96;color:#c084fc;border-radius:5px;padding:6px;font-size:11px;cursor:pointer">✓ Apply trades</button>
+        <button onclick="clearAllTrades()" style="background:#2d1b1b;border:1px solid #7f1d1d;color:#f87171;border-radius:5px;padding:6px 10px;font-size:11px;cursor:pointer">✕ Clear all</button>
+      </div>
       <div id="keeperMsg" style="font-size:11px;margin-top:8px;display:none"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:14px">

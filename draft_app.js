@@ -1836,16 +1836,13 @@ async function fetchSleeperLeague() {
     const tradedPicks = await sleeperFetch(`${BASE}/league/${leagueId}/traded_picks`);
     // Fetch transactions across full NFL season range (0=off-season, 1-18=regular season weeks)
     // Pick trades made during last season live in these week-based round numbers
+    // Only fetch current-league transactions. Previous-league transactions caused stale
+    // pick-trade data from past seasons to bleed into the current draft board.
+    // The current league's traded_picks endpoint already reflects any future-pick trades
+    // that were made during last season's regular season.
     const allRounds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
     const txSources = allRounds.map(r => sleeperFetch(`${BASE}/league/${leagueId}/transactions/${r}`).catch(()=>[]));
-    // Previous league transactions — pick trades from last year's regular season live there
     let prevLeagueRosters = null;
-    if (league.previous_league_id) {
-      console.log('[Sleeper] Also fetching transactions from previous league:', league.previous_league_id);
-      allRounds.forEach(r => txSources.push(sleeperFetch(`${BASE}/league/${league.previous_league_id}/transactions/${r}`).catch(()=>[])));
-      // Also fetch previous league rosters so we can map prev roster_ids → user_id → current teamIdx
-      prevLeagueRosters = await sleeperFetch(`${BASE}/league/${league.previous_league_id}/rosters`).catch(()=>null);
-    }
     const txResults = await Promise.all(txSources);
     const allTransactions = txResults.flat();
     console.log('[Sleeper] Total transactions fetched:', allTransactions.length);
@@ -2670,10 +2667,21 @@ function applyPickTrades() {
     trades.push({ fromTeam: t.fromTi, toTeam: t.toTi, round: t.round });
     console.log('[Trade] Rd ' + t.round + ': ' + (teamNames[t.fromTi]||'T'+(t.fromTi+1)) + ' -> ' + (teamNames[t.toTi]||'T'+(t.toTi+1)));
   });
-  buildPickOwners(); // rebuilds all 216 pick owners with traded picks applied
+  buildPickOwners();
   renderAll();
   setKeeperMsg('Applied ' + pendingPickTrades.length + ' pick trade(s) to board', false);
   pendingPickTrades = []; renderPickTradesList();
+}
+
+function clearAllTrades() {
+  if (!trades.length) { setKeeperMsg('No trades to clear', true); return; }
+  var n = trades.length;
+  trades = [];
+  pendingPickTrades = [];
+  buildPickOwners();
+  renderAll();
+  renderPickTradesList();
+  setKeeperMsg('Cleared ' + n + ' trade(s). Re-import or add trades manually.', false);
 }
 
 function showKeyActive() {
