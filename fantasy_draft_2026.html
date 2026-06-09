@@ -361,9 +361,10 @@ html,body{overflow:hidden;height:100vh}
     <!-- My Team selector - sets myTeamIdx -->
     <div style="margin-bottom:14px;background:#1a3a2a;border:1px solid #166534;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px">
       <span style="font-size:12px;font-weight:600;color:#4ade80;white-space:nowrap">⭐ My team:</span>
-      <select id="sleeperMyTeamSel" onchange="setMyTeamFromModal()" style="flex:1;background:#252836;border:1px solid #374151;color:#e8eaf0;border-radius:5px;padding:6px 8px;font-size:12px">
+      <select id="sleeperMyTeamSel" style="flex:1;background:#252836;border:1px solid #374151;color:#e8eaf0;border-radius:5px;padding:6px 8px;font-size:12px">
         <option value="-1">— Select your team —</option>
       </select>
+      <button onclick="setMyTeamFromModal()" style="background:#166534;border:none;color:#4ade80;border-radius:5px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600">Set team</button>
     </div>
 
     <div style="margin-bottom:12px">
@@ -385,20 +386,11 @@ html,body{overflow:hidden;height:100vh}
       <div>• <strong style="color:#9ca3af">Import League</strong> — pulls team names, draft slots, keepers &amp; pick trades</div>
       <div>• <strong style="color:#9ca3af">Sync Picks</strong> — marks live picks in real time, auto-refreshes every 30s</div>
     </div>
-    <!-- Team setup: keepers & pick trades -->
+    <!-- Keepers & pick trades -->
     <div style="border-top:1px solid #2a2d3a;padding-top:14px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-        <span style="font-size:12px;font-weight:600;color:#9ca3af;white-space:nowrap">⚙️ Team setup:</span>
-        <select id="kpTeamOwner" onchange="loadTeamRosterForKeepers()" style="flex:1;background:#252836;border:1px solid #374151;color:#e8eaf0;border-radius:5px;padding:6px 8px;font-size:12px">
-          <option value="-1">— Select a team —</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <div style="font-size:11px;font-weight:600;color:#fbbf24">🔒 Keepers <span style="color:#4b5563;font-weight:400">(0, 1, or 2 — check players, enter cost round)</span></div>
-        <div id="kpMyTeamBtn"></div>
-      </div>
+      <div style="font-size:11px;font-weight:600;color:#fbbf24;margin-bottom:6px">🔒 Keepers <span style="color:#4b5563;font-weight:400">(0, 1, or 2 — check players, enter cost round)</span></div>
       <div id="keeperRosterList" style="max-height:160px;overflow-y:auto;background:#0f1117;border-radius:6px;padding:4px;margin-bottom:8px">
-        <div style="color:#4b5563;font-size:11px;padding:8px">Select a team above to load their roster</div>
+        <div style="color:#4b5563;font-size:11px;padding:8px">Set your team above to load your roster</div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <button onclick="applyManualKeepers()" style="flex:1;background:#1e3a5f;border:none;color:#60a5fa;border-radius:5px;padding:7px;font-size:12px;cursor:pointer">✓ Apply keepers to board</button>
