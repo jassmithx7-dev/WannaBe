@@ -852,9 +852,10 @@ function clockTeamIdx(){
 
 function isKeeperPick(pick){return keeperPicks.find(kp=>kp.pick===pick);}
 isTradedPick=(pick)=>{
-  if(!setup||!trades.length) return false;
+  if(!trades.length) return false;
   const rd=ptRd(pick);
-  return trades.some(tr=>tr.round===rd);
+  // true if the ACTUAL owner of this pick differs from the original slot owner
+  return pickOwners[pick-1] !== undefined && trades.some(tr=>tr.round===rd&&tr.fromTeam!==tr.toTeam);
 };
 
 function draftPlayer(rank){
@@ -2160,40 +2161,9 @@ async function syncSleeperDraft() {
       sleeperLeagueId ? sleeperFetch(`${BASE}/league/${sleeperLeagueId}/traded_picks`) : Promise.resolve([]),
     ]);
 
-    // Re-apply traded picks (draft may have new trades since last import)
-    if (tradedPicks.length > 0 && sleeperLeagueId) {
-      trades = [];
-      const league = await sleeperFetch(`${BASE}/league/${sleeperLeagueId}`);
-      const rosters = await sleeperFetch(`${BASE}/league/${sleeperLeagueId}/rosters`);
-      rosters.sort((a,b) => (a.roster_id||0) - (b.roster_id||0));
-      const rosterMap = {};
-      rosters.forEach((r,i) => { rosterMap[r.roster_id] = i; });
-      const allSeasons = tradedPicks.map(tp=>tp.season).filter(Boolean);
-      const maxSeason = allSeasons.length ? allSeasons.reduce((a,b)=>a>b?a:b) : null;
-      const currentTrades2 = maxSeason ? tradedPicks.filter(tp => tp.season === maxSeason) : tradedPicks;
-      console.log('[Sleeper sync] Trade seasons:', [...new Set(allSeasons)].join(',') || 'none', '→', currentTrades2.length, 'trades');
-      const ownerToRoster2 = {};
-      rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
-      currentTrades2.forEach(tp => {
-        let fromTi = rosterMap[tp.previous_owner_id];
-        if (fromTi === undefined) {
-          const fromRoster = ownerToRoster2[tp.previous_owner_id];
-          fromTi = fromRoster !== undefined ? rosterMap[fromRoster] : undefined;
-        }
-        const toTi = rosterMap[tp.roster_id];
-        console.log('[Sync trade] prev='+tp.previous_owner_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+tp.round+' season='+tp.season);
-        if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
-          trades.push({ fromTeam: fromTi, toTeam: toTi, round: tp.round });
-        }
-      });
-      console.log('[Sleeper sync] Trades mapped:', trades.length, '/', currentTrades2.length);
-      if (trades.length === 0 && currentTrades2.length > 0) {
-        const samp = currentTrades2[0];
-        const rKeys = Object.keys(rosterMap).slice(0,4).join(',');
-        sleeperMsg(`⚠️ ${currentTrades2.length} Sleeper pick trades found but 0 mapped. Sample: prev=${samp.previous_owner_id} roster=${samp.roster_id} rd=${samp.round} season=${samp.season}; rosterMap keys: ${rKeys}`, false);
-      }
-      buildPickOwners();
-    }
+    // Trades are managed by Import League + manual Pick Trades — don't rebuild on sync.
+    // Sleeper traded_picks are keeper-cost picks (prev===roster), not real cross-team trades.
+    // Re-applying them here would wipe manually-entered trades on every 30s auto-sync.
 
     // Reset drafted state for non-keeper picks
     players.forEach(p => { if (!p.isKeeper) p.drafted = false; });
@@ -2979,6 +2949,12 @@ function startMockDraft() {
   teamSlots.forEach(function(slot,ti){if(slot>0)slotToTi[slot]=ti;});
   var po=[];
   for(var pick=1;pick<=TOTAL;pick++){var rd=Math.ceil(pick/TEAMS),pos=pick-(rd-1)*TEAMS,s=rd%2===1?pos:TEAMS+1-pos;po.push(slotToTi[s]!==undefined?slotToTi[s]:s-1);}
+  // Apply pick trades so the mock clock uses the correct owner after trades
+  trades.forEach(function(tr){
+    for(var pick=1;pick<=TOTAL;pick++){
+      if(Math.ceil(pick/TEAMS)===tr.round&&po[pick-1]===tr.fromTeam){po[pick-1]=tr.toTeam;break;}
+    }
+  });
   var myTi=slotToTi[mySlot]!==undefined?slotToTi[mySlot]:mySlot-1;
   var mr=Array.from({length:TEAMS},function(){return [];});
   myRosterSlots.forEach(function(p){if(p&&p.isKeeper)mr[myTi].push(p);});
