@@ -732,6 +732,7 @@ let myTeamIdx=(function(){var v=localStorage.getItem('ff26_myTeamIdx');return v!
 let sleeperLeagueId=localStorage.getItem('ff26_leagueId')||'';
 let sleeperDraftId=localStorage.getItem('ff26_draftId')||'';
 let sleeperSyncing=false;
+let sleeperImportDone=false; // set to true only after a successful import this session
 let currentPick=1;
 let pickLog=[]; // {pick,teamIdx,player,pos,nfl,isKeeper,isTraded}
 let teamRosters=Array.from({length:TEAMS},()=>[]);
@@ -1435,7 +1436,7 @@ function renderBoard() {
           ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0]
           : '?';
         html += '<span class="bg-pick">#' + pickNum + '</span>';
-        html += '<span style="font-size:9px;color:#7c3aed">→ ' + tradedToName + '</span>';
+        html += '<span style="font-size:9px;color:#a78bfa">→ ' + tradedToName + '</span>';
       } else {
         html += '<span class="bg-pick">#' + pickNum + '</span>';
         html += '<span class="bg-empty">—</span>';
@@ -2082,6 +2083,8 @@ async function fetchSleeperLeague() {
     var krl = document.getElementById('keeperRosterList');
     if (krl) krl.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:8px">Import complete — select your team above and click Set team to load your roster</div>';
 
+    sleeperImportDone = true;
+
     // Reveal My team picker now that we have real team names
     var myTeamSection = document.getElementById('myTeamSection');
     if (myTeamSection) {
@@ -2422,10 +2425,10 @@ function renderPickTradesList() {
   }
   el.innerHTML = pendingPickTrades.map(function(t, i) {
     return '<div style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:11px;border-bottom:1px solid #1a1d27">' +
-      '<span style="color:#9ca3af;flex:1">' + (teamNames[t.fromTi]||'?') + '</span>' +
-      '<span style="color:#c084fc">→ Rd ' + t.round + ' →</span>' +
-      '<span style="color:#9ca3af;flex:1;text-align:right">' + (teamNames[t.toTi]||'?') + '</span>' +
-      '<button onclick="removePickTrade(' + i + ')" style="background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:14px;padding:0 4px">×</button>' +
+      '<span style="color:#e8eaf0;flex:1">' + (teamNames[t.fromTi]||'?') + '</span>' +
+      '<span style="color:#fbbf24;white-space:nowrap">→ Rd ' + t.round + ' →</span>' +
+      '<span style="color:#e8eaf0;flex:1;text-align:right">' + (teamNames[t.toTi]||'?') + '</span>' +
+      '<button onclick="removePickTrade(' + i + ')" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:0 4px">×</button>' +
     '</div>';
   }).join('');
 }
@@ -2484,14 +2487,13 @@ function openSleeperModal() {
   if (li) li.value = localStorage.getItem('ff26_leagueId') || '';
   if (di) di.value = localStorage.getItem('ff26_draftId') || '';
 
-  // Show My team section only if a league has been imported (real team names exist)
+  // Show My team section only after a league has been imported this session
   var myTeamSection = document.getElementById('myTeamSection');
-  var hasImported = sleeperLeagueId && teamNames.length > 0 && teamNames.some(function(n){ return n && !n.match(/^Team \d+$/); });
-  if (myTeamSection) myTeamSection.style.display = hasImported ? 'flex' : 'none';
+  if (myTeamSection) myTeamSection.style.display = sleeperImportDone ? 'flex' : 'none';
 
   // Populate "My team" selector in modal
   var myTeamInModal = document.getElementById('sleeperMyTeamSel');
-  if (myTeamInModal && hasImported) {
+  if (myTeamInModal && sleeperImportDone) {
     myTeamInModal.innerHTML = '<option value="-1">— Which team is yours? —</option>';
     teamNames.forEach(function(n, i) {
       var o = document.createElement('option');
@@ -2501,8 +2503,8 @@ function openSleeperModal() {
     });
   }
 
-  // Auto-load my team's roster when modal opens
-  if (myTeamIdx >= 0 && hasImported) setTimeout(loadTeamRosterForKeepers, 100);
+  // Auto-load my team's roster when modal opens (only after import)
+  if (myTeamIdx >= 0 && sleeperImportDone) setTimeout(loadTeamRosterForKeepers, 100);
   renderKeeperRows();
   document.getElementById('sleeperModal').style.display = 'flex';
 }
@@ -2705,10 +2707,10 @@ function renderPickTradesList() {
   if (!pendingPickTrades.length) { el.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:4px">No trades recorded yet</div>'; return; }
   el.innerHTML = pendingPickTrades.map(function(t, i) {
     return '<div style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:11px;border-bottom:1px solid #1a1d27">' +
-      '<span style="color:#9ca3af;flex:1">' + (teamNames[t.fromTi]||'?') + '</span>' +
-      '<span style="color:#c084fc">Rd ' + t.round + '</span>' +
-      '<span style="color:#9ca3af;flex:1;text-align:right">' + (teamNames[t.toTi]||'?') + '</span>' +
-      '<button onclick="removePickTrade(' + i + ')" style="background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:14px;padding:0 4px">x</button>' +
+      '<span style="color:#e8eaf0;flex:1">' + (teamNames[t.fromTi]||'?') + '</span>' +
+      '<span style="color:#fbbf24;white-space:nowrap">Rd ' + t.round + '</span>' +
+      '<span style="color:#e8eaf0;flex:1;text-align:right">' + (teamNames[t.toTi]||'?') + '</span>' +
+      '<button onclick="removePickTrade(' + i + ')" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:0 4px">x</button>' +
     '</div>';
   }).join('');
 }
