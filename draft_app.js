@@ -646,6 +646,7 @@ let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick (after tra
 let origPickOwners=[]; // origPickOwners[pick-1] = slot-based owner before any trades
 let keeperPicks=[]; // {pick,teamIdx,player} — pre-placed keepers
 let trades=[];
+let sleeperRosterMap={}; // roster_id→teamIdx, populated during import, used by sync
 let myTeamIdx=(function(){var v=localStorage.getItem('ff26_myTeamIdx');return v!==null?parseInt(v):-1;})();
 let sleeperLeagueId=localStorage.getItem('ff26_leagueId')||'';
 let sleeperDraftId=localStorage.getItem('ff26_draftId')||'';
@@ -1341,13 +1342,7 @@ function renderBoard() {
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
-  // Build teamIdx→round→entry map so keepers/traded picks appear in the correct column
-  var teamRdMap = {};
-  pickLog.forEach(function(l) {
-    var entryRd = l.rd || Math.ceil(l.pick / TEAMS);
-    if (!teamRdMap[l.teamIdx]) teamRdMap[l.teamIdx] = {};
-    teamRdMap[l.teamIdx][entryRd] = l;
-  });
+  // pickMap is the authoritative source: slot-based, shows whoever actually drafted at each pick
 
   // Build pick→owner map (after trades)
   // pickOwners[pick-1] = teamIdx who drafts that pick
@@ -1383,9 +1378,8 @@ function renderBoard() {
       var actualOwner = pickOwners[pickNum - 1];
       var isTraded = actualOwner !== undefined && actualOwner >= 0 && actualOwner !== ti;
 
-      // Use teamRdMap so drafted picks appear in the correct column regardless of trades
-      var entry = (teamRdMap[ti] && teamRdMap[ti][rd]) ? teamRdMap[ti][rd] : null;
-      var cellClass = 'td';
+      // Each slot shows whoever actually drafted there (pickMap is keyed by pick number)
+      var entry = pickMap[pickNum] || null;
       var extraStyle = '';
       if (isMe) extraStyle += 'outline:1px solid #1e3a1e;';
       if (entry && entry.isKeeper) extraStyle += 'background:#1a3a2a;';
@@ -1395,12 +1389,17 @@ function renderBoard() {
       if (entry) {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
         html += '<span class="bg-pick">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
+        if (isTraded) {
+          // Traded slot — show who received it + the player drafted there
+          var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
+            ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
+          html += '<span style="font-size:9px;color:#a78bfa">→ ' + tradedToName + '</span>';
+        }
         html += '<span class="bg-player ' + posClass + '">' + (entry.player || '').split(' ').pop() + '</span>';
         html += '<span style="font-size:9px;color:#4b5563">' + (entry.nfl || '') + '</span>';
       } else if (isTraded) {
         var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
-          ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0]
-          : '?';
+          ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
         html += '<span class="bg-pick">#' + pickNum + '</span>';
         html += '<span style="font-size:9px;color:#a78bfa">→ ' + tradedToName + '</span>';
       } else {
@@ -1899,6 +1898,7 @@ async function fetchSleeperLeague() {
       }
     });
     localStorage.setItem('ff26_teamRosterIds', JSON.stringify(teamRosterIds));
+    sleeperRosterMap = rosterMap; // persist for sync
 
     // ── Process draft + slot assignments ──
     let draftData = null;
@@ -2176,7 +2176,8 @@ async function syncSleeperDraft() {
 
     picks.forEach(pick => {
       const pickNum = (pick.round - 1) * TEAMS + pick.pick_no;
-      const ti = (pick.roster_id || 1) - 1;
+      const ri = pick.roster_id;
+      const ti = (sleeperRosterMap && sleeperRosterMap[ri] !== undefined) ? sleeperRosterMap[ri] : (ri - 1);
       const isKeeper = pick.is_keeper || false;
       const playerName = pick.metadata?.first_name && pick.metadata?.last_name
         ? `${pick.metadata.first_name} ${pick.metadata.last_name}`
