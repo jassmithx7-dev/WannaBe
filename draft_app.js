@@ -1,86 +1,3 @@
-function renderBoard() {
-  var el = document.getElementById('boardGrid');
-  if (!el) return;
-
-  // Build pick->entry map from actual pick log
-  var pickMap = {};
-  pickLog.forEach(function(l) { pickMap[l.pick] = l; });
-
-  // Build teamIdx->round->entry map (most reliable source)
-  var teamRdMap = {};
-  pickLog.forEach(function(l) {
-    var ti = l.teamIdx;
-    var rd = l.rd || Math.ceil(l.pick / TEAMS);
-    if (!teamRdMap[ti]) teamRdMap[ti] = {};
-    teamRdMap[ti][rd] = l;
-  });
-
-  // Build simple traded-away set from trades array
-  // Key: "fromTeam_round" -> toTeam name
-  var tradedSet = {};
-  trades.forEach(function(t) {
-    var key = t.fromTeam + '_' + t.round;
-    tradedSet[key] = t.toTeam;
-  });
-
-  var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
-
-  var html = '<table class="bg-table" style="border-collapse:collapse;width:100%"><thead><tr>';
-  html += '<th style="min-width:32px;background:#1a1d27;position:sticky;left:0;z-index:3;font-size:10px;padding:4px">Rd</th>';
-  teamNames.forEach(function(n, ti) {
-    var isMe = ti === myTeamIdx;
-    var short = n.replace(/^(The |Team )/,'').split(' ')[0];
-    html += '<th style="min-width:72px;padding:3px 4px;font-size:9px;font-weight:600;' +
-      (isMe ? 'color:#4ade80;background:#0a1a0a' : 'color:#6b7280') + '">' +
-      short + (isMe ? ' ⭐' : '') + '</th>';
-  });
-  html += '</tr></thead><tbody>';
-
-  for (var rd = 1; rd <= ROUNDS; rd++) {
-    html += '<tr>';
-    html += '<td style="background:#1a1d27;color:#4b5563;font-size:9px;font-weight:600;text-align:center;padding:2px;position:sticky;left:0;z-index:1">' + rd + '</td>';
-
-    for (var ti = 0; ti < TEAMS; ti++) {
-      var isMe = ti === myTeamIdx;
-      var bg = isMe ? 'background:#0a1a0a;' : (rd%2===0?'background:#0f1117;':'background:#12141e;');
-
-      // Check if this team drafted in this round
-      var entry = teamRdMap[ti] && teamRdMap[ti][rd] ? teamRdMap[ti][rd] : null;
-      if (entry && entry.isKeeper) bg = 'background:#1a3a2a;';
-
-      // Check if this team traded away their pick in this round
-      var tradeKey = ti + '_' + rd;
-      var tradedToTi = tradedSet[tradeKey];
-      var tradedToName = tradedToTi !== undefined ? (teamNames[tradedToTi]||'').replace(/^The /,'').split(' ')[0] : null;
-
-      html += '<td style="' + bg + 'padding:2px 4px;border:1px solid #1a1d27;vertical-align:top">';
-
-      if (entry) {
-        var c = posColors[entry.pos] || '#9ca3af';
-        html += '<div style="font-size:8px;color:#4b5563">' + entry.pick + (entry.isKeeper?' 🔒':'') + '</div>';
-        html += '<div style="font-size:10px;font-weight:600;color:'+c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-          (entry.player||'').split(' ').pop() + '</div>';
-      } else if (tradedToName && !entry) {
-        html += '<div style="font-size:8px;color:#4b5563"></div>';
-        html += '<div style="font-size:9px;color:#7c3aed">→'+tradedToName+'</div>';
-      } else {
-        html += '<div style="font-size:8px;color:#2a2d3a"></div>';
-        html += '<div style="font-size:9px;color:#1e2130">—</div>';
-      }
-      html += '</td>';
-    }
-    html += '</tr>';
-  }
-  html += '</tbody></table>';
-  el.innerHTML = html;
-
-  var status = document.getElementById('boardModalStatus');
-  if (status) {
-    var tradedCount = Object.keys(tradedSet).length;
-    status.textContent = pickLog.length + ' / ' + TOTAL + ' picks · ' + tradedCount + ' traded picks';
-  }
-}
-
 window.onerror = function(msg, src, line, col, err) {
   console.error('[Global Error]', msg, 'at line', line);
 };
@@ -1498,7 +1415,9 @@ function renderBoard() {
 }
 
 function renderAll(){
-  if (document.querySelector('.tab.on') && document.querySelector('.tab.on').textContent === 'Board') renderBoard();
+  // Re-render board if its modal is currently open
+  var bm = document.getElementById('boardModal');
+  if (bm && bm.style.display !== 'none') renderBoard();
   renderClock();renderBA();renderLog();renderRoster();
   const at=document.querySelector(".tc.on");
   if(at){
