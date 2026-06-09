@@ -244,11 +244,13 @@ html,body{overflow:hidden;height:100vh}
     <option value="sf">Superflex rank</option>
     <option value="pos">Position</option>
   </select>
-  <label>Filter:</label>
-  <select id="posFilt" onchange="renderBA()">
+  <select id="posFilt" onchange="renderBA()" style="display:none">
     <option value="ALL">All</option>
     <option value="QB">QB</option><option value="RB">RB</option>
     <option value="WR">WR</option><option value="TE">TE</option>
+    <option value="SFLX">Superflex</option>
+    <option value="DEF">DEF</option>
+    <option value="K">K</option>
   </select>
   <label>Fit:</label>
   <select id="fitFilt" onchange="renderBA()">
