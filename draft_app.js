@@ -3119,6 +3119,21 @@ function startMockDraft() {
   pickLog=[];teamRosters=Array.from({length:TEAMS},function(){return [];});currentPick=1;
   myRosterSlots=Array(ROUNDS+8).fill(null);
   mockState.savedMyRosterSlots.forEach(function(s){if(s&&s.isKeeper)smartAssign(s);});
+  // Pre-populate board with all keepers from all teams
+  keeperPicks.forEach(function(kp) {
+    var rd=Math.ceil(kp.pick/TEAMS), ti=kp.teamIdx;
+    var pl=players.find(function(p){return p.name===kp.player;});
+    if(pl) pl.drafted=true;
+    var mp=mockState.players.find(function(x){return x.name===kp.player;});
+    if(mp) mp.mockDrafted=true;
+    var pos=kp.pos||(pl?pl.pos:'WR'), nfl=kp.nfl||(pl?pl.team:'?');
+    pickLog.push({pick:kp.pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:kp.player,pos:pos,nfl:nfl,isKeeper:true});
+    if(!teamRosters[ti]) teamRosters[ti]=[];
+    teamRosters[ti].push(Object.assign({},pl||{name:kp.player,pos:pos,team:nfl,customScore:0},{pickNum:kp.pick,rd:rd,isKeeper:true}));
+    if(!mockState.rosters[ti]) mockState.rosters[ti]=[];
+    if(!mockState.rosters[ti].find(function(x){return x.name===kp.player;}))
+      mockState.rosters[ti].push(Object.assign({},pl||{name:kp.player,pos:pos,team:nfl,customScore:0},{pickNum:kp.pick,rd:rd,isKeeper:true}));
+  });
   // Don't change myTeamIdx during mock - use mockState.myTi for mock logic
   document.getElementById('mockModal').style.display='none';
   var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
@@ -3164,16 +3179,18 @@ function executeMockPick(p){
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
   mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
   mockState.currentPick++;mockState.waiting=false;
+  while(mockState.currentPick<=TOTAL&&isKeeperPick(mockState.currentPick)){mockState.currentPick++;currentPick++;}
   if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}
   var bt=document.getElementById('mockBannerTimer');if(bt)bt.textContent='';
   var bc=document.getElementById('mockBannerPick');if(bc)bc.textContent='Pick '+mockState.currentPick+'/'+mockState.totalPicks;
   renderBA();setTimeout(runMockDraft,isMe?300:60);
 }
 
-function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;}
+function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;while(mockState.currentPick<=TOTAL&&isKeeperPick(mockState.currentPick))mockState.currentPick++;}
 
 function runMockDraft(){
   if(!mockState)return;
+  while(mockState.currentPick<=mockState.totalPicks&&isKeeperPick(mockState.currentPick))mockState.currentPick++;
   if(mockState.currentPick>mockState.totalPicks){showMockResults();return;}
   var ti=mockState.pickOwners[mockState.currentPick-1],rd=Math.ceil(mockState.currentPick/TEAMS),isMe=(ti===mockState.myTi);
   var clk=document.getElementById('clk');
