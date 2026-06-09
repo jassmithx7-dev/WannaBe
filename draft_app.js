@@ -3211,3 +3211,46 @@ function showMockResults(){
     init();
   }
 })();
+
+// ── Horizontal resizer: player list ↔ right panel ────────────────────────
+(function() {
+  function init() {
+    var resizer = document.getElementById('sideResizer');
+    var panel   = document.getElementById('rightPanel');
+    if (!resizer || !panel) return;
+
+    var startX, startW;
+
+    resizer.addEventListener('mousedown', function(e) {
+      startX = e.clientX;
+      startW = panel.getBoundingClientRect().width;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+
+    function onMove(e) {
+      var delta = startX - e.clientX;
+      var newW  = Math.max(160, Math.min(startW + delta, 520));
+      panel.style.width = newW + 'px';
+      panel.style.flex  = '0 0 ' + newW + 'px';
+    }
+
+    function onUp() {
+      resizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
