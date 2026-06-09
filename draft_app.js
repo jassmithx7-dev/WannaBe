@@ -2018,6 +2018,13 @@ async function fetchSleeperLeague() {
 
     renderAll();
 
+    // Refresh trade dropdowns with new team names; clear stale pending trades (old indices invalid)
+    pendingPickTrades = [];
+    populateTradeDropdowns();
+    // Clear keeper roster list so stale pre-import roster doesn't show
+    var krl = document.getElementById('keeperRosterList');
+    if (krl) krl.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:8px">Import complete — select your team above and click Set team to load your roster</div>';
+
     // Build summary message
     const slotsAssigned = Object.values(slotMap).length;
     const tradesFound = trades.length;
