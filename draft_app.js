@@ -724,7 +724,7 @@ let players=[];
 let setup=null; // loaded from JSON
 let teamNames=["Team 1","Team 2","Team 3","Team 4","Team 5","Team 6","Team 7","Team 8","Team 9","Team 10","Team 11","Team 12"];
 let teamSlots=[]; // slot per team index (1-based, 0=unset)
-let teamRosterIds=[]; // teamRosterIds[teamIdx] = Sleeper roster_id
+let teamRosterIds=(function(){try{var v=localStorage.getItem('ff26_teamRosterIds');return v?JSON.parse(v):[];}catch(e){return[];}})();
 let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick
 let keeperPicks=[]; // {pick,teamIdx,player} — pre-placed keepers
 let trades=[];
@@ -1900,9 +1900,10 @@ async function fetchSleeperLeague() {
       if (i < teamNames.length) {
         teamNames[i] = umap[roster.owner_id] || ('Team ' + (i+1));
         rosterMap[roster.roster_id] = i;
-        teamRosterIds[i] = roster.roster_id; // store for keeper roster lookup
+        teamRosterIds[i] = roster.roster_id;
       }
     });
+    localStorage.setItem('ff26_teamRosterIds', JSON.stringify(teamRosterIds));
 
     // ── Process draft + slot assignments ──
     let draftData = null;
