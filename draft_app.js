@@ -781,6 +781,46 @@ function initPlayers(){
   players=BASE_PLAYERS.map(p=>({...p,drafted:false,customRank:customRank(p.name),customScore:CUSTOM_SCORES[p.name]||0}));
 }
 
+async function refreshPlayerTeams() {
+  const CACHE_KEY = 'ff26_playerTeams';
+  const TTL = 24 * 60 * 60 * 1000; // 24 hours
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { ts, teams } = JSON.parse(cached);
+      if (Date.now() - ts < TTL) {
+        applyPlayerTeams(teams);
+        return;
+      }
+    }
+    const allPlayers = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
+    // Store only name→team for active players — keeps cache small
+    const teams = {};
+    Object.values(allPlayers).forEach(function(p) {
+      if (!p.team) return;
+      const name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
+      if (name) teams[name] = p.team;
+    });
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), teams })); } catch(e) {}
+    applyPlayerTeams(teams);
+  } catch(e) {
+    console.warn('[Players] Could not refresh team data:', e.message);
+  }
+}
+
+function applyPlayerTeams(teamMap) {
+  var updated = 0;
+  BASE_PLAYERS.forEach(function(p) {
+    var t = teamMap[p.name];
+    if (t && t !== p.team) { p.team = t; updated++; }
+  });
+  if (updated > 0) {
+    console.log('[Players] Updated ' + updated + ' team assignments from Sleeper');
+    initPlayers();
+    renderAll();
+  }
+}
+
 function ptRd(pick){return Math.ceil(pick/TEAMS);}
 function ptSlotInRound(pick){return pick-(ptRd(pick)-1)*TEAMS;}
 
@@ -1361,10 +1401,17 @@ function openTradesModal() {
   document.getElementById('tradesModal').style.display = 'flex';
 }
 
+function scrollToBoardCurrentRound() {
+  var rd = Math.min(Math.ceil(Math.max(1, currentPick) / TEAMS), ROUNDS);
+  var row = document.getElementById('board-rd-' + rd);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function openBoardModal() {
   var modal = document.getElementById('boardModal');
   if (modal) modal.style.display = 'flex';
   renderBoard();
+  setTimeout(scrollToBoardCurrentRound, 80);
 }
 
 function renderBoard() {
@@ -1398,7 +1445,7 @@ function renderBoard() {
   html += '</tr></thead><tbody>';
 
   for (var rd = 1; rd <= ROUNDS; rd++) {
-    html += '<tr>';
+    html += '<tr id="board-rd-' + rd + '">';
     html += '<td class="bg-rd">' + rd + '</td>';
 
     // For each team, find their pick in this round
@@ -1803,6 +1850,9 @@ function switchTrades() { switchTab('trades'); }
   renderAll();
   // Check Supabase session — shows auth modal or loads saved settings
   checkSession();
+  // Background: pull current NFL team assignments from Sleeper (24h cache)
+  // Fixes stale data like Tua listed as MIA after he moved to ATL
+  setTimeout(refreshPlayerTeams, 1500);
   } catch(e) {
     console.error('[Init error]', e);
     // Show auth modal even if init fails
@@ -2277,6 +2327,12 @@ async function syncSleeperDraft() {
 
     calcVORP();
     renderAll();
+
+    // If board modal is open, scroll to current round
+    var boardModal = document.getElementById('boardModal');
+    if (boardModal && boardModal.style.display !== 'none') {
+      setTimeout(scrollToBoardCurrentRound, 100);
+    }
 
     const unmatchedNote = unmatched.length ? ` · ${unmatched.length} unmatched (custom players)` : '';
     sleeperMsg(`✅ Synced ${picks.length} picks · ${matched} matched · ${keepers} keepers${unmatchedNote}`, false);
