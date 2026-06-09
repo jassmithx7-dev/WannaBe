@@ -1288,7 +1288,7 @@ function renderBA(){
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
   document.getElementById("baList").innerHTML=list.map((p,idx)=>{
     const prevTier = idx>0?list[idx-1].tier:null;
-    const tierBreakHtml = (p.tier && p.tier!==prevTier) ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 8px;min-width:900px;border-top:1px dashed #2a2d3a;margin-top:2px"><span style="font-size:10px;color:#4b5563;white-space:nowrap">— Tier ${p.tier} —</span></div>` : '';
+    const tierBreakHtml = (p.tier && p.tier!==prevTier) ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 8px;min-width:680px;border-top:1px dashed #30363d;margin-top:2px"><span style="font-size:10px;color:#484f58;white-space:nowrap">— Tier ${p.tier} —</span></div>` : '';
 
     const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};
     const sc=p.customScore?p.customScore.toFixed(0):"—";
@@ -1805,23 +1805,20 @@ function getPositionNeeds() {
 function showDraftTab()   { showMainTab('draft'); }
 function showAIChatTab()  { showMainTab('aiChat'); }
 function showMainTab(tab) {
-  // Hide all main sections
-  document.querySelector('.main').style.display = tab === 'draft' ? 'grid' : 'none';
-  const aiChat = document.getElementById('aiChatTab');
-  if (aiChat) aiChat.style.display = tab === 'aiChat' ? 'flex' : 'none';
-  
-  // Update tab button styles
+  document.querySelector('.main').style.display = tab === 'draft' ? 'flex' : 'none';
+  if (tab === 'aiChat') switchLP('ai');
+
   ['draft','aiChat'].forEach(t => {
     const btn = document.getElementById('tab-'+t);
     if (!btn) return;
     if (t === tab) {
-      btn.style.background = '#1e3a5f';
-      btn.style.color = '#60a5fa';
-      btn.style.borderColor = '#1565c0';
+      btn.style.background = '#0e1f3d';
+      btn.style.color = '#388bfd';
+      btn.style.borderColor = '#1f6feb';
     } else {
-      btn.style.background = '#252836';
-      btn.style.color = '#9ca3af';
-      btn.style.borderColor = '#374151';
+      btn.style.background = '#21262d';
+      btn.style.color = '#7d8590';
+      btn.style.borderColor = '#30363d';
     }
   });
 }
