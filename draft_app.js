@@ -666,6 +666,12 @@ let aiLoading = false;
 let lastAiMessage = '';
 const aiChips = ['Who should I draft?','Am I QB heavy?','What position do I need?','Top VORP gaps?','Is my team balanced?','Bye week concerns?'];
 
+// ── NFL Contextual Factors (OL + SOS) ──
+let olRunMult  = {};  // team abbrev → RB OL run-block multiplier
+let olPassMult = {};  // team abbrev → QB/WR/TE OL pass-block multiplier
+let sosMult    = {};  // team abbrev → schedule SOS multiplier
+let nflFactorsLoaded = false;
+
 
 function getNthBest(pos, n) {
   const sorted = [...players].filter(p => p.pos === pos)
@@ -698,6 +704,170 @@ function calcVORP() {
 
 function initPlayers(){
   players=BASE_PLAYERS.map(p=>({...p,drafted:false,customRank:customRank(p.name),customScore:CUSTOM_SCORES[p.name]||0}));
+  if(nflFactorsLoaded) applyNFLFactors();
+}
+
+// ── NFL Factors: fallback OL grades (2025 PFF proxies) ──
+const OL_RUN_FALLBACK={
+  PHI:1.11,DET:1.08,BUF:1.07,KC:1.06,CLE:1.04,LAR:1.03,MIA:1.02,
+  ATL:1.01,BAL:1.00,GB:1.00,DAL:0.99,DEN:0.99,SF:0.98,SEA:0.97,
+  TB:0.97,MIN:0.97,IND:0.96,NO:0.96,CIN:0.96,LV:0.95,PIT:0.95,
+  JAX:0.95,WAS:0.94,HOU:0.94,ARI:0.94,NYJ:0.93,LAC:0.93,CHI:0.93,
+  NE:0.92,CAR:0.91,TEN:0.91,NYG:0.90
+};
+const OL_PASS_FALLBACK={
+  PHI:1.10,LAR:1.08,DET:1.07,SF:1.07,KC:1.06,BUF:1.05,MIA:1.04,
+  DEN:1.03,BAL:1.02,SEA:1.01,GB:1.01,MIN:1.00,ATL:1.00,CLE:0.99,
+  WAS:0.98,HOU:0.98,CIN:0.98,TB:0.97,LV:0.97,DAL:0.97,NO:0.96,
+  NYJ:0.96,PIT:0.96,ARI:0.95,CHI:0.94,JAX:0.94,IND:0.93,NYG:0.93,
+  NE:0.92,LAC:0.91,CAR:0.90,TEN:0.90
+};
+
+function updateFactorStatus(msg, ok) {
+  var el = document.getElementById('factorStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? '#4ade80' : '#9ca3af';
+}
+
+function normalizeToMult(val, lo, hi, multLo, multHi) {
+  if (hi <= lo) return (multLo + multHi) / 2;
+  var t = Math.max(0, Math.min(1, (val - lo) / (hi - lo)));
+  return multLo + t * (multHi - multLo);
+}
+
+function applyNFLFactors() {
+  if (!nflFactorsLoaded) return;
+  players.forEach(function(p) {
+    var base = CUSTOM_SCORES[p.name] || 0;
+    if (!base) { p.olPct = 0; p.sosPct = 0; return; }
+    var team = p.team || '';
+    var ol = 1.0;
+    if (p.pos === 'RB') {
+      ol = olRunMult[team] || OL_RUN_FALLBACK[team] || 1.0;
+    } else if (p.pos === 'QB' || p.pos === 'WR' || p.pos === 'TE') {
+      ol = olPassMult[team] || OL_PASS_FALLBACK[team] || 1.0;
+    }
+    var sos = sosMult[team] || 1.0;
+    p.customScore = Math.round(base * ol * sos);
+    p.olPct  = Math.round((ol  - 1) * 100);
+    p.sosPct = Math.round((sos - 1) * 100);
+  });
+  calcVORP();
+  renderAll();
+}
+
+async function fetchNFLFactors() {
+  const CACHE_KEY = 'ff26_nflFactors_v2';
+  const TTL = 7 * 24 * 60 * 60 * 1000;
+
+  try {
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      var obj = JSON.parse(cached);
+      if (Date.now() - obj.ts < TTL) {
+        olRunMult  = obj.olRunMult  || {};
+        olPassMult = obj.olPassMult || {};
+        sosMult    = obj.sosMult    || {};
+        nflFactorsLoaded = true;
+        applyNFLFactors();
+        updateFactorStatus('NFL factors: cached', true);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  updateFactorStatus('NFL factors: loading…', false);
+
+  // ── Step 1: fetch 2025 defensive pts allowed from ESPN standings ──
+  var defPts = {}; // abbrev → season pts allowed
+  try {
+    var stResp = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/standings?season=2025');
+    var stData = await stResp.json();
+    var divs = [];
+    if (stData.children) stData.children.forEach(function(conf) {
+      if (conf.children) conf.children.forEach(function(d) { divs.push(d); });
+    });
+    divs.forEach(function(div) {
+      if (!div.standings || !div.standings.entries) return;
+      div.standings.entries.forEach(function(entry) {
+        var abbr = entry.team && entry.team.abbreviation;
+        if (!abbr) return;
+        var stat = (entry.stats || []).find(function(s) { return s.name === 'pointsAgainst'; });
+        if (stat) defPts[abbr] = parseFloat(stat.value);
+      });
+    });
+  } catch(e) {
+    console.warn('[NFL Factors] Standings fetch failed:', e.message);
+  }
+
+  // ── Step 2: OL multipliers — use fallback constants ──
+  // (ESPN team stats API requires per-team fetches with CORS variability; fallbacks are PFF-quality)
+  olRunMult  = Object.assign({}, OL_RUN_FALLBACK);
+  olPassMult = Object.assign({}, OL_PASS_FALLBACK);
+
+  // ── Step 3: SOS — try 2026 schedule vs 2025 defensive quality ──
+  var sosComputed = {};
+  var scheduleLoaded = false;
+  if (Object.keys(defPts).length >= 28) {
+    try {
+      var weekFetches = [];
+      for (var w = 1; w <= 18; w++) {
+        weekFetches.push(
+          fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=' + w + '&season=2026')
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .catch(function() { return null; })
+        );
+      }
+      var weeks = await Promise.all(weekFetches);
+      var teamOpps = {}; // abbrev → [opponent abbrevs]
+      weeks.forEach(function(data) {
+        if (!data || !data.events) return;
+        data.events.forEach(function(ev) {
+          var comps = ev.competitions && ev.competitions[0] && ev.competitions[0].competitors;
+          if (!comps || comps.length < 2) return;
+          var a = comps[0].team && comps[0].team.abbreviation;
+          var b = comps[1].team && comps[1].team.abbreviation;
+          if (!a || !b) return;
+          (teamOpps[a] = teamOpps[a] || []).push(b);
+          (teamOpps[b] = teamOpps[b] || []).push(a);
+        });
+      });
+      var teamsFound = Object.keys(teamOpps);
+      if (teamsFound.length >= 20) {
+        scheduleLoaded = true;
+        var defVals = Object.values(defPts);
+        var avgDef = defVals.reduce(function(a,b){return a+b;},0) / defVals.length;
+        teamsFound.forEach(function(abbr) {
+          var opps = teamOpps[abbr];
+          var sum = 0;
+          opps.forEach(function(opp) { sum += defPts[opp] || avgDef; });
+          sosComputed[abbr] = sum / opps.length;
+        });
+        // Normalize: higher opp defPts = weaker opponents faced = easier SOS = higher mult
+        var sosVals = Object.values(sosComputed);
+        var sosMin = Math.min.apply(null, sosVals);
+        var sosMax = Math.max.apply(null, sosVals);
+        teamsFound.forEach(function(abbr) {
+          sosMult[abbr] = normalizeToMult(sosComputed[abbr], sosMin, sosMax, 0.94, 1.06);
+        });
+      }
+    } catch(e) {
+      console.warn('[NFL Factors] Schedule fetch failed:', e.message);
+    }
+  }
+
+  nflFactorsLoaded = true;
+  var statusMsg = scheduleLoaded ? 'NFL factors: OL+SOS live' : 'NFL factors: OL live';
+  updateFactorStatus(statusMsg, true);
+
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      ts: Date.now(), olRunMult, olPassMult, sosMult
+    }));
+  } catch(e) {}
+
+  applyNFLFactors();
 }
 
 async function refreshPlayerTeams() {
@@ -1031,11 +1201,20 @@ function showPickSuggestions() {
     var p = item.p;
     var color = posColors[p.pos] || '#9ca3af';
     var vorp = p.vorp != null ? (p.vorp > 0 ? '+' : '') + p.vorp.toFixed(0) : '—';
+    var factorTag = '';
+    if (nflFactorsLoaded && p.customScore > 0) {
+      var olP = p.olPct || 0, sosP = p.sosPct || 0;
+      var parts = [];
+      if (Math.abs(olP)  >= 2) parts.push((olP  > 0 ? '+' : '') + olP  + '% OL');
+      if (Math.abs(sosP) >= 2) parts.push((sosP > 0 ? '+' : '') + sosP + '% SOS');
+      if (parts.length) factorTag = '<div style="font-size:9px;color:#a78bfa;margin-top:1px">' + parts.join(' · ') + '</div>';
+    }
     return '<div class="sugg-card" onclick="if(!players.find(function(x){return x.rank===' + p.rank + '&&x.drafted;})){draftPlayer(' + p.rank + ');}else{showPickSuggestions();}" title="Click to draft ' + p.name + '">' +
       '<div class="sugg-card-pos" style="color:' + color + ';font-size:11px;font-weight:700">' + p.pos +
         (item.reason ? ' <span style="color:#86efac;font-weight:400;font-size:10px">· ' + item.reason + '</span>' : '') + '</div>' +
       '<div class="sugg-card-name" style="font-size:12px;font-weight:600;color:#e8eaf0;margin:2px 0">' + p.name + '</div>' +
       '<div class="sugg-card-meta" style="font-size:10px;color:#6b7280">' + p.team + ' · ' + (p.customScore||0).toFixed(0) + 'pts · VORP ' + vorp + '</div>' +
+      factorTag +
       '<div style="font-size:10px;color:#4ade80;margin-top:3px;font-weight:600">⚡ Click to draft</div>' +
     '</div>';
   }).join('');
@@ -2825,6 +3004,7 @@ function showAIChatTab() { showMainTab('aiChat'); }
       if (topSel) topSel.value = myTeamIdx;
     }
     checkSession();
+    setTimeout(fetchNFLFactors, 2000);
   } catch(e) {
     console.error('[Init error]', e);
     var am = document.getElementById('authModal');
