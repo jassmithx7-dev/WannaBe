@@ -1863,11 +1863,21 @@ async function fetchSleeperLeague() {
 
     sleeperMsg('⏳ Step 3/5 — Loading traded picks...', false);
     const tradedPicks = await sleeperFetch(`${BASE}/league/${leagueId}/traded_picks`);
-    // Also fetch transactions (rounds 0-4) to catch off-season inter-team pick trades
-    // Sleeper stores completed trade transactions with draft_picks separately from traded_picks
-    const txRounds = [0,1,2,3,4];
-    const txResults = await Promise.all(txRounds.map(r => sleeperFetch(`${BASE}/league/${leagueId}/transactions/${r}`).catch(()=>[])));
+    // Fetch transactions across full NFL season range (0=off-season, 1-18=regular season weeks)
+    // Pick trades made during last season live in these week-based round numbers
+    const allRounds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+    const txSources = allRounds.map(r => sleeperFetch(`${BASE}/league/${leagueId}/transactions/${r}`).catch(()=>[]));
+    // Previous league transactions — pick trades from last year's regular season live there
+    let prevLeagueRosters = null;
+    if (league.previous_league_id) {
+      console.log('[Sleeper] Also fetching transactions from previous league:', league.previous_league_id);
+      allRounds.forEach(r => txSources.push(sleeperFetch(`${BASE}/league/${league.previous_league_id}/transactions/${r}`).catch(()=>[])));
+      // Also fetch previous league rosters so we can map prev roster_ids → user_id → current teamIdx
+      prevLeagueRosters = await sleeperFetch(`${BASE}/league/${league.previous_league_id}/rosters`).catch(()=>null);
+    }
+    const txResults = await Promise.all(txSources);
     const allTransactions = txResults.flat();
+    console.log('[Sleeper] Total transactions fetched:', allTransactions.length);
     // Extract draft_picks from completed trade transactions
     const txPickTrades = [];
     allTransactions.forEach(tx => {
@@ -2006,17 +2016,31 @@ async function fetchSleeperLeague() {
 
     // Also apply transaction-based pick trades (off-season inter-team trades)
     if (txPickTrades.length > 0) {
-      const ownerToRoster2 = {};
-      rosters.forEach(r => { if(r.owner_id) ownerToRoster2[r.owner_id] = r.roster_id; });
+      // userIdToTi: user_id → current teamIdx (for bridging prev-league roster IDs via owner_id)
+      const userIdToTi = {};
+      rosters.forEach((r, i) => { if(r.owner_id) userIdToTi[r.owner_id] = i; });
+
+      // prevRosterIdToUserId: prev-league roster_id → owner_id (user_id)
+      const prevRosterIdToUserId = {};
+      if (prevLeagueRosters) {
+        prevLeagueRosters.forEach(r => { if(r.roster_id && r.owner_id) prevRosterIdToUserId[r.roster_id] = r.owner_id; });
+      }
+
+      // Resolve a roster_id to a teamIdx, checking current league then prev league bridge
+      function resolveRosterId(rid) {
+        let ti = rosterMap[rid];
+        if (ti !== undefined) return ti;
+        // Try prev-league bridge: prev roster_id → user_id → current teamIdx
+        const uid = prevRosterIdToUserId[rid];
+        if (uid !== undefined) return userIdToTi[uid];
+        return undefined;
+      }
+
       const txSeason = league.season || String(new Date().getFullYear());
       txPickTrades.forEach(dp => {
         if (dp.season && dp.season !== txSeason) return; // skip other seasons
-        let fromTi = rosterMap[dp.previous_owner_id];
-        if (fromTi === undefined) {
-          const fr = ownerToRoster2[dp.previous_owner_id];
-          fromTi = fr !== undefined ? rosterMap[fr] : undefined;
-        }
-        const toTi = rosterMap[dp.owner_id || dp.roster_id];
+        const fromTi = resolveRosterId(dp.previous_owner_id);
+        const toTi = resolveRosterId(dp.owner_id || dp.roster_id);
         console.log('[TxTrade] prev='+dp.previous_owner_id+' fromTi='+fromTi+' toTi='+toTi+' rd='+dp.round+' season='+dp.season);
         if (fromTi !== undefined && toTi !== undefined && fromTi !== toTi) {
           // Avoid duplicates already loaded from traded_picks
@@ -2057,6 +2081,22 @@ async function fetchSleeperLeague() {
     // Clear keeper roster list so stale pre-import roster doesn't show
     var krl = document.getElementById('keeperRosterList');
     if (krl) krl.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:8px">Import complete — select your team above and click Set team to load your roster</div>';
+
+    // Reveal My team picker now that we have real team names
+    var myTeamSection = document.getElementById('myTeamSection');
+    if (myTeamSection) {
+      myTeamSection.style.display = 'flex';
+      var myTeamInModal = document.getElementById('sleeperMyTeamSel');
+      if (myTeamInModal) {
+        myTeamInModal.innerHTML = '<option value="-1">— Which team is yours? —</option>';
+        teamNames.forEach(function(n, i) {
+          var o = document.createElement('option');
+          o.value = i; o.text = n;
+          if (i === myTeamIdx) o.selected = true;
+          myTeamInModal.appendChild(o);
+        });
+      }
+    }
 
     // Build summary message
     const slotsAssigned = Object.values(slotMap).length;
@@ -2444,9 +2484,14 @@ function openSleeperModal() {
   if (li) li.value = localStorage.getItem('ff26_leagueId') || '';
   if (di) di.value = localStorage.getItem('ff26_draftId') || '';
 
+  // Show My team section only if a league has been imported (real team names exist)
+  var myTeamSection = document.getElementById('myTeamSection');
+  var hasImported = sleeperLeagueId && teamNames.length > 0 && teamNames.some(function(n){ return n && !n.match(/^Team \d+$/); });
+  if (myTeamSection) myTeamSection.style.display = hasImported ? 'flex' : 'none';
+
   // Populate "My team" selector in modal
   var myTeamInModal = document.getElementById('sleeperMyTeamSel');
-  if (myTeamInModal) {
+  if (myTeamInModal && hasImported) {
     myTeamInModal.innerHTML = '<option value="-1">— Which team is yours? —</option>';
     teamNames.forEach(function(n, i) {
       var o = document.createElement('option');
@@ -2457,7 +2502,7 @@ function openSleeperModal() {
   }
 
   // Auto-load my team's roster when modal opens
-  if (myTeamIdx >= 0) setTimeout(loadTeamRosterForKeepers, 100);
+  if (myTeamIdx >= 0 && hasImported) setTimeout(loadTeamRosterForKeepers, 100);
   renderKeeperRows();
   document.getElementById('sleeperModal').style.display = 'flex';
 }

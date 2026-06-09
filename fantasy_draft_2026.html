@@ -358,8 +358,8 @@ html,body{overflow:hidden;height:100vh}
       <h2 style="font-size:16px;font-weight:600;color:#e8eaf0">🔗 Sleeper Integration</h2>
       <button onclick="document.getElementById('sleeperModal').style.display='none'" style="background:transparent;border:none;color:#6b7280;font-size:20px;cursor:pointer">&times;</button>
     </div>
-    <!-- My Team selector - sets myTeamIdx -->
-    <div style="margin-bottom:14px;background:#1a3a2a;border:1px solid #166534;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+    <!-- My Team selector - sets myTeamIdx; hidden until league is imported -->
+    <div id="myTeamSection" style="display:none;margin-bottom:14px;background:#1a3a2a;border:1px solid #166534;border-radius:8px;padding:10px 14px;align-items:center;gap:10px">
       <span style="font-size:12px;font-weight:600;color:#4ade80;white-space:nowrap">⭐ My team:</span>
       <select id="sleeperMyTeamSel" style="flex:1;background:#252836;border:1px solid #374151;color:#e8eaf0;border-radius:5px;padding:6px 8px;font-size:12px">
         <option value="-1">— Select your team —</option>
