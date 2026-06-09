@@ -172,7 +172,9 @@ html,body{overflow:hidden;height:100vh}
 .pos-pill.wr.active{background:#fb923c}
 .pos-pill.te.active{background:#c084fc}
 .pos-pill.sf.active{background:#fbbf24}
-.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf).active{background:#e8eaf0}
+.pos-pill.def.active{background:#22d3ee}
+.pos-pill.k.active{background:#94a3b8}
+.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf):not(.def):not(.k).active{background:#e8eaf0}
 
 /* Combined right-panel tabs */
 .rp-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:12px;font-weight:600;padding:10px 4px;cursor:pointer;transition:all .15s}
@@ -288,7 +290,9 @@ html,body{overflow:hidden;height:100vh}
         <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
         <button class="pos-pill wr" onclick="setPosFilter('WR',this)">WR</button>
         <button class="pos-pill te" onclick="setPosFilter('TE',this)">TE</button>
-        <button class="pos-pill sf" onclick="setPosFilter('SFLX',this)">SF</button>
+        <button class="pos-pill sf" onclick="setPosFilter('SFLX',this)">Superflex</button>
+        <button class="pos-pill def" onclick="setPosFilter('DEF',this)">DEF</button>
+        <button class="pos-pill k" onclick="setPosFilter('K',this)">K</button>
       </div>
       <div id="qbAlert" style="display:none;background:#3d1515;color:#fca5a5;font-size:11px;padding:3px 8px;border-radius:4px">&#9888; QB run — 8+ gone</div>
       <div id="tradedAlert" style="display:none;background:#3d2a10;color:#fbbf24;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
