@@ -679,6 +679,7 @@ let olRunMult  = {};  // team abbrev → RB OL run-block multiplier
 let olPassMult = {};  // team abbrev → QB/WR/TE OL pass-block multiplier
 let sosMult    = {};  // team abbrev → schedule SOS multiplier
 let nflFactorsLoaded = false;
+var nameToSleeperId = {}; // normalized name -> Sleeper player_id, built during player load
 
 
 function getNthBest(pos, n) {
@@ -2832,7 +2833,10 @@ function setPosFilter(pos, btn) {
     }
     checkSession();
     setTimeout(fetchNFLFactors, 2000);
-    setTimeout(loadAllPlayersFromSleeper, 2000);
+    setTimeout(async function() {
+      await loadAllPlayersFromSleeper();
+      await fetchSleeperSeasonStats();
+    }, 2000);
   } catch(e) {
     console.error('[Init error]', e);
     var am = document.getElementById('authModal');
@@ -2841,35 +2845,49 @@ function setPosFilter(pos, btn) {
 })();
 
 
-// ── Load All Players from Sleeper (auto on startup, 7-day cache) ──
+// ── Load All Players from Sleeper (auto on startup, 1-day cache) ──
 async function loadAllPlayersFromSleeper() {
-  const CACHE_KEY = 'ff26_sleeperPlayers_v1';
-  const TTL = 7 * 24 * 60 * 60 * 1000;
+  const CACHE_KEY = 'ff26_sleeperPlayers_v2';
+  const TTL = 24 * 60 * 60 * 1000;
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
   try {
     var cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       var obj = JSON.parse(cached);
-      if (Date.now() - obj.ts < TTL) { _applySleeperList(obj.list); return; }
+      if (Date.now() - obj.ts < TTL) {
+        if (obj.nameMap) {
+          nameToSleeperId = obj.nameMap;
+          players.forEach(function(p) { if (!p.sleeperId) p.sleeperId = obj.nameMap[norm(p.name)] || null; });
+        }
+        _applySleeperList(obj.list);
+        return;
+      }
     }
   } catch(e) {}
   try {
     const playerMap = await sleeperFetch('https://api.sleeper.app/v1/players/nfl');
     const VALID_POS = ['QB','RB','WR','TE','K','DEF'];
-    const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
     let maxId = Math.max(...players.map(p=>p.id||0), 200);
     var toCache = [];
-    Object.values(playerMap).filter(p=>{
-      if(!p.active||!p.team||p.team==='FA') return false;
-      const pos=p.fantasy_positions&&p.fantasy_positions[0];
-      return VALID_POS.includes(pos)&&p.last_name&&(!p.search_rank||p.search_rank<=500);
-    }).sort((a,b)=>(a.search_rank||999)-(b.search_rank||999)).forEach(p=>{
-      const fn=((p.first_name||'')+' '+(p.last_name||'')).trim();
-      if(!fn) return;
+    var nameMap = {};
+    Object.entries(playerMap).forEach(function([pid, p]) {
+      const fn = ((p.first_name||'')+' '+(p.last_name||'')).trim();
+      if (fn) nameMap[norm(fn)] = pid;
+      if (!p.active||!p.team||p.team==='FA') return;
+      const pos = p.fantasy_positions&&p.fantasy_positions[0];
+      if (!VALID_POS.includes(pos)||!p.last_name) return;
+      if (p.search_rank&&p.search_rank>500) return;
+      if (!fn) return;
       maxId++;
-      toCache.push({rank:maxId,name:fn,pos:p.fantasy_positions[0],team:p.team,bye:'TBD',
-        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?'});
+      toCache.push({rank:maxId,name:fn,pos:pos,team:p.team,bye:'TBD',
+        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',sleeperId:pid});
     });
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache})); } catch(e){}
+    toCache.sort((a,b)=>(a.adp||999)-(b.adp||999));
+    nameToSleeperId = nameMap;
+    players.forEach(function(p) { if (!p.sleeperId) p.sleeperId = nameMap[norm(p.name)] || null; });
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache,nameMap:nameMap})); } catch(e){
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache})); } catch(e2){}
+    }
     _applySleeperList(toCache);
   } catch(e) {
     console.warn('[AutoLoad] Sleeper fetch failed:', e.message);
@@ -2885,6 +2903,69 @@ function _applySleeperList(list) {
     existing.add(norm(p.name));
   });
   calcVORP(); renderBA();
+}
+
+// ── 2025 Season Stats → customScore (1-day cache) ──
+async function fetchSleeperSeasonStats() {
+  const CACHE_KEY = 'ff26_stats2025_v1';
+  const TTL = 24 * 60 * 60 * 1000;
+  var fs = document.getElementById('factorStatus');
+  try {
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      var obj = JSON.parse(cached);
+      if (Date.now() - obj.ts < TTL) { applySleeperStats(obj.stats); return; }
+    }
+  } catch(e) {}
+  try {
+    if (fs) fs.textContent = 'Loading stats...';
+    const weeks = Array.from({length:18}, function(_,i){ return i+1; });
+    const results = await Promise.all(weeks.map(function(w) {
+      return fetch('https://api.sleeper.app/v1/stats/nfl/regular/2025/'+w)
+        .then(function(r){ return r.ok ? r.json() : {}; })
+        .catch(function(){ return {}; });
+    }));
+    var totals = {};
+    results.forEach(function(weekStats) {
+      Object.entries(weekStats).forEach(function([pid, stats]) {
+        if (!totals[pid]) totals[pid] = {};
+        Object.entries(stats).forEach(function([k, v]) {
+          if (typeof v === 'number') totals[pid][k] = (totals[pid][k]||0) + v;
+        });
+      });
+    });
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),stats:totals})); } catch(e){}
+    applySleeperStats(totals);
+  } catch(e) {
+    if (fs) fs.textContent = '';
+    console.warn('[Stats] Failed:', e.message);
+  }
+}
+
+function calcStatScore(s) {
+  return Math.round(
+    (s.pass_yd||0)*0.05 + (s.pass_td||0)*4  + (s.pass_int||0)*-2 +
+    (s.rush_yd||0)*0.1  + (s.rush_td||0)*6  +
+    (s.rec||0)*1        + (s.rec_yd||0)*0.1 + (s.rec_td||0)*6 +
+    (s.fum_lost||0)*-2
+  );
+}
+
+function applySleeperStats(statsById) {
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  var updated = 0;
+  players.forEach(function(p) {
+    var sid = p.sleeperId || nameToSleeperId[norm(p.name)];
+    if (!sid) return;
+    var s = statsById[sid];
+    if (!s) return;
+    var score = calcStatScore(s);
+    if (score > 15) { p.customScore = score; updated++; }
+  });
+  var fs = document.getElementById('factorStatus');
+  if (fs) fs.textContent = updated ? 'Stats: '+updated+' players' : '';
+  if (nflFactorsLoaded) applyNFLFactors();
+  else { calcVORP(); renderAll(); }
 }
 
 // ── MOCK DRAFT ──
