@@ -9,188 +9,136 @@
 <title>2026 Fantasy Draft Companion</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh;font-size:14px}
-.topbar{background:#1a1d27;border-bottom:1px solid #2a2d3a;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.topbar h1{font-size:14px;font-weight:600;white-space:nowrap}
-.tag{font-size:11px;color:#6b7280;background:#252836;padding:2px 8px;border-radius:10px;white-space:nowrap}
-select,input[type=text]{background:#252836;border:1px solid #3a3d4a;color:#e8eaf0;border-radius:6px;padding:4px 8px;font-size:12px;height:28px}
-select:focus,input:focus{outline:none;border-color:#4f8ef7}
-label{font-size:11px;color:#9ca3af;white-space:nowrap}
-.btn{background:#252836;border:1px solid #3a3d4a;color:#e8eaf0;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;height:28px;white-space:nowrap}
-.btn:hover{background:#2e3244}
-.btn-blue{background:#1e3a5f;border-color:#1565c0;color:#60a5fa}
-.btn-blue:hover{background:#1a3050}
-.btn-yellow{border-color:#854d0e;color:#fbbf24}
-.btn-yellow:hover{background:#2d2008}
-.btn-red{border-color:#7f1d1d;color:#fca5a5}
-.btn-red:hover{background:#2d1515}
-.btn-green{background:#1a3a2a;border-color:#2e7d32;color:#4ade80}
-.btn-green:hover{background:#1f4a32}
-play:flex;align-items:center;gap:10px;flex-wrap:wrap}
-
-.main{display:grid;grid-template-columns:1fr 340px;gap:8px;padding:8px;height:calc(100vh - 96px)}
-.panel{background:#1a1d27;border:1px solid #2a2d3a;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
-.panel-hdr{padding:8px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
-.panel-hdr h2{font-size:13px;font-weight:600}
-.clock{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:#1a3a2a;color:#4ade80;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clock.me{background:#1e3a5f;color:#60a5fa}
-.clock.done{background:#252836;color:#9ca3af}
-.ctrl{padding:6px 10px;border-bottom:1px solid #2a2d3a;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
-.grid2{display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden;min-height:0}
-.col{display:flex;flex-direction:column;overflow:hidden}.col:first-child{overflow:auto;display:flex;flex-direction:column}
-.col:first-child{border-right:1px solid #2a2d3a}
-.col-hdr{font-size:10px;font-weight:600;color:#6b7280;padding:5px 10px;border-bottom:1px solid #2a2d3a;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0}
-.scroll{overflow-y:auto;flex:1}
-.scroll::-webkit-scrollbar{width:3px}
-.scroll::-webkit-scrollbar-thumb{background:#3a3d4a;border-radius:2px}
-.ba{display:grid;grid-template-columns:18px 30px 1fr 28px 28px 36px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #1e2130;cursor:pointer;transition:background .1s}
-.ba:hover{background:#252836}
-.ba.out{opacity:.28;pointer-events:none;text-decoration:line-through}
-.ba.keeper-pick{background:#1f2a3d;border-left:2px solid #1565c0}
-.ba-sf{font-size:10px;color:#6b7280;text-align:right}
-.pos{font-size:10px;font-weight:700;padding:1px 4px;border-radius:3px;text-align:center}
-.QB{background:#1e3a5f;color:#60a5fa}.RB{background:#1a3a2a;color:#4ade80}
-.WR{background:#3d2a0a;color:#fbbf24}.TE{background:#2e1a3d;color:#c084fc}
-.ba-name{font-size:12px;font-weight:500;color:#e8eaf0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ba-team{font-size:10px;color:#6b7280;text-align:center}
+html,body{overflow:hidden;height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d1117;color:#e6edf3;font-size:14px}
+.topbar{background:#161b22;border-bottom:1px solid #30363d;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.topbar h1{font-size:14px;font-weight:700;color:#e6edf3;white-space:nowrap}
+.tag{font-size:11px;color:#7d8590;background:#21262d;padding:2px 8px;border-radius:10px;white-space:nowrap;border:1px solid #30363d}
+select,input[type=text]{background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:4px 8px;font-size:12px;height:28px}
+select:focus,input:focus{outline:none;border-color:#388bfd}
+label{font-size:11px;color:#7d8590;white-space:nowrap}
+.btn{background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;height:28px;white-space:nowrap}
+.btn:hover{background:#2d333b}
+.btn-blue{background:#1158c7;border-color:#1f6feb;color:#e6edf3}.btn-blue:hover{background:#388bfd}
+.btn-yellow{background:#2d2008;border-color:#9e6a03;color:#e3b341}.btn-yellow:hover{background:#3a2810}
+.btn-red{background:#2d1515;border-color:#8b1a1a;color:#ffa198}.btn-red:hover{background:#3d1a1a}
+.btn-green{background:#0e2a1a;border-color:#2ea043;color:#3fb950}.btn-green:hover{background:#1e4d35}
+.main{display:flex;gap:8px;padding:8px;height:calc(100vh - 96px);overflow:hidden}
+.panel{background:#161b22;border:1px solid #30363d;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.panel-hdr{padding:8px 12px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;background:#21262d}
+.panel-hdr h2{font-size:13px;font-weight:600;color:#e6edf3}
+.ctrl{padding:6px 10px;border-bottom:1px solid #30363d;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.col-hdr{font-size:10px;font-weight:600;color:#7d8590;padding:5px 10px;border-bottom:1px solid #30363d;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;background:#21262d}
+.clock{font-size:12px;font-weight:700;padding:4px 14px;border-radius:20px;background:#0f2a1a;color:#3fb950;border:1px solid #2ea043;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clock.me{background:#0e1f3d;color:#388bfd;border-color:#1f6feb}
+.clock.done{background:#21262d;color:#7d8590;border-color:#30363d}
+.sp-tabs{display:flex;border-bottom:1px solid #30363d;flex-shrink:0;background:#21262d}
+.sp-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#7d8590;font-size:12px;font-weight:600;padding:9px 4px;cursor:pointer;transition:all .15s}
+.sp-tab:hover{color:#e6edf3}
+.sp-tab.sp-on{color:#388bfd;border-bottom-color:#388bfd}
+.sugg-card{background:#1c2128;border:1px solid #30363d;border-radius:8px;margin:8px 8px 0 8px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.sugg-card:last-child{margin-bottom:8px}
+.sugg-card:hover{border-color:#388bfd;box-shadow:0 0 0 1px rgba(56,139,253,.25)}
+.sugg-card-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px 6px}
+.sugg-bar{width:4px;border-radius:2px;align-self:stretch;flex-shrink:0;min-height:32px}
+.sugg-info{flex:1;min-width:0}
+.sugg-name{font-size:13px;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sugg-meta{font-size:10px;color:#7d8590;margin-top:2px}
+.sugg-reason{font-size:10px;color:#3fb950;margin-top:1px;font-weight:600}
+.sugg-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #21262d;padding:7px 12px}
+.sugg-stat{text-align:center}
+.sugg-stat-val{font-size:13px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums}
+.sugg-stat-lbl{font-size:9px;color:#7d8590;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.sugg-factor{font-size:9px;color:#7d8590;padding:0 12px 5px;text-align:right}
+.sugg-draft-btn{display:block;width:calc(100% - 24px);margin:0 12px 10px;background:#2ea043;border:none;color:#fff;font-size:12px;font-weight:700;padding:7px;border-radius:6px;cursor:pointer;letter-spacing:.02em}
+.sugg-draft-btn:hover{background:#3fb950}
+.pos{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;text-align:center}
+.QB{background:rgba(56,139,253,.18);color:#388bfd}
+.RB{background:rgba(63,185,80,.18);color:#3fb950}
+.WR{background:rgba(247,129,102,.18);color:#f78166}
+.TE{background:rgba(188,140,255,.18);color:#bc8cff}
+.K{background:rgba(227,179,65,.18);color:#e3b341}
+.DEF{background:rgba(86,211,100,.18);color:#56d364}
+.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:680px}
+.ba:hover{background:#1c2128}
+.ba.out{opacity:.22;pointer-events:none;text-decoration:line-through}
+.ba.keeper-pick{background:#0e1f3d;border-left:2px solid #1f6feb}
+.ba-draft-btn{background:#2ea043;border:none;color:#fff;font-size:10px;font-weight:700;padding:4px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;border:1px solid #3fb950}
+.ba-draft-btn:hover{background:#3fb950}
 .fit-badge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;text-align:center}
-.cust-score{font-size:10px;color:#9ca3af;text-align:right}
-.pr{display:grid;grid-template-columns:26px 20px 1fr 26px;gap:3px;padding:4px 8px;border-bottom:1px solid #1e2130;align-items:start}
-.pr.clk{background:#1f2a1a;border-left:2px solid #4ade80}
-.pr.me{background:#1a253d}
-.pr.done{opacity:.65}
-.pr.traded{background:#2a2010}
-.pr.keeper-slot{background:#1a253d;border-left:2px solid #1565c0}
-.pr-num{font-size:10px;color:#6b7280}
-.pr-rd{font-size:9px;color:#374151;margin-top:1px}
-.pr-team{font-size:11px;font-weight:500;color:#d1d5db;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pr-player{font-size:10px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pr-empty{font-size:10px;color:#2d3748}
-.tabs{display:flex;border-bottom:1px solid #2a2d3a;flex-shrink:0}
-.tab{font-size:12px;padding:7px 10px;cursor:pointer;color:#6b7280;border-bottom:2px solid transparent;white-space:nowrap}
-.tab.on{color:#e8eaf0;border-bottom-color:#4f8ef7;font-weight:500}
-.tc{display:none;flex-direction:column;overflow:hidden;flex:1}
-.tc.on{display:flex}
-.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:6px 10px;border-bottom:1px solid #2a2d3a;flex-shrink:0}
-.sv{background:#252836;border-radius:5px;padding:4px;text-align:center}
-.sv-n{font-size:15px;font-weight:600}.sv-l{font-size:9px;color:#6b7280;margin-top:1px}
-.sv-n.warn{color:#fca5a5}
-.rnote{font-size:10px;color:#6b7280;padding:5px 10px;border-bottom:1px solid #1e2130;flex-shrink:0}
+.pr{display:grid;grid-template-columns:26px 20px 1fr;gap:3px;padding:4px 8px;border-bottom:1px solid #21262d;align-items:start}
+.pr.clk{background:#0e2a1a;border-left:2px solid #3fb950}
+.pr.me{background:#0e1f3d}
+.pr.done{opacity:.6}
+.pr.traded{background:#1f1a0a}
+.pr.keeper-slot{background:#0e1f3d;border-left:2px solid #1f6feb}
+.pr-num{font-size:10px;color:#7d8590}
+.pr-rd{font-size:9px;color:#484f58;margin-top:1px}
+.pr-team{font-size:11px;font-weight:500;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-player{font-size:10px;color:#7d8590;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-empty{font-size:10px;color:#2d333b}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:6px 10px;border-bottom:1px solid #30363d;flex-shrink:0}
+.sv{background:#21262d;border-radius:5px;padding:4px;text-align:center;border:1px solid #30363d}
+.sv-n{font-size:14px;font-weight:600}.sv-l{font-size:9px;color:#7d8590;margin-top:1px}
+.sv-n.warn{color:#ffa198}
+.rnote{font-size:10px;color:#7d8590;padding:5px 10px;border-bottom:1px solid #21262d;flex-shrink:0}
 .rlist{overflow-y:auto;flex:1}
-.rslot{display:flex;align-items:center;gap:6px;padding:4px 10px;border-bottom:1px solid #1e2130}
-.rslot-lbl{font-size:10px;font-weight:600;color:#6b7280;width:82px;flex-shrink:0;white-space:nowrap}
-.rslot-lbl.sf{color:#c084fc}
-.rslot-p{font-size:11px;color:#e8eaf0;flex:1;display:flex;align-items:center;gap:4px;overflow:hidden}
-.rslot-empty{font-size:11px;color:#374151;font-style:italic}
-.at-list{overflow-y:auto;flex:1;padding:6px}
-.at-card{background:#252836;border-radius:7px;padding:6px 8px;margin-bottom:5px;border:1px solid #2a2d3a}
-.at-card.me{border-color:#4f8ef7}
-.at-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.at-card-name{font-size:11px;font-weight:600;color:#d1d5db}
-.at-card.me .at-card-name{color:#60a5fa}
-.at-slot{font-size:10px;color:#6b7280}
-.at-picks{display:flex;flex-wrap:wrap;gap:2px}
-.qb-panel{overflow-y:auto;flex:1;padding:8px 10px}
-.qb-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #1e2130}
-.qb-btn{font-size:10px;padding:2px 7px;height:20px;border-radius:4px;background:#252836;border:1px solid #3a3d4a;color:#e8eaf0;cursor:pointer}
-.qb-btn:hover{background:#2e3244}
-.alert{background:#3d1515;color:#fca5a5;border:1px solid #7f1d1d;border-radius:5px;padding:5px 8px;font-size:11px;margin-bottom:6px}
-.info-box{background:#1e3a5f;color:#93c5fd;border:1px solid #1565c0;border-radius:5px;padding:6px 10px;font-size:11px;margin-bottom:8px}
-.add-player-row{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid #2a2d3a;flex-shrink:0;flex-wrap:wrap;background:#1a1d27}
-
-.ai-dot{width:5px;height:5px;border-radius:50%;background:#4b5563;display:inline-block;animation:aiD 1.2s ease-in-out infinite}
-.ai-dot:nth-child(2){animation-delay:.2s}
-.ai-dot:nth-child(3){animation-delay:.4s}
-@keyframes aiD{0%,80%,100%{transform:scale(.8);background:#4b5563}40%{transform:scale(1.2);background:#60a5fa}}
-
-.ai-dot{width:5px;height:5px;border-radius:50%;background:#4b5563;display:inline-block;animation:aiD 1.2s ease-in-out infinite;margin:0 1px}
-.ai-dot:nth-child(2){animation-delay:.2s}
-.ai-dot:nth-child(3){animation-delay:.4s}
-@keyframes aiD{0%,80%,100%{transform:scale(.8);background:#4b5563}40%{transform:scale(1.2);background:#60a5fa}}
-html,body{overflow:hidden;height:100vh}
-
-#authModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center}
-#authBox{background:#1a1d27;border:1px solid #2a2d3a;border-radius:14px;padding:32px;width:380px;max-width:95vw}
-.auth-input{width:100%;background:#252836;border:1px solid #374151;color:#e8eaf0;border-radius:6px;padding:10px 14px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box}
-.auth-input:focus{border-color:#4f8ef7}
-.auth-btn{width:100%;padding:11px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px}
-.auth-btn-primary{background:#1d4ed8;color:white}
-.auth-btn-primary:hover{background:#1e40af}
-.auth-btn-secondary{background:#252836;color:#9ca3af;border:1px solid #374151}
-.auth-btn-secondary:hover{background:#2e3244}
-.auth-error{color:#f87171;font-size:12px;margin-bottom:8px;display:none}
-.auth-success{color:#4ade80;font-size:12px;margin-bottom:8px;display:none}
-#userBar{background:#1a1d27;border-bottom:1px solid #2a2d3a;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px}
-
-
-/* Custom scrollbars — dark theme */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0f1117; }
-::-webkit-scrollbar-thumb { background: #2a2d3a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #4f8ef7; }
-* { scrollbar-width: thin; scrollbar-color: #2a2d3a #0f1117; }
-
-
-#suggBar{background:#1a2a1a;border-bottom:1px solid #166534;padding:8px 12px;display:none;flex-shrink:0;gap:10px;align-items:flex-start;flex-wrap:wrap}
-.sugg-card{background:#1a3a2a;border:2px solid #166534;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;flex:1;min-width:140px;max-width:200px;transition:all .15s;position:relative}
-.sugg-card:hover{border-color:#4ade80;background:#1e4d30;transform:translateY(-1px)}
-.sugg-card:active{transform:translateY(0)}
-.sugg-card-pos{font-weight:700;font-size:10px;margin-bottom:2px}
-.sugg-card-name{color:#e8eaf0;font-weight:600;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sugg-card-meta{color:#6b7280;font-size:10px}
-
-.kp-dd-item:hover{background:#252836}
-
-#boardGrid { font-size:10px; }
-.bg-table { border-collapse:collapse; width:100%; }
-.bg-table th { background:#1a1d27; color:#6b7280; font-size:9px; font-weight:600;
-  padding:3px 4px; border:1px solid #2a2d3a; text-align:center; position:sticky; top:0; z-index:2; white-space:nowrap; }
-.bg-table th.my-col { color:#4ade80; }
-.bg-table td { border:1px solid #1e2130; padding:2px 4px; vertical-align:top; min-width:72px; max-width:90px; }
-.bg-table tr:nth-child(even) td { background:#0f1117; }
-.bg-table tr:nth-child(odd) td { background:#12141e; }
-.bg-rd { background:#1a1d27 !important; color:#4b5563; font-size:9px; font-weight:600;
-  text-align:center; padding:2px; min-width:28px; max-width:28px; }
-.bg-pick { font-size:9px; color:#6b7280; display:block; }
-.bg-player { font-size:10px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bg-pos-QB { color:#60a5fa; } .bg-pos-RB { color:#4ade80; }
-.bg-pos-WR { color:#fb923c; } .bg-pos-TE { color:#c084fc; }
-.bg-pos-K  { color:#fbbf24; } .bg-pos-DEF { color:#94a3b8; }
-.bg-keeper { background:#1a3a2a !important; }
-.bg-traded { background:#1a1a3a !important; }
-.bg-my-pick { outline:1px solid #4ade80; }
-.bg-empty { color:#2a2d3a; }
-.bg-my-col td { background:#131a13 !important; }
-
-/* ── DK-inspired additions ── */
-/* Position filter pills */
-.pos-pill{background:transparent;border:1px solid #3a3d4a;color:#6b7280;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;height:26px}
-.pos-pill:hover{border-color:#6b7280;color:#e8eaf0}
-.pos-pill.active{color:#0f1117;border-color:transparent}
-.pos-pill.qb.active{background:#60a5fa}
-.pos-pill.rb.active{background:#4ade80}
-.pos-pill.wr.active{background:#fb923c}
-.pos-pill.te.active{background:#c084fc}
-.pos-pill.sf.active{background:#fbbf24}
-.pos-pill.def.active{background:#22d3ee}
+.rslot{display:flex;align-items:center;gap:6px;padding:4px 10px;border-bottom:1px solid #21262d}
+.rslot-lbl{font-size:10px;font-weight:600;color:#7d8590;width:82px;flex-shrink:0;white-space:nowrap}
+.rslot-lbl.sf{color:#bc8cff}
+.rslot-p{font-size:11px;color:#e6edf3;flex:1;display:flex;align-items:center;gap:4px;overflow:hidden}
+.rslot-empty{font-size:11px;color:#2d333b;font-style:italic}
+.pos-pill{background:transparent;border:1px solid #30363d;color:#7d8590;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;height:26px}
+.pos-pill:hover{border-color:#7d8590;color:#e6edf3}
+.pos-pill.active{color:#0d1117;border-color:transparent}
+.pos-pill.qb.active{background:#388bfd}
+.pos-pill.rb.active{background:#3fb950}
+.pos-pill.wr.active{background:#f78166}
+.pos-pill.te.active{background:#bc8cff}
+.pos-pill.sf.active{background:#e3b341}
+.pos-pill.def.active{background:#56d364}
 .pos-pill.k.active{background:#94a3b8}
-.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf):not(.def):not(.k).active{background:#e8eaf0}
-
-/* Combined right-panel tabs */
-.rp-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:12px;font-weight:600;padding:10px 4px;cursor:pointer;transition:all .15s}
-.rp-tab:hover{color:#e8eaf0}
-.rp-tab.rp-on{color:#4ade80;border-bottom-color:#4ade80}
-
-/* Sharper clock */
-.clock{font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px;background:#0f2a1a;color:#4ade80;border:1px solid #166534;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em}
-.clock.me{background:#0e2040;color:#60a5fa;border-color:#1565c0}
-.clock.done{background:#1a1d27;color:#4b5563;border-color:#2a2d3a}
-
-/* Cleaner player rows */
-.ba{display:grid;grid-template-columns:28px 30px 180px 36px 36px 46px 44px 42px 38px 50px 120px 36px 30px;gap:4px;align-items:center;padding:6px 8px;border-bottom:1px solid #12141f;cursor:pointer;transition:background .1s}
-.ba:hover{background:#1e2236}
-.ba.out{opacity:.25;pointer-events:none;text-decoration:line-through}
-
+.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf):not(.def):not(.k).active{background:#e6edf3}
+#authModal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center}
+#authBox{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:32px;width:380px;max-width:95vw}
+.auth-input{width:100%;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:10px 14px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box}
+.auth-input:focus{border-color:#388bfd}
+.auth-btn{width:100%;padding:11px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px}
+.auth-btn-primary{background:#1f6feb;color:#fff}.auth-btn-primary:hover{background:#388bfd}
+.auth-btn-secondary{background:#21262d;color:#7d8590;border:1px solid #30363d}.auth-btn-secondary:hover{background:#2d333b}
+.auth-error{color:#ffa198;font-size:12px;margin-bottom:8px;display:none}
+.auth-success{color:#3fb950;font-size:12px;margin-bottom:8px;display:none}
+#userBar{background:#161b22;border-bottom:1px solid #30363d;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px}
+#boardGrid{font-size:10px}
+.bg-table{border-collapse:collapse;width:100%}
+.bg-table th{background:#21262d;color:#7d8590;font-size:9px;font-weight:600;padding:3px 4px;border:1px solid #30363d;text-align:center;position:sticky;top:0;z-index:2;white-space:nowrap}
+.bg-table th.my-col{color:#3fb950}
+.bg-table td{border:1px solid #21262d;padding:2px 4px;vertical-align:top;min-width:72px;max-width:90px}
+.bg-table tr:nth-child(even) td{background:#0d1117}
+.bg-table tr:nth-child(odd) td{background:#111317}
+.bg-rd{background:#21262d !important;color:#484f58;font-size:9px;font-weight:600;text-align:center;padding:2px;min-width:28px;max-width:28px}
+.bg-pick{font-size:9px;color:#7d8590;display:block}
+.bg-player{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bg-pos-QB{color:#388bfd}.bg-pos-RB{color:#3fb950}.bg-pos-WR{color:#f78166}.bg-pos-TE{color:#bc8cff}.bg-pos-K{color:#e3b341}.bg-pos-DEF{color:#56d364}
+.bg-keeper{background:#0e1f3d !important}
+.bg-traded{background:#1a1a2e !important}
+.bg-my-pick{outline:1px solid #3fb950}
+.bg-empty{color:#21262d}
+.bg-my-col td{background:#0b1a0e !important}
+.at-list{overflow-y:auto;flex:1;padding:6px}
+.at-card{background:#21262d;border-radius:7px;padding:6px 8px;margin-bottom:5px;border:1px solid #30363d}
+.at-card.me{border-color:#1f6feb}
+.at-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.at-card-name{font-size:11px;font-weight:600;color:#cdd9e5}
+.at-card.me .at-card-name{color:#388bfd}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:#484f58;display:inline-block;animation:aiD 1.2s ease-in-out infinite;margin:0 1px}
+.ai-dot:nth-child(2){animation-delay:.2s}
+.ai-dot:nth-child(3){animation-delay:.4s}
+@keyframes aiD{0%,80%,100%{transform:scale(.8);background:#484f58}40%{transform:scale(1.2);background:#388bfd}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#0d1117}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#388bfd}
+*{scrollbar-width:thin;scrollbar-color:#30363d #0d1117}
 </style>
 </head>
 <body style="overflow:hidden;height:100vh">
@@ -232,25 +180,17 @@ html,body{overflow:hidden;height:100vh}
   <h1>2026 Draft Companion</h1>
   <span class="tag">Superflex · PPR · Custom scoring</span>
   <div style="display:flex;gap:4px;margin-left:8px">
-    <button id="tab-draft" onclick="showDraftTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1565c0;background:#1e3a5f;color:#60a5fa;cursor:pointer">Draft</button>
-    <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #374151;background:#252836;color:#9ca3af;cursor:pointer">AI Chat</button>
-    <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #166534;background:#14532d;color:#4ade80;cursor:pointer">🔗 Sleeper</button>
-    <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #854d0e;background:#2d2008;color:#fbbf24;cursor:pointer">🎯 Mock Draft</button>
-    <button onclick="openBoardModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1565c0;background:#1e3a5f;color:#60a5fa;cursor:pointer">📋 Board</button>
+    <button id="tab-draft" onclick="showDraftTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1f6feb;background:#1158c7;color:#e6edf3;cursor:pointer">Draft</button>
+    <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#7d8590;cursor:pointer">AI Chat</button>
+    <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #2ea043;background:#0e2a1a;color:#3fb950;cursor:pointer">🔗 Sleeper</button>
+    <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9e6a03;background:#2d2008;color:#e3b341;cursor:pointer">🎯 Mock Draft</button>
+    <button onclick="openBoardModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1f6feb;background:#1158c7;color:#e6edf3;cursor:pointer">📋 Board</button>
   </div>
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
     <option value="custom">Custom score</option>
     <option value="sf">Superflex rank</option>
     <option value="pos">Position</option>
-  </select>
-  <select id="posFilt" onchange="renderBA()" style="display:none">
-    <option value="ALL">All</option>
-    <option value="QB">QB</option><option value="RB">RB</option>
-    <option value="WR">WR</option><option value="TE">TE</option>
-    <option value="SFLX">Superflex</option>
-    <option value="DEF">DEF</option>
-    <option value="K">K</option>
   </select>
   <label>Fit:</label>
   <select id="fitFilt" onchange="renderBA()">
@@ -265,23 +205,68 @@ html,body{overflow:hidden;height:100vh}
 
 
 
-<div class="main" style="display:flex;gap:8px;padding:8px;height:calc(100vh - 96px);overflow:hidden">
+<div class="main">
 
-  <!-- LEFT: Best Available + Pick Log -->
+  <!-- LEFT PANEL: Top Picks | AI -->
+  <div class="panel" style="width:280px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+    <div class="sp-tabs">
+      <button class="sp-tab sp-on" id="lpt-picks" onclick="switchLP('picks')">Top Picks</button>
+      <button class="sp-tab" id="lpt-ai" onclick="switchLP('ai')">🤖 AI</button>
+    </div>
+    <div id="lp-picks" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:5px 10px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#21262d">
+        <span style="font-size:10px;font-weight:600;color:#e6edf3">💡 Suggested picks</span>
+        <span id="factorStatus" style="font-size:9px;color:#7d8590"></span>
+      </div>
+      <div id="suggBar" style="flex:1;overflow-y:auto">
+        <div id="suggCards"></div>
+      </div>
+    </div>
+    <div id="lp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span id="aiActiveTag" style="font-size:10px;color:#3fb950;display:none">✓ Active</span>
+        <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
+          <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#0e2a1a;color:#3fb950;border:1px solid #2ea043;border-radius:4px;padding:3px 8px;cursor:pointer">⚡ My pick</button>
+          <button onclick="doAskAIFull()" style="font-size:10px;background:#0e1f3d;color:#388bfd;border:1px solid #1f6feb;border-radius:4px;padding:3px 8px;cursor:pointer">🧠 Full</button>
+        </div>
+      </div>
+      <div id="aiKeyEntry" style="padding:8px 12px;border-bottom:1px solid #30363d;flex-shrink:0">
+        <div style="font-size:10px;color:#7d8590;margin-bottom:5px">Paste Anthropic API key:</div>
+        <div style="display:flex;gap:4px">
+          <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
+          <button onclick="saveApiKey()" style="font-size:10px;background:#1f6feb;color:white;border:none;border-radius:4px;padding:4px 6px;cursor:pointer">Save</button>
+        </div>
+        <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#388bfd;display:block;margin-top:4px">Get key ↗</a>
+      </div>
+      <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #30363d;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
+      <div id="aiResponse" style="padding:8px 12px;font-size:11px;color:#cdd9e5;line-height:1.6;overflow-y:auto;flex:1">
+        <span style="color:#7d8590;font-style:italic">Add your API key above for live draft advice.</span>
+      </div>
+      <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #30363d;flex-shrink:0">
+        <div style="display:flex;gap:4px">
+          <input type="text" id="aiStripInputEl" placeholder="Ask anything..."
+            onkeydown="if(event.key==='Enter'&&this.value.trim()){askAICustom(this.value);this.value=''}"
+            style="flex:1;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:3px 6px;font-size:10px;outline:none;min-width:0">
+          <button onclick="sendStrip()" style="font-size:10px;background:#30363d;color:#cdd9e5;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">↵</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Draft Board + Player List -->
   <div class="panel" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
-    <!-- Mock draft banner -->
-    <div id="mockBanner" style="display:none;background:#2d2008;border-bottom:2px solid #92400e;padding:8px 14px;flex-shrink:0;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;font-weight:700;color:#fbbf24">🎯 MOCK DRAFT</span>
-      <span id="mockBannerPick" style="font-size:12px;color:#d97706"></span>
-      <span id="mockBannerTimer" style="font-size:16px;font-weight:700;color:#fbbf24;width:40px"></span>
-      <span style="font-size:11px;color:#92400e;flex:1">Click any player to draft · CPU picks auto-advance</span>
-      <button onclick="mockAutoPick()" style="font-size:11px;background:#1e3a5f;border:1px solid #1565c0;color:#60a5fa;border-radius:4px;padding:4px 10px;cursor:pointer">Auto pick</button>
-      <button onclick="skipToMyPick()" style="font-size:11px;background:#252836;border:1px solid #374151;color:#9ca3af;border-radius:4px;padding:4px 10px;cursor:pointer">Skip to my pick</button>
-      <button onclick="finishMockDraft()" style="font-size:11px;background:#1a3a2a;border:1px solid #166534;color:#4ade80;border-radius:4px;padding:4px 10px;cursor:pointer">Finish</button>
-      <button onclick="closeMockModal()" style="font-size:11px;background:#2d1515;border:1px solid #7f1d1d;color:#fca5a5;border-radius:4px;padding:4px 10px;cursor:pointer">Quit mock</button>
+    <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:8px 14px;flex-shrink:0;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:#e3b341">🎯 MOCK DRAFT</span>
+      <span id="mockBannerPick" style="font-size:12px;color:#c9982b"></span>
+      <span id="mockBannerTimer" style="font-size:16px;font-weight:700;color:#e3b341;width:40px"></span>
+      <span style="font-size:11px;color:#9e6a03;flex:1">Click any player to draft · CPU picks auto-advance</span>
+      <button onclick="mockAutoPick()" style="font-size:11px;background:#0e1f3d;border:1px solid #1f6feb;color:#388bfd;border-radius:4px;padding:4px 10px;cursor:pointer">Auto pick</button>
+      <button onclick="skipToMyPick()" style="font-size:11px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:4px 10px;cursor:pointer">Skip to my pick</button>
+      <button onclick="finishMockDraft()" style="font-size:11px;background:#0e2a1a;border:1px solid #2ea043;color:#3fb950;border-radius:4px;padding:4px 10px;cursor:pointer">Finish</button>
+      <button onclick="closeMockModal()" style="font-size:11px;background:#2d1515;border:1px solid #8b1a1a;color:#ffa198;border-radius:4px;padding:4px 10px;cursor:pointer">Quit mock</button>
     </div>
     <div class="panel-hdr">
-      <h2>Live draft board</h2>
+      <h2>Live Draft Board</h2>
       <div class="clock" id="clk">Waiting for draft to start...</div>
     </div>
     <div class="ctrl" style="gap:8px">
@@ -296,85 +281,41 @@ html,body{overflow:hidden;height:100vh}
         <button class="pos-pill def" onclick="setPosFilter('DEF',this)">DEF</button>
         <button class="pos-pill k" onclick="setPosFilter('K',this)">K</button>
       </div>
-      <div id="qbAlert" style="display:none;background:#3d1515;color:#fca5a5;font-size:11px;padding:3px 8px;border-radius:4px">&#9888; QB run — 8+ gone</div>
-      <div id="tradedAlert" style="display:none;background:#3d2a10;color:#fbbf24;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+      <select id="posFilt" onchange="renderBA()" style="display:none">
+        <option value="ALL">All</option><option value="QB">QB</option><option value="RB">RB</option>
+        <option value="WR">WR</option><option value="TE">TE</option><option value="SFLX">Superflex</option>
+        <option value="DEF">DEF</option><option value="K">K</option>
+      </select>
+      <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
+      <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
     </div>
-    <!-- Next pick suggestions -->
-    <div id="suggBar">
-      <div style="font-size:11px;font-weight:600;color:#4ade80;white-space:nowrap;padding-top:4px">💡 Suggested:</div>
-      <div id="suggCards" style="display:flex;gap:8px;flex:1;flex-wrap:wrap"></div>
-      <span id="factorStatus" style="font-size:9px;color:#4b5563;white-space:nowrap;align-self:flex-end;padding-bottom:4px">NFL factors: —</span>
-      <button onclick="document.getElementById('suggBar').style.display='none'" style="background:transparent;border:none;color:#4b5563;font-size:16px;cursor:pointer;padding:0 4px">&times;</button>
+    <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:680px">
+      <span>#</span><span>Pos</span><span>Player</span>
+      <span style="text-align:center">ADP</span>
+      <span style="text-align:center" title="Projected pts">Proj</span>
+      <span style="text-align:center" title="Value over replacement">VORP</span>
+      <span style="text-align:center" title="OL grade">OL</span>
+      <span style="text-align:center" title="Schedule difficulty">SoS</span>
+      <span></span>
     </div>
-
-    <!-- Column headers -->
-    <div style="display:grid;grid-template-columns:28px 30px 180px 36px 36px 46px 44px 42px 38px 50px 120px 36px 30px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#6b7280;border-bottom:1px solid #1e2130;flex-shrink:0;min-width:900px">
-      <span>#</span><span>Pos</span><span>Player</span><span class="text-center">NFL</span>
-      <span class="text-center" title="Scheme fit">Fit</span>
-      <span class="text-center" title="Custom projected points">Pts</span>
-      <span class="text-center" title="Value Over Replacement">VORP</span>
-      <span class="text-center" title="OL grade (PB=Pass Block RB=Run Block)">OL</span>
-      <span class="text-center" title="SoS rank vs relevant defense (1=easiest)">SoS</span>
-      <span class="text-center" title="Team pass rate — affects volume for all positions">Pass%</span>
-      <span class="text-center" title="Usage metrics">Usage</span>
-    </div>
-    <!-- Player list — scrollable -->
     <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
   </div>
 
-  <!-- CENTER: Pick Log -->
-  <div class="panel" style="width:180px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-    <div class="col-hdr">Pick log <span id="pickCounter" style="font-weight:400;color:#4b5563"></span></div>
-    <div class="scroll" id="pLog" style="flex:1;overflow-y:auto"></div>
-  </div>
-
-  <!-- RIGHT: My Draft + AI (combined) -->
-  <div class="panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-    <!-- Tab bar -->
-    <div style="display:flex;border-bottom:1px solid #2a2d3a;flex-shrink:0">
-      <button class="rp-tab rp-on" id="rpt-roster" onclick="switchRPanel('roster')">My Draft</button>
-      <button class="rp-tab" id="rpt-ai" onclick="switchRPanel('ai')">🤖 AI</button>
+  <!-- RIGHT PANEL: My Draft | Queue -->
+  <div class="panel" style="width:240px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+    <div class="sp-tabs">
+      <button class="sp-tab sp-on" id="rpt-roster" onclick="switchRP('roster')">My Draft</button>
+      <button class="sp-tab" id="rpt-queue" onclick="switchRP('queue')">Queue</button>
     </div>
-
-    <!-- My Draft tab -->
     <div id="rp-roster" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
       <div class="stats" id="statsBar"></div>
       <div class="rnote" id="rNote">Select your team above.</div>
       <div class="rlist" id="rList" style="flex:1;overflow-y:auto"></div>
     </div>
-
-    <!-- AI tab -->
-    <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <div style="padding:8px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span id="aiActiveTag" style="font-size:10px;color:#4ade80;display:none">✓ Active</span>
-        <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
-          <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#14532d;color:#4ade80;border:none;border-radius:4px;padding:3px 8px;cursor:pointer">⚡ My pick</button>
-          <button onclick="doAskAIFull()" style="font-size:10px;background:#1e3a5f;color:#60a5fa;border:none;border-radius:4px;padding:3px 8px;cursor:pointer">🧠 Full</button>
-        </div>
-      </div>
-      <div id="aiKeyEntry" style="padding:8px 12px;border-bottom:1px solid #2a2d3a;flex-shrink:0">
-        <div style="font-size:10px;color:#6b7280;margin-bottom:5px">Paste Anthropic API key:</div>
-        <div style="display:flex;gap:4px">
-          <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
-          <button onclick="saveApiKey()" style="font-size:10px;background:#1d4ed8;color:white;border:none;border-radius:4px;padding:4px 6px;cursor:pointer">Save</button>
-        </div>
-        <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#60a5fa;display:block;margin-top:4px">Get key ↗</a>
-      </div>
-      <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #2a2d3a;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
-      <div id="aiResponse" style="padding:8px 12px;font-size:11px;color:#d1d5db;line-height:1.5;overflow-y:auto;flex:1">
-        <span style="color:#4b5563;font-style:italic">Add your API key above for live draft advice.</span>
-      </div>
-      <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #2a2d3a;flex-shrink:0">
-        <div style="display:flex;gap:4px">
-          <input type="text" id="aiStripInputEl" placeholder="Ask anything..."
-            onkeydown="if(event.key==='Enter'&&this.value.trim()){askAICustom(this.value);this.value=''}"
-            style="flex:1;background:#252836;border:1px solid #374151;color:#e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;outline:none;min-width:0">
-          <button onclick="sendStrip()" style="font-size:10px;background:#374151;color:#d1d5db;border:none;border-radius:4px;padding:3px 6px;cursor:pointer">↵</button>
-        </div>
-      </div>
+    <div id="rp-queue" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="col-hdr">Pick queue <span id="pickCounter" style="font-weight:400;color:#484f58"></span></div>
+      <div id="pLog" style="flex:1;overflow-y:auto"></div>
     </div>
-
-    <!-- hidden stubs so existing JS can still find tc-teams / tc-qbs without errors -->
     <div id="tc-teams" style="display:none"></div>
     <div id="tc-qbs" style="display:none"><div id="atList"></div><div id="qbPanel"></div></div>
   </div>
