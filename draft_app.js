@@ -849,9 +849,6 @@ function applySetup(){
   initPlayers();
   buildPickOwners();
   buildKeeperPicks();
-  // Rebuild myTeamSel
-  const sel=document.getElementById("myTeamSel");
-  sel.innerHTML='<option value="-1">\u2014 Select \u2014</option>'+teamNames.map((n,i)=>`<option value="${i}">${n}</option>`).join("");
   renderAll();
   renderTradePanel();
 }
@@ -1795,10 +1792,6 @@ function switchTrades() { switchTab('trades'); }
 
 (function init(){
   try {
-  const sel=document.getElementById("myTeamSel");
-  // Populate with generic team names until Sleeper is connected
-  sel.innerHTML='<option value="-1">— Select your team —</option>';
-  teamNames.forEach((n,i)=>{const o=document.createElement("option");o.value=i;o.text=n;sel.appendChild(o);});
   teamSlots=Array(TEAMS).fill(0);
   pickOwners=[];
   for(let pick=1;pick<=TOTAL;pick++){
@@ -1919,8 +1912,8 @@ async function fetchSleeperLeague() {
       sleeperDraftId = draftData.draft_id;
       localStorage.setItem('ff26_draftId', sleeperDraftId);
 
-      // Draft order: slot_to_roster_id maps slot → roster_id
-      if (draftData.slot_to_roster_id) {
+      // Draft order: try slot_to_roster_id first, then draft_order (user_id → slot)
+      if (draftData.slot_to_roster_id && Object.keys(draftData.slot_to_roster_id).length > 0) {
         Object.entries(draftData.slot_to_roster_id).forEach(([slot, rosterId]) => {
           const ti = rosterMap[rosterId];
           if (ti !== undefined) {
@@ -1928,10 +1921,35 @@ async function fetchSleeperLeague() {
             slotMap[ti] = parseInt(slot);
           }
         });
+      } else if (draftData.draft_order && Object.keys(draftData.draft_order).length > 0) {
+        // draft_order maps user_id → slot (used when draft lottery hasn't been committed yet)
+        const ownerToRosterForSlots = {};
+        rosters.forEach(r => { if(r.owner_id) ownerToRosterForSlots[r.owner_id] = r.roster_id; });
+        Object.entries(draftData.draft_order).forEach(([userId, slot]) => {
+          const rosterId = ownerToRosterForSlots[userId];
+          const ti = rosterId !== undefined ? rosterMap[rosterId] : undefined;
+          if (ti !== undefined) {
+            teamSlots[ti] = parseInt(slot);
+            slotMap[ti] = parseInt(slot);
+          }
+        });
+      } else {
+        // No draft order set — assign sequential slots by roster_id sort order as fallback
+        rosters.forEach((roster, i) => {
+          const ti = rosterMap[roster.roster_id];
+          if (ti !== undefined) { teamSlots[ti] = i + 1; slotMap[ti] = i + 1; }
+        });
+        console.log('[Sleeper] No draft order in Sleeper yet — using sequential slots as fallback');
       }
       // Update draft input field
       const di = document.getElementById('sleeperDraftInput');
       if (di) di.value = sleeperDraftId;
+    } else {
+      // No draft at all — assign sequential slots by roster_id sort order
+      rosters.forEach((roster, i) => {
+        const ti = rosterMap[roster.roster_id];
+        if (ti !== undefined) { teamSlots[ti] = i + 1; slotMap[ti] = i + 1; }
+      });
     }
 
     // ── Rebuild pick ownership with real slots ──
@@ -1982,14 +2000,17 @@ async function fetchSleeperLeague() {
 
     sleeperMsg('⏳ Step 5/5 — Rebuilding draft board...', false);
 
-    // ── Rebuild team dropdown ──
-    const sel = document.getElementById('myTeamSel');
-    if (sel) {
-      sel.innerHTML = '<option value="-1">— Select your team —</option>';
-      teamNames.forEach((n,i) => {
+    // ── Rebuild Sleeper modal team dropdown with freshly-loaded names ──
+    // Reset myTeamIdx so user must explicitly re-confirm their team after each import
+    myTeamIdx = -1;
+    localStorage.removeItem('ff26_myTeamIdx');
+    const modalSel = document.getElementById('sleeperMyTeamSel');
+    if (modalSel) {
+      modalSel.innerHTML = '<option value="-1">— Select your team —</option>';
+      teamNames.forEach((n, i) => {
         const o = document.createElement('option');
         o.value = i; o.text = n;
-        sel.appendChild(o);
+        modalSel.appendChild(o);
       });
     }
 
