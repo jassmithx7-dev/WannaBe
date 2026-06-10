@@ -251,6 +251,39 @@
       <button class="btn-ghost" onclick="loadLeagues()">↻ Refresh</button>
     </div>
     <div class="leagues-grid" id="leaguesGrid"></div>
+
+    <!-- Connected Services -->
+    <div id="servicesSection" style="margin-top:40px;display:none">
+      <div class="section-hdr">
+        <div class="section-title">Connected Services</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <!-- Sleeper status -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:14px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💤</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Sleeper</div>
+            <div id="sleeperServiceStatus" style="font-size:12px;color:var(--muted)">Checking…</div>
+          </div>
+        </div>
+        <!-- Claude AI -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:14px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Claude AI</div>
+            <div id="claudeStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px">Not connected</div>
+            <div class="connect-row" style="max-width:100%">
+              <input type="password" id="apiKeyInput" class="connect-input" placeholder="sk-ant-api03-…" autocomplete="off"
+                style="font-family:monospace;font-size:12px"
+                onkeydown="if(event.key==='Enter') saveApiKey()">
+              <button class="btn-connect" id="saveKeyBtn" onclick="saveApiKey()" style="padding:10px 16px;white-space:nowrap">Save</button>
+            </div>
+            <div class="connect-msg" id="apiKeyMsg" style="margin-top:6px"></div>
+            <a href="https://console.anthropic.com" target="_blank" style="font-size:11px;color:var(--accent);display:block;margin-top:6px">Get API key →</a>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -299,6 +332,8 @@
         document.getElementById('connectBanner').style.display = 'block';
         document.getElementById('sleeperUsernameInput').focus();
       }
+      // Always load services section
+      loadServices();
     }
 
     function showLeaguesSection() {
@@ -514,6 +549,72 @@
       }));
 
       window.location.href = 'fantasy_draft_2026.html';
+    }
+
+    // ── Connected Services ────────────────────────────────────────────────────
+    async function loadServices() {
+      document.getElementById('servicesSection').style.display = 'block';
+
+      // Sleeper
+      var meta = currentUser.user_metadata || {};
+      var sleeperEl = document.getElementById('sleeperServiceStatus');
+      if (meta.sleeper_username) {
+        sleeperEl.innerHTML = '<span style="color:var(--success)">● Connected</span> as ' + meta.sleeper_username;
+      } else {
+        sleeperEl.textContent = 'Not connected — use the banner above to link your account.';
+      }
+
+      // Claude key — check Supabase user_settings
+      var claudeEl = document.getElementById('claudeStatus');
+      try {
+        var { data } = await supa.from('user_settings')
+          .select('anthropic_key')
+          .eq('user_id', currentUser.id)
+          .single();
+        if (data && data.anthropic_key) {
+          claudeEl.innerHTML = '<span style="color:var(--success)">● Connected</span>';
+          document.getElementById('apiKeyInput').placeholder = '••••••••••••••••  (key saved)';
+        } else {
+          claudeEl.textContent = 'Not connected — enter your API key below.';
+        }
+      } catch(e) {
+        claudeEl.textContent = 'Enter your API key below to enable AI advice.';
+      }
+    }
+
+    async function saveApiKey() {
+      var input  = document.getElementById('apiKeyInput');
+      var msg    = document.getElementById('apiKeyMsg');
+      var btn    = document.getElementById('saveKeyBtn');
+      var key    = input.value.trim();
+
+      if (!key.startsWith('sk-')) {
+        msg.className = 'connect-msg error';
+        msg.textContent = 'Key should start with sk-ant-';
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = '…';
+      msg.className = 'connect-msg'; msg.textContent = '';
+
+      var { error } = await supa.from('user_settings').upsert({
+        user_id: currentUser.id,
+        anthropic_key: key,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+      if (error) {
+        msg.className = 'connect-msg error';
+        msg.textContent = 'Save failed: ' + error.message;
+      } else {
+        msg.className = 'connect-msg success';
+        msg.textContent = '✓ Saved — AI is ready on the draft board.';
+        input.value = '';
+        input.placeholder = '••••••••••••••••  (key saved)';
+        document.getElementById('claudeStatus').innerHTML = '<span style="color:var(--success)">● Connected</span>';
+      }
+
+      btn.disabled = false; btn.textContent = 'Save';
     }
   </script>
 </body>

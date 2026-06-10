@@ -678,6 +678,7 @@ let editingKey = false;
 let aiHistory = [];
 let aiLoading = false;
 let lastAiMessage = '';
+var aiConversation = [];
 const aiChips = ['Who should I draft?','Am I QB heavy?','What position do I need?','Top VORP gaps?','Is my team balanced?','Bye week concerns?'];
 
 // ── NFL Contextual Factors (OL + SOS) ──
@@ -1077,6 +1078,8 @@ function draftPlayer(rank){
   setTimeout(()=>{const el=document.getElementById("pLog");const r=el.querySelector(".clk");if(r)r.scrollIntoView({block:"nearest"});},60);
   // Show next pick suggestions (only when it's my pick)
   if(ti===myTeamIdx) setTimeout(showPickSuggestions, 200);
+  // Proactive AI alerts after any pick
+  setTimeout(function(){ checkProactiveAlerts(ti); }, 600);
 }
 
 function addCustomPlayer(){
@@ -2706,23 +2709,26 @@ function clearAllTrades() {
 }
 
 function showKeyActive() {
-  var entry = document.getElementById('aiKeyEntry');
-  var tag = document.getElementById('aiActiveTag');
-  var btns = document.getElementById('aiActionBtns');
-  var chips = document.getElementById('aiChipsRow');
+  var entry    = document.getElementById('aiKeyEntry');
+  var tag      = document.getElementById('aiActiveTag');
+  var btns     = document.getElementById('aiActionBtns');
+  var chips    = document.getElementById('aiChipsRow');
   var inputRow = document.getElementById('aiInputRow');
-  if (entry) entry.style.display = 'none';
-  if (tag) tag.style.display = 'inline';
-  if (btns) btns.style.display = 'flex';
-  if (chips) chips.style.display = 'block';
+  if (entry)    entry.style.display    = 'none';
+  if (tag)      tag.style.display      = 'inline';
+  if (btns)     btns.style.display     = 'flex';
+  if (chips)    chips.style.display    = 'block';
   if (inputRow) inputRow.style.display = 'flex';
-  var resp = document.getElementById('aiResponse');
-  if (resp) resp.innerHTML = '<span style="color:#4b5563;font-style:italic">Click ⚡ for pick advice.</span>';
+  var thread = document.getElementById('aiThread');
+  if (thread) {
+    var emptyEl = thread.querySelector('.ai-empty');
+    if (emptyEl) emptyEl.innerHTML = '<em style="color:#4b5563;font-size:11px">Click ⚡ for pick advice or type a question below.</em>';
+  }
 }
 
 function initAIPanel() {
   var chipsRow = document.getElementById('aiChipsRow');
-  var chips = ['Who should I draft?','Am I QB heavy?','What position do I need?','Is my team balanced?'];
+  var chips = ['Who should I pick?','Check my bye weeks','Position scarcity?','Opponent threats?'];
   if (chipsRow) {
     chipsRow.innerHTML = chips.map(function(c) {
       return '<button onclick="askAIChip(this)" data-c="' + c + '" style="font-size:10px;background:#1f2937;color:#9ca3af;border:1px solid #374151;border-radius:12px;padding:2px 8px;margin-right:4px;cursor:pointer">' + c + '</button>';
@@ -2732,25 +2738,92 @@ function initAIPanel() {
 }
 
 function buildDraftContext() {
-  var myTi = myTeamIdx >= 0 ? myTeamIdx : -1;
+  var myTi  = myTeamIdx >= 0 ? myTeamIdx : -1;
   var roster = myTi >= 0 ? (teamRosters[myTi] || []) : [];
-  var rl = roster.map(function(p){ return p.pos+' '+p.name+' ('+(p.team||'?')+')'; }).join('\n') || 'No picks yet';
-  var avail = players.filter(function(p){ return !p.drafted && p.customScore>0; })
-    .sort(function(a,b){ return (b.customScore||0)-(a.customScore||0); }).slice(0,15)
-    .map(function(p){ return p.pos+' '+p.name+' ('+p.team+', '+(p.customScore||0).toFixed(0)+'pts, VORP:'+(p.vorp||0).toFixed(1)+')'; }).join('\n');
-  var rd = Math.ceil(currentPick/TEAMS);
-  var onClock = pickOwners ? pickOwners[currentPick-1] : -1;
-  var isMyPick = myTeamIdx>=0 && onClock===myTeamIdx;
-  return ['LEAGUE: '+TEAMS+'-team Superflex PPR, '+ROUNDS+' rounds',
-    'SCORING: Pass 0.05/yd 4TD -2INT | Rush 0.1/yd 6TD | PPR +1 0.1/yd | Fumble -2',
-    'ROSTER: QB RB WR WR TE W/R/T W/R SUPERFLEX K DEF + 8 bench. MAX 3 QBs.','',
-    'Pick: #'+currentPick+' (Rd '+rd+') '+(isMyPick?'YOUR PICK':''),
-    'QBs gone: '+players.filter(function(p){return p.pos==='QB'&&p.drafted;}).length,
-    'My roster: QB:'+roster.filter(function(p){return p.pos==='QB';}).length+
-      ' RB:'+roster.filter(function(p){return p.pos==='RB';}).length+
-      ' WR:'+roster.filter(function(p){return p.pos==='WR';}).length+
-      ' TE:'+roster.filter(function(p){return p.pos==='TE';}).length,'',
-    'MY ROSTER ('+roster.length+'/'+ROUNDS+'):',rl,'','TOP 15 AVAILABLE:',avail].join('\n');
+  var rd       = Math.ceil(currentPick / TEAMS);
+  var onClock  = pickOwners ? pickOwners[currentPick - 1] : -1;
+  var isMyPick = myTeamIdx >= 0 && onClock === myTeamIdx;
+
+  // My roster with bye weeks + ADP
+  var rl = roster.map(function(p) {
+    var byeStr = (p.bye && p.bye !== 'TBD') ? ' Bye:Wk' + p.bye : '';
+    var adpStr = p.adp ? ' ADP:' + Math.round(p.adp) : '';
+    return p.pos + ' ' + p.name + ' (' + (p.team || '?') + adpStr + byeStr + ')';
+  }).join('\n') || 'No picks yet';
+
+  // Bye week stacks on my roster
+  var byeMap = {};
+  roster.forEach(function(p) {
+    if (p.bye && p.bye !== 'TBD' && p.pos !== 'K' && p.pos !== 'DEF') {
+      var wk = String(p.bye);
+      byeMap[wk] = (byeMap[wk] || []).concat(p.pos);
+    }
+  });
+  var byeWarnings = Object.keys(byeMap)
+    .filter(function(wk) { return byeMap[wk].length >= 2; })
+    .map(function(wk) { return 'Wk' + wk + ':' + byeMap[wk].join('+'); })
+    .join(' ');
+
+  // Position scarcity by tier
+  var scarcity = ['QB','RB','WR','TE'].map(function(pos) {
+    var left = players.filter(function(p) {
+      return !p.drafted && !p.mockDrafted && p.pos === pos && (p.customScore || 0) > 0;
+    });
+    var t1 = left.filter(function(p) { return (p.tier || 99) <= 1; }).length;
+    var t2 = left.filter(function(p) { return p.tier === 2; }).length;
+    return pos + ':' + left.length + '(T1:' + t1 + ' T2:' + t2 + ')';
+  }).join(' | ');
+
+  // Top 20 available with ADP delta flagging
+  var availList = players.filter(function(p) {
+    return !p.drafted && !p.mockDrafted && (p.customScore || 0) > 0;
+  }).sort(function(a, b) { return (b.customScore || 0) - (a.customScore || 0); });
+
+  var avail = availList.slice(0, 20).map(function(p) {
+    var adpDelta = p.adp ? Math.round(p.adp - currentPick) : null;
+    var deltaTag = '';
+    if (adpDelta !== null) {
+      if (adpDelta > 8)  deltaTag = ' [STEAL +' + adpDelta + ']';
+      else if (adpDelta < -8) deltaTag = ' [REACH ' + adpDelta + ']';
+    }
+    var byeStr = (p.bye && p.bye !== 'TBD') ? ' Bye:Wk' + p.bye : '';
+    return p.pos + ' ' + p.name + ' (' + (p.team || '?') + ', ' +
+      (p.customScore || 0).toFixed(0) + 'pts, VORP:' + (p.vorp || 0).toFixed(1) +
+      byeStr + deltaTag + ')';
+  }).join('\n');
+
+  // All team rosters compact (for opponent context)
+  var allRosters = teamNames.map(function(name, ti) {
+    var r = teamRosters[ti] || [];
+    if (!r.length) return null;
+    var counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    r.forEach(function(p) { if (counts[p.pos] !== undefined) counts[p.pos]++; });
+    var tops = r.slice(0, 3).map(function(p) {
+      return p.pos + ':' + p.name.split(' ').pop();
+    }).join(' ');
+    var label = (ti === myTeamIdx ? '* ' : '') + (name || 'T' + (ti + 1));
+    return label + ' [QB' + counts.QB + ' RB' + counts.RB + ' WR' + counts.WR + ' TE' + counts.TE + '] ' + tops + (r.length > 3 ? '...' : '');
+  }).filter(Boolean).join('\n');
+
+  return [
+    '=== DRAFT STATUS ===',
+    'Pick #' + currentPick + ' | Round ' + rd + ' | ' + (isMyPick ? 'YOUR PICK NOW' : 'Not your pick'),
+    'LEAGUE: ' + TEAMS + '-team Superflex PPR | ' + ROUNDS + ' rounds',
+    'SLOTS: QB RB WR WR TE WRT-Flex WR-Flex SF-Flex K DEF + 8 bench (max 3 QB)',
+    '',
+    '=== MY ROSTER (' + roster.length + '/' + ROUNDS + ') ===',
+    rl,
+    byeWarnings ? 'BYE STACKS: ' + byeWarnings : '',
+    '',
+    '=== POSITION SCARCITY ===',
+    scarcity,
+    '',
+    '=== ALL TEAMS ===',
+    allRosters || 'Draft not started',
+    '',
+    '=== TOP 20 AVAILABLE (STEAL = ahead of ADP, REACH = behind) ===',
+    avail
+  ].filter(function(l) { return l !== undefined; }).join('\n');
 }
 
 async function askAI(type) {
@@ -2771,27 +2844,151 @@ async function sendToAI(userMessage) {
   if (!apiKey) return;
   aiLoading = true;
   var btn = document.getElementById('quickBtn');
-  if (btn) btn.textContent = '⏳...';
-  var resp = document.getElementById('aiResponse');
-  if (resp) resp.innerHTML = '<div style="color:#6b7280;font-size:10px">Analyzing...</div>';
-  var sys = 'You are an expert fantasy football draft advisor. '+buildDraftContext()+' Give sharp specific advice. Reference player names and VORP. Account for Superflex and custom scoring.';
+  if (btn) btn.textContent = '⏳…';
+
+  // Render user bubble immediately
+  addChatMessage('user', userMessage);
+  aiConversation.push({ role: 'user', content: userMessage });
+
+  // Typing indicator
+  var thread = document.getElementById('aiThread');
+  var thinking = null;
+  if (thread) {
+    thinking = document.createElement('div');
+    thinking.style.cssText = 'display:flex;justify-content:flex-start';
+    thinking.innerHTML = '<div style="background:#21262d;border-radius:8px 8px 8px 2px;padding:6px 10px;font-size:10px;color:#4b5563;font-style:italic">Analyzing…</div>';
+    thread.appendChild(thinking);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  var sys = [
+    'You are an expert fantasy football draft advisor embedded in a live draft tool.',
+    'Do not use markdown formatting. Write in plain text with line breaks only.',
+    '',
+    buildDraftContext(),
+    '',
+    'Keep responses under 150 words unless a full analysis is requested.',
+    'Name specific players. Cite VORP and ADP delta (STEAL/REACH). Give ONE clear pick recommendation when asked.'
+  ].join('\n');
+
+  // Keep last 12 messages (6 exchanges) to stay within context
+  var messages = aiConversation.slice(-12);
+
   try {
     var res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:sys,messages:[{role:'user',content:userMessage}]})
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 600,
+        system: sys,
+        messages: messages
+      })
     });
     var data = await res.json();
-    var reply = (data.content&&data.content[0]) ? data.content[0].text : 'No response.';
-    if (resp) resp.innerHTML = reply.split('\n').join('<br>');
+    var reply = (data.content && data.content[0]) ? data.content[0].text : 'No response.';
+    if (thinking) thinking.remove();
+    aiConversation.push({ role: 'assistant', content: reply });
+    addChatMessage('assistant', reply);
   } catch(e) {
-    var msg = e.message||'Error';
-    if (msg.includes('401')) msg='Invalid API key.';
-    if (msg.includes('429')) msg='Rate limited.';
-    if (resp) resp.innerHTML = '<span style="color:#f87171">❌ '+msg+'</span>';
+    var errMsg = e.message || 'Error';
+    if (errMsg.includes('401')) errMsg = 'Invalid API key — update it in Account settings.';
+    if (errMsg.includes('429')) errMsg = 'Rate limited — wait a moment and try again.';
+    if (thinking) thinking.remove();
+    addChatMessage('assistant', '❌ ' + errMsg);
   } finally {
     aiLoading = false;
     if (btn) btn.textContent = '⚡ My pick';
+  }
+}
+
+function addChatMessage(role, text) {
+  var thread = document.getElementById('aiThread');
+  if (!thread) return;
+  var emptyEl = thread.querySelector('.ai-empty');
+  if (emptyEl) emptyEl.remove();
+
+  var wrap = document.createElement('div');
+  var isUser  = role === 'user';
+  var isAlert = role === 'alert';
+
+  wrap.style.cssText = isAlert
+    ? 'width:100%'
+    : 'display:flex;' + (isUser ? 'justify-content:flex-end' : 'justify-content:flex-start');
+
+  var bubble = document.createElement('div');
+  if (isAlert) {
+    bubble.style.cssText = 'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);border-radius:7px;padding:7px 10px;font-size:10px;color:#fbbf24;line-height:1.5;width:100%';
+  } else if (isUser) {
+    bubble.style.cssText = 'background:rgba(59,130,246,.18);border-radius:10px 10px 2px 10px;padding:6px 10px;max-width:88%;font-size:10px;color:#e6edf3;line-height:1.5';
+  } else {
+    bubble.style.cssText = 'background:#21262d;border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:#cdd9e5;line-height:1.55';
+  }
+  // Sanitize then convert newlines to <br>
+  var safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  bubble.innerHTML = safe;
+  wrap.appendChild(bubble);
+  thread.appendChild(wrap);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function clearAIChat() {
+  aiConversation = [];
+  var thread = document.getElementById('aiThread');
+  if (thread) {
+    thread.innerHTML = '<div class="ai-empty" style="text-align:center;color:#4b5563;font-size:11px;padding:24px 0">Chat cleared — ask me anything about your draft.</div>';
+  }
+}
+
+function checkProactiveAlerts(pickedTeamIdx) {
+  if (!apiKey || myTeamIdx < 0) return;
+  var alerts = [];
+  var recentN    = Math.min(5, pickLog.length);
+  var recentPicks = pickLog.slice(-recentN);
+
+  // QB run: 3+ QBs in last 5 picks and I have none
+  var recentQBs = recentPicks.filter(function(l) { return l.pos === 'QB'; }).length;
+  var myQBs     = (teamRosters[myTeamIdx] || []).filter(function(p) { return p.pos === 'QB'; }).length;
+  if (recentQBs >= 3 && myQBs === 0) {
+    alerts.push('QB run in progress — ' + recentQBs + ' QBs taken in last ' + recentN + ' picks. You have none. Consider going QB early.');
+  }
+
+  // Bye week stack: 3+ starters on same week
+  var myRoster = teamRosters[myTeamIdx] || [];
+  var byeCount = {};
+  myRoster.forEach(function(p) {
+    if (p.bye && p.bye !== 'TBD' && p.pos !== 'K' && p.pos !== 'DEF') {
+      byeCount[p.bye] = (byeCount[p.bye] || 0) + 1;
+    }
+  });
+  Object.keys(byeCount).forEach(function(wk) {
+    if (byeCount[wk] >= 3) {
+      alerts.push('Bye week alert — ' + byeCount[wk] + ' of your starters are on Week ' + wk + ' bye. Avoid adding more.');
+    }
+  });
+
+  // Elite TE scarcity: late rounds and I have none
+  var topTEs = players.filter(function(p) {
+    return !p.drafted && !p.mockDrafted && p.pos === 'TE' && (p.tier || 99) <= 2;
+  }).length;
+  var myTEs = myRoster.filter(function(p) { return p.pos === 'TE'; }).length;
+  if (topTEs <= 3 && myTEs === 0 && Math.ceil(currentPick / TEAMS) >= 5) {
+    alerts.push('Elite TE shortage — only ' + topTEs + ' Tier 1-2 TEs left undrafted. Prioritize one soon.');
+  }
+
+  if (alerts.length === 0) return;
+  alerts.forEach(function(a) { addChatMessage('alert', a); });
+
+  // Highlight the AI tab indicator if not currently active
+  var rpAI = document.getElementById('rp-ai');
+  if (rpAI && rpAI.style.display === 'none') {
+    var tabBtn = document.getElementById('rpt-ai');
+    if (tabBtn) tabBtn.style.color = '#fbbf24';
   }
 }
 
@@ -3134,6 +3331,7 @@ function executeMockPick(p){
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
   currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);}
+  else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
   mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
   mockState.currentPick++;mockState.waiting=false;

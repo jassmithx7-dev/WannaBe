@@ -309,25 +309,35 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
       </div>
 
       <div id="rp-ai" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-        <div style="padding:8px 10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <!-- Header -->
+        <div style="padding:6px 10px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:11px;font-weight:600;color:#e6edf3">AI Chat</span>
           <span id="aiActiveTag" style="font-size:10px;color:#3fb950;display:none">✓ Active</span>
           <div id="aiActionBtns" style="display:none;gap:4px;margin-left:auto">
             <button id="quickBtn" onclick="doAskAIQuick()" style="font-size:10px;background:#0e2a1a;color:#3fb950;border:1px solid #2ea043;border-radius:4px;padding:3px 8px;cursor:pointer">⚡ My pick</button>
             <button onclick="doAskAIFull()" style="font-size:10px;background:#0e1f3d;color:#388bfd;border:1px solid #1f6feb;border-radius:4px;padding:3px 8px;cursor:pointer">🧠 Full</button>
+            <button onclick="clearAIChat()" style="font-size:10px;background:transparent;color:#6b7280;border:1px solid #30363d;border-radius:4px;padding:3px 6px;cursor:pointer" title="Clear chat">✕</button>
           </div>
         </div>
+        <!-- Key entry (hidden once key is active) -->
         <div id="aiKeyEntry" style="padding:8px 10px;border-bottom:1px solid #30363d;flex-shrink:0">
-          <div style="font-size:10px;color:#7d8590;margin-bottom:5px">Paste Anthropic API key:</div>
+          <div style="font-size:10px;color:#7d8590;margin-bottom:5px">Paste Claude API key:</div>
           <div style="display:flex;gap:4px">
             <input type="password" id="apiKeyInputEl" placeholder="sk-ant-..." style="flex:1;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:4px;padding:4px 6px;font-size:10px;font-family:monospace;outline:none;min-width:0">
             <button onclick="saveApiKey()" style="font-size:10px;background:#1f6feb;color:white;border:none;border-radius:4px;padding:4px 6px;cursor:pointer">Save</button>
           </div>
-          <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#388bfd;display:block;margin-top:4px">Get key ↗</a>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <a href="https://console.anthropic.com" target="_blank" style="font-size:10px;color:#388bfd">Get key ↗</a>
+            <a href="account.html" style="font-size:10px;color:#388bfd">Account settings ↗</a>
+          </div>
         </div>
+        <!-- Quick-ask chips -->
         <div id="aiChipsRow" style="display:none;padding:4px 8px;border-bottom:1px solid #30363d;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
-        <div id="aiResponse" style="padding:8px 10px;font-size:11px;color:#cdd9e5;line-height:1.6;overflow-y:auto;flex:1">
-          <span style="color:#7d8590;font-style:italic">Add your API key above for live draft advice.</span>
+        <!-- Chat thread -->
+        <div id="aiThread" style="padding:8px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:7px">
+          <div class="ai-empty" style="text-align:center;color:#4b5563;font-size:11px;padding:24px 0">Add your API key above for live draft advice.</div>
         </div>
+        <!-- Input -->
         <div id="aiInputRow" style="display:none;padding:6px 8px;border-top:1px solid #30363d;flex-shrink:0">
           <div style="display:flex;gap:4px">
             <input type="text" id="aiStripInputEl" placeholder="Ask anything..."
