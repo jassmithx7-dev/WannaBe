@@ -3,136 +3,263 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Draft Companion — Sign In</title>
+  <title>WannaBeGms AI — Sign In</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
-      --bg:       #0a0e17;
+      --bg:       #060b14;
       --surface:  #0d1117;
       --surface2: #161b22;
       --border:   #21262d;
       --text:     #e6edf3;
       --muted:    #7d8590;
       --accent:   #3b82f6;
-      --accent2:  #8b5cf6;
+      --green:    #4ade80;
+      --green2:   #22c55e;
+      --orange:   #f97316;
       --success:  #3fb950;
       --danger:   #f87171;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg); color: var(--text);
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 20px;
+      /* Multi-layered glow: green burst at top, purple drift at bottom */
       background-image:
-        radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.09) 0%, transparent 55%),
-        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,.07) 0%, transparent 50%);
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(74,222,128,.18) 0%, transparent 65%),
+        radial-gradient(ellipse at 15% 90%, rgba(59,130,246,.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 85%, rgba(139,92,246,.06) 0%, transparent 50%);
     }
-    .card {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 18px; padding: 44px 40px;
-      width: 100%; max-width: 400px;
-      box-shadow: 0 24px 64px rgba(0,0,0,.55);
-    }
-    .brand { text-align: center; margin-bottom: 36px; }
-    .brand-icon {
-      width: 52px; height: 52px; margin: 0 auto 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px;
-    }
-    .brand h1 { font-size: 22px; font-weight: 700; }
-    .brand p  { font-size: 13px; color: var(--muted); margin-top: 5px; }
 
-    /* Tabs */
-    .tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 3px; margin-bottom: 22px; }
+    /* ── Hero ─────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .hero-logo {
+      width: 210px;
+      height: 210px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 20px;
+      filter: drop-shadow(0 0 32px rgba(74,222,128,.45)) drop-shadow(0 8px 24px rgba(0,0,0,.6));
+      animation: logo-float 4s ease-in-out infinite;
+    }
+    @keyframes logo-float {
+      0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 32px rgba(74,222,128,.45)) drop-shadow(0 8px 24px rgba(0,0,0,.6)); }
+      50%       { transform: translateY(-6px); filter: drop-shadow(0 0 44px rgba(74,222,128,.6)) drop-shadow(0 14px 28px rgba(0,0,0,.55)); }
+    }
+    .hero-tagline {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: .04em;
+      margin-bottom: 8px;
+    }
+    .hero-sub {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .hero-sub .pill {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(249,115,22,.15);
+      color: var(--orange);
+      border: 1px solid rgba(249,115,22,.3);
+      border-radius: 5px;
+      padding: 1px 7px;
+      letter-spacing: .05em;
+    }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,.65),
+        0 0 0 1px rgba(74,222,128,.06),
+        inset 0 1px 0 rgba(255,255,255,.04);
+    }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 24px;
+    }
     .tab-btn {
       flex: 1; padding: 8px; border: none; border-radius: 8px;
       font-size: 13px; font-weight: 500; cursor: pointer;
-      background: transparent; color: var(--muted); transition: background .15s, color .15s;
+      background: transparent; color: var(--muted);
+      transition: background .15s, color .15s;
     }
-    .tab-btn.active { background: var(--surface2); color: var(--text); }
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
 
-    label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
-    .field { margin-bottom: 14px; }
-    input[type=email], input[type=password] {
-      width: 100%; padding: 11px 13px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 9px; color: var(--text); font-size: 13px;
-      outline: none; transition: border-color .15s;
+    /* ── Form ─────────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: 11px; font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      margin-bottom: 6px;
     }
-    input:focus { border-color: var(--accent); }
-    input::placeholder { color: #4b5563; }
+    .field { margin-bottom: 16px; }
+    input[type=email], input[type=password] {
+      width: 100%; padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text); font-size: 13px;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus {
+      border-color: var(--green2);
+      box-shadow: 0 0 0 3px rgba(34,197,94,.12);
+    }
+    input::placeholder { color: #374151; }
 
     .btn-primary {
-      width: 100%; padding: 12px; margin-top: 4px;
-      background: var(--accent); color: #fff; border: none;
-      border-radius: 9px; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: background .15s;
+      width: 100%; padding: 13px; margin-top: 4px;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff; border: none;
+      border-radius: 9px; font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      letter-spacing: .02em;
+      box-shadow: 0 4px 16px rgba(22,163,74,.3);
     }
-    .btn-primary:hover { background: #2563eb; }
-    .btn-primary:disabled { background: #1e3a5f; color: #4b5563; cursor: not-allowed; }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: #1c2f1e; color: #4b5563; cursor: not-allowed; box-shadow: none; transform: none; }
 
-    .msg { font-size: 12px; margin-top: 10px; padding: 9px 12px; border-radius: 7px; display: none; }
+    .msg {
+      font-size: 12px; margin-top: 10px;
+      padding: 9px 12px; border-radius: 7px; display: none;
+    }
     .msg.error   { background: rgba(248,113,113,.1); color: var(--danger); display: block; }
     .msg.success { background: rgba(63,185,80,.1);   color: var(--success); display: block; }
 
-    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 24px 0; position: relative;
+    }
+    .divider-label {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      background: var(--surface2);
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em;
+      padding: 0 10px;
+    }
 
     .provider-soon {
       width: 100%; padding: 12px 16px;
       border: 1px solid var(--border); border-radius: 10px;
       background: var(--surface); color: var(--muted);
       font-size: 13px; display: flex; align-items: center; gap: 12px;
-      opacity: .45; cursor: not-allowed;
+      opacity: .4; cursor: not-allowed;
     }
-    .provider-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(139,92,246,.15); }
-    .coming-pill { margin-left: auto; font-size: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px; }
+    .provider-icon {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; background: rgba(139,92,246,.15);
+    }
+    .coming-pill {
+      margin-left: auto; font-size: 10px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 8px;
+    }
 
-    .footer-note { text-align: center; font-size: 11px; color: #4b5563; margin-top: 20px; }
+    .footer-note {
+      text-align: center; font-size: 11px; color: #374151;
+      margin-top: 20px;
+    }
+    .footer-note a { color: var(--muted); text-decoration: none; }
+    .footer-note a:hover { color: var(--green); }
 
+    /* ── Loading ──────────────────────────────────────────── */
     .loading-overlay {
       position: fixed; inset: 0; background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px;
     }
+    .loading-spinner {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 3px solid var(--border); border-top-color: var(--green);
+      animation: spin .7s linear infinite;
+    }
+    .loading-text { font-size: 13px; color: var(--muted); }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <div id="loadingOverlay" class="loading-overlay">Checking session…</div>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Checking session…</div>
+  </div>
 
-  <div class="card" id="authCard" style="display:none">
-    <div class="brand">
-      <img src="logo.png" alt="WannaBeGms AI" style="width:130px;height:130px;object-fit:contain;display:block;margin:0 auto 14px">
-      <p>Your 2026 fantasy football command center</p>
+  <div id="authCard" style="display:none;width:100%;max-width:440px">
+
+    <!-- Hero: logo + tagline above the form card -->
+    <div class="hero">
+      <img src="logo.png" alt="WannaBeGms AI" class="hero-logo">
+      <div class="hero-tagline">AI-Powered Draft Intelligence</div>
+      <div class="hero-sub">
+        <span>2026 Fantasy Football Season</span>
+        <span class="pill">AI</span>
+      </div>
     </div>
 
-    <div class="tabs">
-      <button class="tab-btn active" id="tabSignIn" onclick="switchTab('signin')">Sign In</button>
-      <button class="tab-btn" id="tabSignUp" onclick="switchTab('signup')">Create Account</button>
+    <!-- Sign-in card -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" id="tabSignIn" onclick="switchTab('signin')">Sign In</button>
+        <button class="tab-btn" id="tabSignUp" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <button class="btn-primary" id="submitBtn" onclick="handleSubmit()">Sign In</button>
+      <div class="msg" id="msg"></div>
+
+      <div class="divider"><span class="divider-label">Coming Soon</span></div>
+
+      <div class="provider-soon">
+        <div class="provider-icon">🟣</div>
+        <span>Continue with Yahoo Fantasy</span>
+        <span class="coming-pill">Soon</span>
+      </div>
+
+      <p class="footer-note">Sessions persist — sign in once per device</p>
     </div>
 
-    <div class="field">
-      <label>Email</label>
-      <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
-    </div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-
-    <button class="btn-primary" id="submitBtn" onclick="handleSubmit()">Sign In</button>
-    <div class="msg" id="msg"></div>
-
-    <hr class="divider">
-
-    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Coming soon</div>
-    <div class="provider-soon">
-      <div class="provider-icon">🟣</div>
-      <span>Continue with Yahoo Fantasy</span>
-      <span class="coming-pill">Soon</span>
-    </div>
-
-    <p class="footer-note">Sessions persist — sign in once per device</p>
   </div>
 
   <script>
@@ -142,7 +269,6 @@
 
     var mode = 'signin';
 
-    // Check for existing session on load
     supa.auth.getSession().then(function(result) {
       var session = result.data && result.data.session;
       if (session) {
@@ -191,7 +317,6 @@
         } else {
           var r = await supa.auth.signUp({ email: email, password: pass });
           if (r.error) throw r.error;
-          // If email confirmation required
           if (r.data.user && !r.data.session) {
             showMsg('Account created! Check your email to confirm, then sign in.', 'success');
             switchTab('signin');
