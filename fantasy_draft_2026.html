@@ -347,7 +347,18 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="draft_app.js"></script>
+<script>
+  // Auto-login: if a Supabase session exists (set from account page), dismiss auth modal silently
+  if (supa) {
+    supa.auth.getSession().then(function(r) {
+      var session = r.data && r.data.session;
+      if (session) onSignedIn(session.user);
+      // No session: auth modal stays visible as fallback
+    });
+  }
+</script>
 
 <!-- Sleeper Modal -->
 <div id="sleeperModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center">

@@ -19,9 +19,10 @@ function initSupabase() {
       return false;
     }
   }
-  // Load SDK lazily if not yet loaded
   return false;
 }
+// Eagerly init if SDK was loaded via <script> tag before this file
+if (typeof supabase !== 'undefined') initSupabase();
 
 function loadSupabaseSDK(callback) {
   if (typeof supabase !== 'undefined') { callback(); return; }
@@ -110,9 +111,8 @@ async function signUp() {
 
 async function signOut() {
   await supa.auth.signOut();
-  currentUser = null;
-  document.getElementById('userBar').style.display = 'none';
-  document.getElementById('authModal').style.display = 'flex';
+  localStorage.removeItem('dc_activeLeague');
+  window.location.href = 'index.html';
 }
 
 function continueAsGuest() {
@@ -122,10 +122,12 @@ function continueAsGuest() {
 
 async function onSignedIn(user) {
   currentUser = user;
-  document.getElementById('authModal').style.display = 'none';
-  document.getElementById('userBar').style.display = 'flex';
-  document.getElementById('userEmail').textContent = user.email;
-  // Load saved settings from Supabase
+  var modal = document.getElementById('authModal');
+  if (modal) modal.style.display = 'none';
+  var bar = document.getElementById('userBar');
+  if (bar) bar.style.display = 'flex';
+  var emailEl = document.getElementById('userEmail');
+  if (emailEl) emailEl.textContent = user.email;
   await loadUserSettings();
 }
 
