@@ -1426,7 +1426,7 @@ function renderRoster(){
 
   const projTotal = myRosterSlots.slice(0,10).reduce((s,p) => s + (p ? (p.customScore||0) : 0), 0);
 
-  document.getElementById('rNote').textContent = `${teamNames[myTi]} · ${filled.length}/${ROUNDS} picks · Starters: ${startersFilled}/10`;
+  document.getElementById('rNote').textContent = `${teamNames[myTi]||'My Team'} · ${filled.length}/${ROUNDS} picks · Starters: ${startersFilled}/10`;
 
   const rListEl = document.getElementById('rList');
   rListEl.innerHTML = alertHtml + ROSTER_SLOTS.map((slot, i) => {
@@ -3255,7 +3255,7 @@ function showMockResults(){
 
     function onMove(e) {
       var delta = startX - e.clientX;
-      var newW  = Math.max(Math.round(window.innerWidth * 0.25), Math.min(startW + delta, Math.round(window.innerWidth * 0.5)));
+      var newW  = Math.max(Math.round(window.innerWidth * 0.25), Math.min(startW + delta, Math.round(window.innerWidth * 0.55)));
       panel.style.width = newW + 'px';
       panel.style.flex  = '0 0 ' + newW + 'px';
     }
