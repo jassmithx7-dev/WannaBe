@@ -3255,7 +3255,7 @@ function showMockResults(){
 
     function onMove(e) {
       var delta = startX - e.clientX;
-      var newW  = Math.max(160, Math.min(startW + delta, 520));
+      var newW  = Math.max(Math.round(window.innerWidth * 0.25), Math.min(startW + delta, Math.round(window.innerWidth * 0.5)));
       panel.style.width = newW + 'px';
       panel.style.flex  = '0 0 ' + newW + 'px';
     }
