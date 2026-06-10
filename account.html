@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draft Companion — My Leagues</title>
+  <style>
+    :root {
+      --bg:       #0a0e17;
+      --sidebar:  #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2333;
+      --border:   #21262d;
+      --text:     #e6edf3;
+      --muted:    #7d8590;
+      --accent:   #3b82f6;
+      --accent2:  #8b5cf6;
+      --success:  #3fb950;
+      --warning:  #fbbf24;
+      --danger:   #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--sidebar); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 22px 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 11px;
+    }
+    .brand-icon {
+      width: 34px; height: 34px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .brand-name  { font-size: 14px; font-weight: 700; }
+    .brand-year  { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    .sidebar-user {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name     { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-provider { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    .nav { flex: 1; padding: 10px 8px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px;
+      font-size: 13px; color: var(--muted); text-decoration: none;
+      cursor: pointer; transition: background .13s, color .13s;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--surface); color: var(--text); }
+    .nav-item.active { background: rgba(59,130,246,.13); color: var(--accent); }
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+    .sidebar-footer { padding: 10px 8px 18px; }
+    .nav-item.signout:hover { color: var(--danger); background: rgba(248,113,113,.08); }
+
+    /* ── Main ── */
+    .main { margin-left: 220px; flex: 1; padding: 36px 40px; min-height: 100vh; }
+
+    .page-header { margin-bottom: 28px; }
+    .page-title  { font-size: 22px; font-weight: 700; }
+    .page-sub    { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* Stats row */
+    .stats-row { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px; min-width: 130px; flex: 1;
+    }
+    .stat-val { font-size: 24px; font-weight: 700; }
+    .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* Section header */
+    .section-hdr {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .section-title { font-size: 14px; font-weight: 600; }
+
+    .btn-ghost {
+      padding: 7px 13px; background: transparent;
+      border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; font-size: 12px; cursor: pointer;
+      transition: border-color .13s, color .13s;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* League cards */
+    .leagues-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .league-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      position: relative; overflow: hidden;
+      transition: border-color .15s, transform .12s;
+    }
+    .league-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      opacity: 0; transition: opacity .15s;
+    }
+    .league-card:hover { border-color: #2d3748; transform: translateY(-1px); }
+    .league-card:hover::before, .league-card.active-card::before { opacity: 1; }
+    .league-card.active-card { border-color: rgba(59,130,246,.4); }
+
+    .lc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+    .platform-badge {
+      font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+    }
+    .platform-badge.sleeper { background: rgba(59,130,246,.14); color: var(--accent); }
+    .platform-badge.yahoo   { background: rgba(139,92,246,.14); color: var(--accent2); }
+    .active-badge { font-size: 10px; font-weight: 600; color: var(--success); background: rgba(63,185,80,.12); border-radius: 20px; padding: 3px 9px; }
+
+    .lc-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lc-team { font-size: 12px; color: var(--accent); margin-bottom: 12px; }
+
+    .lc-pills { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pill {
+      font-size: 11px; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px 9px;
+    }
+
+    .lc-footer { display: flex; align-items: center; justify-content: space-between; }
+    .draft-status      { font-size: 11px; color: var(--muted); }
+    .draft-status.live { color: var(--success); }
+
+    .btn-launch {
+      padding: 8px 18px;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      color: #fff; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: opacity .13s;
+    }
+    .btn-launch:hover { opacity: .85; }
+    .btn-launch.active-launch { background: linear-gradient(135deg, #15803d, #16a34a); }
+
+    /* Skeleton */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .skeleton { background: var(--surface2); border-radius: 6px; animation: pulse 1.5s ease-in-out infinite; }
+    .sk-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .sk-line { height: 11px; margin-bottom: 10px; }
+
+    /* Error / empty */
+    .error-banner {
+      background: rgba(248,113,113,.09); border: 1px solid rgba(248,113,113,.25);
+      border-radius: 10px; padding: 13px 16px;
+      font-size: 13px; color: var(--danger); margin-bottom: 24px; display: none;
+    }
+    .error-banner.show { display: block; }
+    .empty-state { text-align: center; padding: 64px 20px; color: var(--muted); font-size: 14px; }
+    .empty-icon { font-size: 42px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🏈</div>
+      <div>
+        <div class="brand-name">Draft Companion</div>
+        <div class="brand-year">2026 Season</div>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="userAvatar">?</div>
+      <div>
+        <div class="user-name" id="userName">—</div>
+        <div class="user-provider" id="userProvider">Sleeper</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <a class="nav-item active" href="account.html">
+        <span class="nav-icon">🏠</span> My Leagues
+      </a>
+      <a class="nav-item" href="fantasy_draft_2026.html">
+        <span class="nav-icon">📋</span> Draft Board
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="nav-item signout" onclick="signOut()">
+        <span class="nav-icon">↩</span> Sign Out
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">My Leagues</div>
+      <div class="page-sub">Select a league to open the draft board</div>
+    </div>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <div class="stats-row" id="statsRow" style="display:none">
+      <div class="stat-card">
+        <div class="stat-val" id="statLeagues">0</div>
+        <div class="stat-lbl">Leagues</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statActive">—</div>
+        <div class="stat-lbl">Active League</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statFormat">—</div>
+        <div class="stat-lbl">Format</div>
+      </div>
+    </div>
+
+    <div class="section-hdr">
+      <div class="section-title">2026 Leagues</div>
+      <button class="btn-ghost" onclick="loadLeagues()">↻ Refresh</button>
+    </div>
+
+    <div class="leagues-grid" id="leaguesGrid">
+      <div class="sk-card"><div class="skeleton sk-line" style="width:60%"></div><div class="skeleton sk-line" style="width:35%"></div><div class="skeleton sk-line" style="width:45%"></div></div>
+      <div class="sk-card"><div class="skeleton sk-line" style="width:70%"></div><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-line" style="width:50%"></div></div>
+      <div class="sk-card"><div class="skeleton sk-line" style="width:55%"></div><div class="skeleton sk-line" style="width:30%"></div><div class="skeleton sk-line" style="width:40%"></div></div>
+    </div>
+  </main>
+
+  <script>
+    var DRAFT_PAGE = 'fantasy_draft_2026.html';
+
+    // Auth guard
+    var storedUser = null;
+    try { storedUser = JSON.parse(localStorage.getItem('dc_user') || 'null'); } catch(e) {}
+    if (!storedUser || !storedUser.userId) { window.location.replace('index.html'); }
+
+    var user = storedUser;
+
+    // Populate sidebar user info
+    document.getElementById('userName').textContent = user.displayName || user.username;
+    document.getElementById('userProvider').textContent = user.provider === 'sleeper' ? 'Sleeper' : user.provider || 'Unknown';
+    var avatarEl = document.getElementById('userAvatar');
+    if (user.avatar) {
+      avatarEl.innerHTML = '<img src="https://sleepercdn.com/avatars/thumbs/' + user.avatar + '" alt="">';
+    } else {
+      avatarEl.textContent = (user.displayName || user.username || '?')[0].toUpperCase();
+    }
+
+    function signOut() {
+      localStorage.removeItem('dc_user');
+      localStorage.removeItem('dc_activeLeague');
+      window.location.href = 'index.html';
+    }
+
+    function scoringLabel(league) {
+      var s = league.settings || {};
+      var rec = parseFloat(s.rec || 0);
+      var rp = league.roster_positions || [];
+      var hasSF = rp.indexOf('SUPER_FLEX') >= 0;
+      var base = rec >= 1 ? 'PPR' : rec >= 0.5 ? 'Half PPR' : 'Standard';
+      return hasSF ? 'SF · ' + base : base;
+    }
+
+    async function loadLeagues() {
+      var grid = document.getElementById('leaguesGrid');
+      var statsRow = document.getElementById('statsRow');
+      var errBanner = document.getElementById('errorBanner');
+      errBanner.classList.remove('show');
+
+      grid.innerHTML = [1,2,3].map(function() {
+        return '<div class="sk-card">' +
+          '<div class="skeleton sk-line" style="width:60%"></div>' +
+          '<div class="skeleton sk-line" style="width:35%"></div>' +
+          '<div class="skeleton sk-line" style="width:45%"></div>' +
+        '</div>';
+      }).join('');
+
+      try {
+        var res = await fetch('https://api.sleeper.app/v1/user/' + user.userId + '/leagues/nfl/2026');
+        if (!res.ok) throw new Error('Failed to load leagues');
+        var leagues = await res.json();
+
+        if (!leagues || !leagues.length) {
+          grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏈</div><div>No 2026 NFL leagues found for this account.</div></div>';
+          return;
+        }
+
+        // Fetch team names + roster IDs for each league in parallel
+        var details = await Promise.all(leagues.map(async function(league) {
+          try {
+            var results = await Promise.all([
+              fetch('https://api.sleeper.app/v1/league/' + league.league_id + '/users'),
+              fetch('https://api.sleeper.app/v1/league/' + league.league_id + '/rosters')
+            ]);
+            var users   = await results[0].json();
+            var rosters = await results[1].json();
+            var me        = users.find(function(u) { return u.user_id === user.userId; });
+            var myRoster  = rosters.find(function(r) { return r.owner_id === user.userId; });
+            var teamName  = (me && me.metadata && me.metadata.team_name) || (me && me.display_name) || user.displayName || 'My Team';
+            return Object.assign({}, league, {
+              myTeamName: teamName,
+              myRosterId: myRoster ? myRoster.roster_id : null
+            });
+          } catch(e) {
+            return Object.assign({}, league, { myTeamName: user.displayName || 'My Team', myRosterId: null });
+          }
+        }));
+
+        var active = null;
+        try { active = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch(e) {}
+
+        // Stats
+        statsRow.style.display = 'flex';
+        document.getElementById('statLeagues').textContent = details.length;
+        if (active) {
+          var al = details.find(function(l) { return l.league_id === active.leagueId; });
+          document.getElementById('statActive').textContent  = al ? al.name.split(' ').slice(0,2).join(' ') : '—';
+          document.getElementById('statFormat').textContent  = al ? scoringLabel(al) : '—';
+        } else {
+          document.getElementById('statActive').textContent = '—';
+          document.getElementById('statFormat').textContent = '—';
+        }
+
+        grid.innerHTML = details.map(function(league) {
+          var isActive  = active && active.leagueId === league.league_id;
+          var scoring   = scoringLabel(league);
+          var teams     = league.total_rosters || '?';
+          var isLive    = league.status === 'drafting';
+
+          var statusHtml = isLive
+            ? '<span class="draft-status live">● Live Draft</span>'
+            : '<span class="draft-status">Pre-draft</span>';
+
+          var rosterId = league.myRosterId || 'null';
+          var teamNameEsc = (league.myTeamName || '').replace(/'/g, "\\'");
+
+          return '<div class="league-card' + (isActive ? ' active-card' : '') + '">' +
+            '<div class="lc-top">' +
+              '<span class="platform-badge sleeper">Sleeper</span>' +
+              (isActive ? '<span class="active-badge">Active</span>' : '') +
+            '</div>' +
+            '<div class="lc-name" title="' + league.name + '">' + league.name + '</div>' +
+            '<div class="lc-team">👤 ' + league.myTeamName + '</div>' +
+            '<div class="lc-pills">' +
+              '<span class="pill">' + teams + ' Teams</span>' +
+              '<span class="pill">' + scoring + '</span>' +
+              '<span class="pill">2026</span>' +
+            '</div>' +
+            '<div class="lc-footer">' +
+              statusHtml +
+              '<button class="btn-launch' + (isActive ? ' active-launch' : '') + '" ' +
+                'onclick="launchDraft(\'' + league.league_id + '\',\'' + teamNameEsc + '\',' + rosterId + ')">' +
+                (isActive ? '✓ Resume Draft' : '→ Launch Draft') +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+      } catch(e) {
+        errBanner.textContent = 'Could not load leagues. Check your connection and try again.';
+        errBanner.classList.add('show');
+        grid.innerHTML = '';
+      }
+    }
+
+    function launchDraft(leagueId, teamName, rosterId) {
+      localStorage.setItem('dc_activeLeague', JSON.stringify({
+        leagueId: leagueId,
+        teamName: teamName,
+        rosterId: rosterId,
+        userId:   user.userId,
+        username: user.username,
+        provider: 'sleeper'
+      }));
+      window.location.href = DRAFT_PAGE;
+    }
+
+    loadLeagues();
+  </script>
+</body>
+</html>

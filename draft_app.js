@@ -1925,8 +1925,9 @@ async function sleeperFetch(url) {
   }
 }
 
-async function fetchSleeperLeague() {
-  const leagueId = document.getElementById('sleeperLeagueInput').value.trim();
+async function fetchSleeperLeague(overrideId, overrideRosterId) {
+  const inp = document.getElementById('sleeperLeagueInput');
+  const leagueId = overrideId || (inp ? inp.value.trim() : '');
   if (!leagueId) { sleeperMsg('Enter your League ID first', true); return; }
   sleeperLeagueId = leagueId;
   localStorage.setItem('ff26_leagueId', leagueId);
@@ -2007,6 +2008,13 @@ async function fetchSleeperLeague() {
     });
     localStorage.setItem('ff26_teamRosterIds', JSON.stringify(teamRosterIds));
     sleeperRosterMap = rosterMap; // persist for sync
+    // Auto-set my team when launched from account page
+    if (overrideRosterId != null && rosterMap[overrideRosterId] !== undefined) {
+      myTeamIdx = rosterMap[overrideRosterId];
+      localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
+      var sel = document.getElementById('myTeamSel');
+      if (sel) sel.value = myTeamIdx;
+    }
 
     // ── Process draft + slot assignments ──
     let draftData = null;
@@ -3273,5 +3281,24 @@ function showMockResults(){
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+})();
+
+// ── Auto-import when arriving from account page ───────────────────────────
+(function() {
+  var acct = null;
+  try { acct = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch(e) {}
+  if (!acct || !acct.leagueId) return;
+
+  function runAutoImport() {
+    var inp = document.getElementById('sleeperLeagueInput');
+    if (inp) inp.value = acct.leagueId;
+    fetchSleeperLeague(acct.leagueId, acct.rosterId);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runAutoImport);
+  } else {
+    runAutoImport();
   }
 })();

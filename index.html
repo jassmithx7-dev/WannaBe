@@ -1,50 +1,206 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2026 Fantasy Draft — Wannabe NFL GMs</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;padding:48px;text-align:center;max-width:500px;width:90%}
-h1{font-size:24px;font-weight:700;margin-bottom:8px}
-.tag{font-size:13px;color:#6b7280;margin-bottom:40px;display:block}
-.btn{display:block;padding:16px 24px;border-radius:10px;text-decoration:none;font-size:15px;font-weight:600;margin-bottom:12px;transition:opacity .15s}
-.btn:hover{opacity:.85}
-.btn-draft{background:#1e3a5f;color:#60a5fa;border:1px solid #1565c0}
-.btn-setup{background:#1a3a2a;color:#4ade80;border:1px solid #166534}
-.divider{color:#374151;font-size:12px;margin:8px 0 20px}
-.note{font-size:11px;color:#4b5563;margin-top:24px;line-height:1.6}
-.league-tag{background:#252836;border-radius:20px;padding:4px 14px;font-size:12px;color:#9ca3af;display:inline-block;margin-bottom:32px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draft Companion — Sign In</title>
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --surface: #0d1117;
+      --surface2: #161b22;
+      --border: #21262d;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --accent: #3b82f6;
+      --accent2: #8b5cf6;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.09) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,.07) 0%, transparent 50%);
+    }
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.55);
+    }
+    .brand {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .brand-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 26px; margin-bottom: 18px;
+    }
+    .brand h1 { font-size: 22px; font-weight: 700; }
+    .brand p { font-size: 13px; color: var(--muted); margin-top: 5px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
+    }
+    .provider-btn {
+      width: 100%; padding: 13px 16px;
+      border-radius: 11px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer; transition: border-color .15s, background .15s;
+      margin-bottom: 10px;
+    }
+    .provider-btn:hover:not(:disabled) { border-color: var(--accent); background: rgba(59,130,246,.06); }
+    .provider-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .provider-icon {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .provider-icon.sleeper { background: rgba(59,130,246,.15); }
+    .provider-icon.yahoo  { background: rgba(139,92,246,.15); }
+    .provider-chevron { margin-left: auto; color: var(--muted); font-size: 13px; transition: transform .15s; }
+    .provider-btn.open .provider-chevron { transform: rotate(90deg); }
+    .coming-pill {
+      margin-left: auto; font-size: 10px; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 8px;
+    }
+
+    .sleeper-form {
+      display: none; margin-bottom: 10px; padding: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-top: -4px;
+    }
+    .sleeper-form.open { display: block; }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input {
+      flex: 1; padding: 10px 13px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px;
+      outline: none; transition: border-color .15s;
+    }
+    .input-row input:focus { border-color: var(--accent); }
+    .input-row input::placeholder { color: #4b5563; }
+    .btn-connect {
+      padding: 10px 18px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: background .15s;
+    }
+    .btn-connect:hover { background: #2563eb; }
+    .btn-connect:disabled { background: #1e3a5f; color: #4b5563; cursor: not-allowed; }
+
+    .error-msg { font-size: 12px; color: var(--danger); margin-top: 8px; display: none; }
+    .error-msg.show { display: block; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .footer-note { text-align: center; font-size: 11px; color: #4b5563; margin-top: 20px; }
+  </style>
 </head>
 <body>
-<div class="card">
-  <div style="font-size:40px;margin-bottom:12px">🏈</div>
-  <h1>2026 Fantasy Draft</h1>
-  <span class="tag">Wannabe NFL GMs</span>
-  <div class="league-tag">Superflex · PPR · 12 Teams · 18 Rounds</div>
+  <div class="card">
+    <div class="brand">
+      <div class="brand-icon">🏈</div>
+      <h1>Draft Companion</h1>
+      <p>Your 2026 fantasy football command center</p>
+    </div>
 
-  <a href="fantasy_draft_2026.html" class="btn btn-draft">
-    ⚡ Open Draft Companion
-    <div style="font-size:11px;font-weight:400;opacity:.7;margin-top:3px">Live draft board · AI advisor · Sleeper sync</div>
-  </a>
+    <div class="section-label">Connect your account</div>
 
-  <div class="divider">— or —</div>
+    <button class="provider-btn" id="sleeperBtn" onclick="toggleSleeperForm()">
+      <div class="provider-icon sleeper">💤</div>
+      <span>Continue with Sleeper</span>
+      <span class="provider-chevron">›</span>
+    </button>
 
-  <a href="1_league_setup.html" class="btn btn-setup">
-    ⚙️ League Setup
-    <div style="font-size:11px;font-weight:400;opacity:.7;margin-top:3px">Enter keepers · draft slots · pick trades</div>
-  </a>
+    <div class="sleeper-form" id="sleeperForm">
+      <div class="input-row">
+        <input type="text" id="sleeperUsername" placeholder="Sleeper username"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="btn-connect" id="sleeperSubmit" onclick="signInSleeper()">Connect</button>
+      </div>
+      <div class="error-msg" id="sleeperError"></div>
+    </div>
 
-  <div class="note">
-    <strong style="color:#6b7280">Draft day flow:</strong><br>
-    1. Open Draft Companion → click 🔗 Sleeper → paste League ID → <strong style="color:#4ade80">Import League</strong><br>
-    2. Click <strong style="color:#60a5fa">🔄 Sync Picks</strong> — auto-updates every 30s during the draft<br>
-    3. Mid-draft pick trades? Just hit Sync again — board updates automatically<br>
-    <span style="color:#374151;margin-top:6px;display:block">League Setup is only needed if your commissioner hasn't entered keepers/trades in Sleeper yet</span>
+    <hr class="divider">
+
+    <div class="section-label">Coming soon</div>
+    <button class="provider-btn" disabled>
+      <div class="provider-icon yahoo">🟣</div>
+      <span>Continue with Yahoo Fantasy</span>
+      <span class="coming-pill">Soon</span>
+    </button>
+
+    <p class="footer-note">No password required — connects via public fantasy API</p>
   </div>
-</div>
+
+  <script>
+    // Already signed in → skip to account
+    try {
+      var u = JSON.parse(localStorage.getItem('dc_user') || 'null');
+      if (u && u.userId) window.location.replace('account.html');
+    } catch(e) {}
+
+    function toggleSleeperForm() {
+      var btn = document.getElementById('sleeperBtn');
+      var form = document.getElementById('sleeperForm');
+      btn.classList.toggle('open');
+      form.classList.toggle('open');
+      if (form.classList.contains('open')) document.getElementById('sleeperUsername').focus();
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && document.getElementById('sleeperForm').classList.contains('open')) signInSleeper();
+    });
+
+    async function signInSleeper() {
+      var inp  = document.getElementById('sleeperUsername');
+      var btn  = document.getElementById('sleeperSubmit');
+      var err  = document.getElementById('sleeperError');
+      var name = inp.value.trim();
+      if (!name) return;
+
+      btn.disabled = true; btn.textContent = '…';
+      err.classList.remove('show');
+
+      try {
+        var res = await fetch('https://api.sleeper.app/v1/user/' + name);
+        if (!res.ok) throw new Error('not found');
+        var user = await res.json();
+        if (!user || !user.user_id) throw new Error('not found');
+
+        localStorage.setItem('dc_user', JSON.stringify({
+          userId:      user.user_id,
+          username:    user.username || name,
+          displayName: user.display_name || user.username || name,
+          avatar:      user.avatar || null,
+          provider:    'sleeper'
+        }));
+
+        window.location.href = 'account.html';
+      } catch(e) {
+        err.textContent = 'Username not found — check your Sleeper username and try again.';
+        err.classList.add('show');
+        btn.disabled = false; btn.textContent = 'Connect';
+      }
+    }
+  </script>
 </body>
 </html>
