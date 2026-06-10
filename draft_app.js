@@ -1285,17 +1285,21 @@ function renderBA(){
   if(fit==="B") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return !f||!f.grade.startsWith("C");});
   // Always push unranked players (no projection) to bottom regardless of sort
   const hasScore = p => p.customScore && p.customScore > 0;
+  const isDrafted = p => !!(p.drafted || p.mockDrafted);
   if(sort==="custom") list.sort((a,b)=>{
+    if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
     if(hasScore(a)&&!hasScore(b)) return -1;
     return a.customRank-b.customRank;
   });
   else if(sort==="sf") list.sort((a,b)=>{
+    if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
     if(hasScore(a)&&!hasScore(b)) return -1;
     return (a.sf||999)-(b.sf||999);
   });
   else list.sort((a,b)=>{
+    if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
     if(hasScore(a)&&!hasScore(b)) return -1;
     return a.pos.localeCompare(b.pos)||a.customRank-b.customRank;
