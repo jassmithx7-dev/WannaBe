@@ -3109,6 +3109,9 @@ function executeMockPick(p){
   if(!mockState||p.drafted)return;
   var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS),isMe=(ti===mockState.myTi);
   p.drafted=true;p.mockDrafted=true;
+  // Keep both player arrays in sync so CPU can't re-draft a user pick (or vice versa)
+  var _msp=mockState.players.find(function(x){return x.name===p.name;});if(_msp){_msp.drafted=true;_msp.mockDrafted=true;}
+  var _pp=players.find(function(x){return x.name===p.name;});if(_pp){_pp.drafted=true;_pp.mockDrafted=true;}
   if(!mockState.rosters[ti])mockState.rosters[ti]=[];
   mockState.rosters[ti].push(p);
   var entry=Object.assign({},p,{pickNum:pick,rd:rd,isKeeper:false});
