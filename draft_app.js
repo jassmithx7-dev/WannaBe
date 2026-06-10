@@ -1547,11 +1547,10 @@ function renderBoard() {
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
-  var posColors = {QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'};
+  var posBg = {QB:'rgba(56,139,253,.28)',RB:'rgba(63,185,80,.28)',WR:'rgba(247,129,102,.28)',TE:'rgba(188,140,255,.28)',K:'rgba(227,179,65,.28)',DEF:'rgba(86,211,100,.28)'};
 
-  // Header row: round label + one col per team
+  // Header row: one col per team (no round column)
   var html = '<table class="bg-table"><thead><tr>';
-  html += '<th style="min-width:28px">Rd</th>';
   teamNames.forEach(function(n, ti) {
     var isMe = ti === myTeamIdx;
     var shortName = n.replace(/^The /,'').split(' ').slice(0,2).join(' ');
@@ -1561,7 +1560,6 @@ function renderBoard() {
 
   for (var rd = 1; rd <= ROUNDS; rd++) {
     html += '<tr id="board-rd-' + rd + '">';
-    html += '<td class="bg-rd">' + rd + '</td>';
 
     // For each team, find their pick in this round
     for (var ti = 0; ti < TEAMS; ti++) {
@@ -1582,8 +1580,8 @@ function renderBoard() {
       // Each slot shows whoever actually drafted there (pickMap is keyed by pick number)
       var entry = pickMap[pickNum] || null;
       var extraStyle = '';
-      if (isMe) extraStyle += 'outline:1px solid #1e3a1e;';
-      if (entry && entry.isKeeper) extraStyle += 'background:#1a3a2a;';
+      if (isMe) extraStyle += 'outline:1px solid rgba(56,139,253,.4);';
+      if (entry) extraStyle += 'background:' + (entry.isKeeper ? '#0e2a1a' : (posBg[entry.pos] || 'rgba(100,100,100,.18)')) + ';';
       if (isTraded && !entry) extraStyle += 'background:#1a1a3a;opacity:0.5;';
 
       html += '<td style="' + extraStyle + '">';
