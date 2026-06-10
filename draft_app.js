@@ -3115,7 +3115,7 @@ function executeMockPick(p){
   if(!teamRosters[ti])teamRosters[ti]=[];
   teamRosters[ti].push(entry);
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
-  currentPick=pick+1;renderLog();
+  currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);}
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
   mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
