@@ -2791,12 +2791,21 @@ function buildDraftContext() {
     return pos + ':' + left.length + '(T1:' + t1 + ' T2:' + t2 + ')';
   }).join(' | ');
 
-  // Top 20 available with ADP delta flagging
+  // Recent picks — last 12 so AI knows what was just taken
+  var recentLog = pickLog.slice(-12);
+  var recentStr = recentLog.length
+    ? recentLog.map(function(l) {
+        return 'Pk' + l.pick + ' Rd' + l.rd + ' ' + (teamNames[l.teamIdx] || 'T' + (l.teamIdx + 1)) +
+               ': ' + l.pos + ' ' + l.player + ' (' + (l.nfl || '?') + ')';
+      }).join('\n')
+    : 'No picks yet';
+
+  // Top 40 available with ADP delta flagging
   var availList = players.filter(function(p) {
     return !p.drafted && !p.mockDrafted && (p.customScore || 0) > 0;
   }).sort(function(a, b) { return (b.customScore || 0) - (a.customScore || 0); });
 
-  var avail = availList.slice(0, 20).map(function(p) {
+  var avail = availList.slice(0, 40).map(function(p) {
     var adpDelta = p.adp ? Math.round(p.adp - currentPick) : null;
     var deltaTag = '';
     if (adpDelta !== null) {
@@ -2838,7 +2847,11 @@ function buildDraftContext() {
     '=== ALL TEAMS ===',
     allRosters || 'Draft not started',
     '',
-    '=== TOP 20 AVAILABLE (STEAL = ahead of ADP, REACH = behind) ===',
+    '=== RECENT PICKS (last 12) ===',
+    recentStr,
+    '',
+    '=== TOP 40 AVAILABLE (STEAL = ahead of ADP, REACH = behind) ===',
+    'NOTE: Only players listed here are still available. Any player NOT listed has already been drafted.',
     avail
   ].filter(function(l) { return l !== undefined; }).join('\n');
 }
@@ -2974,7 +2987,8 @@ function askAIAboutPlayer(rank) {
   var rd = Math.ceil(currentPick / TEAMS);
   var adpNote = p.adp ? ' (ADP: ' + Math.round(p.adp) + ')' : '';
   var byeNote = (p.bye && p.bye !== 'TBD') ? ', Bye Wk ' + p.bye : '';
-  var prompt = 'Should I draft ' + p.name + ' (' + p.pos + ', ' + p.team + byeNote + adpNote + ') at pick #' + currentPick + ' in Round ' + rd + '? How does he fit my current roster?';
+  var availFlag = (!p.drafted && !p.mockDrafted) ? ' — STILL AVAILABLE on the board' : ' — NOTE: this player has already been drafted';
+  var prompt = 'Should I draft ' + p.name + ' (' + p.pos + ', ' + p.team + byeNote + adpNote + ')' + availFlag + ' at pick #' + currentPick + ' in Round ' + rd + '? How does he fit my current roster?';
   askAICustom(prompt);
 }
 
