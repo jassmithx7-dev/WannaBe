@@ -3221,7 +3221,7 @@ function setPosFilter(pos, btn) {
 async function loadAllPlayersFromSleeper() {
   const CACHE_KEY = 'ff26_sleeperPlayers_v3';
   const TTL = 24 * 60 * 60 * 1000;
-  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().replace(/\b(jr|sr|ii|iii|iv|v)\b/g,'').replace(/\s+/g,' ').trim();
   try {
     var cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -3267,7 +3267,7 @@ async function loadAllPlayersFromSleeper() {
 }
 
 function _applySleeperList(list) {
-  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().replace(/\b(jr|sr|ii|iii|iv|v)\b/g,'').replace(/\s+/g,' ').trim();
 
   // Build a name→sleeper-entry lookup from the incoming list (sorted by search_rank)
   const sleeperByName = {};
@@ -3377,7 +3377,7 @@ function calcStatScore(s) {
 }
 
 function applySleeperStats(statsById) {
-  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().replace(/\b(jr|sr|ii|iii|iv|v)\b/g,'').replace(/\s+/g,' ').trim();
   const G = 17;
   var updated = 0;
   players.forEach(function(p) {
