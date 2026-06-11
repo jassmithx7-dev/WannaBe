@@ -212,6 +212,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
   <div style="flex:1"></div>
   <button class="btn btn-yellow" onclick="undoPick()">&#8617; Undo</button>
   <button class="btn btn-red" onclick="resetDraft()">&#8635; Reset</button>
+  <button id="reportBtn" onclick="showDraftReport()" style="display:none;font-size:11px;font-weight:600;background:#1f2d1f;color:#4ade80;border:1px solid #2ea043;border-radius:5px;padding:5px 10px;cursor:pointer">📋 Draft Report</button>
 </div>
 
 
@@ -523,6 +524,17 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 <!-- Draft Board Modal (full-screen view, board renders inline by default) -->
 <div id="boardModal" style="display:none"></div>
+
+<!-- Draft Report Modal -->
+<div id="draftReportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#0d1117;border:1px solid #30363d;border-radius:14px;width:860px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #21262d;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700;color:#e6edf3">Draft Grade Report</span>
+      <button onclick="document.getElementById('draftReportModal').style.display='none'" style="background:transparent;border:none;color:#6b7280;font-size:22px;cursor:pointer;line-height:1">&times;</button>
+    </div>
+    <div id="draftReportContent" style="overflow-y:auto;padding:20px;flex:1"></div>
+  </div>
+</div>
 
 </body>
 </html>

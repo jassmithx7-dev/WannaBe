@@ -1080,6 +1080,11 @@ function draftPlayer(rank){
   if(ti===myTeamIdx) setTimeout(showPickSuggestions, 200);
   // Proactive AI alerts after any pick
   setTimeout(function(){ checkProactiveAlerts(ti); }, 600);
+  // Draft complete — show report button and auto-open report
+  if(currentPick>TOTAL){
+    var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block';
+    setTimeout(showDraftReport, 400);
+  }
 }
 
 function addCustomPlayer(){
@@ -1314,6 +1319,14 @@ function renderBA(){
   });
   const qbGone=players.filter(p=>p.pos==="QB"&&p.drafted).length;
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
+  // Pick probability: rank each available player, color border by likelihood of going next round
+  const availByRank = list.filter(p => !p.drafted && !p.mockDrafted && p.customScore > 0)
+    .sort((a,b) => a.customRank - b.customRank);
+  const probMap = {};
+  availByRank.forEach(function(p, i) {
+    probMap[p.rank] = Math.max(0, Math.round((TEAMS - i) / TEAMS * 100));
+  });
+
   document.getElementById("baList").innerHTML=list.map((p,idx)=>{
     const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};
     const sc=p.customScore?p.customScore.toFixed(0):"—";
@@ -1356,7 +1369,9 @@ function renderBA(){
       statLine = parts.join(' · ');
     }
 
-    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${p.note}">
+    const prob = (!p.drafted && !p.mockDrafted) ? (probMap[p.rank] || 0) : 0;
+    const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
+    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${p.note}" style="border-left:3px solid ${probBorder}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
@@ -3189,6 +3204,7 @@ function setPosFilter(pos, btn) {
     calcVORP();
     renderAll();
     setTimeout(autoSizeTopSection, 50);
+    if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
     initAIPanel();
     var savedKey = localStorage.getItem('ff26_apiKey');
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
@@ -3661,6 +3677,105 @@ function showMockResults(){
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'+
     '<div style="background:#1a3a2a;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Best pick</div><div style="color:#4ade80;font-weight:600">'+best.name+'</div><div style="color:#6b7280">Rd '+(best.rd||'?')+' · VORP '+(best.vorp>0?'+':'')+best.vorp.toFixed(0)+'</div></div>'+
     '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>';
+}
+
+// ── Draft Grade Report ────────────────────────────────────────────────────
+function showDraftReport() {
+  var gradeColors = {'A+':'#4ade80','A':'#4ade80','A-':'#86efac','B+':'#93c5fd','B':'#93c5fd','B-':'#bfdbfe','C+':'#fde68a','C':'#fde68a','D':'#f97316','F':'#f87171'};
+
+  function getGrade(score, avg) {
+    var d = (score - avg) / avg;
+    if (d >= .15) return 'A+'; if (d >= .10) return 'A'; if (d >= .05) return 'A-';
+    if (d >= .02) return 'B+'; if (d >= -.02) return 'B'; if (d >= -.05) return 'B-';
+    if (d >= -.09) return 'C+'; if (d >= -.14) return 'C'; if (d >= -.20) return 'D';
+    return 'F';
+  }
+
+  // Build team summaries from teamRosters
+  var summaries = [];
+  for (var ti = 0; ti < TEAMS; ti++) {
+    var roster = teamRosters[ti] || [];
+    var total = 0, pos = {QB:[], RB:[], WR:[], TE:[]};
+    roster.forEach(function(p) {
+      total += p.customScore || 0;
+      if (pos[p.pos]) pos[p.pos].push(p);
+    });
+    summaries.push({ ti, name: teamNames[ti] || ('Team '+(ti+1)), total, pos });
+  }
+
+  var avg = summaries.reduce(function(s,t){ return s + t.total; }, 0) / TEAMS;
+  summaries.sort(function(a,b){ return b.total - a.total; });
+
+  // Projected record via round-robin probability
+  function projRecord(myTotal) {
+    var wins = summaries.reduce(function(s,t){
+      return s + (t.total !== myTotal ? myTotal / (myTotal + t.total) : 0);
+    }, 0);
+    var w = wins / (TEAMS - 1) * 14;
+    return { w: Math.round(w*10)/10, l: Math.round((14-w)*10)/10 };
+  }
+
+  // Top team at each position (by sum of top-N scores)
+  function topAtPos(posKey, take) {
+    var best = null, bestScore = 0;
+    summaries.forEach(function(t) {
+      var score = t.pos[posKey].slice().sort(function(a,b){ return (b.customScore||0)-(a.customScore||0); })
+        .slice(0, take).reduce(function(s,p){ return s+(p.customScore||0); }, 0);
+      if (score > bestScore) { bestScore = score; best = t; }
+    });
+    return best;
+  }
+  var topQB = topAtPos('QB',1), topRB = topAtPos('RB',2), topWR = topAtPos('WR',3), topTE = topAtPos('TE',1);
+
+  var champion = summaries[0];
+  var myEntry  = myTeamIdx >= 0 ? summaries.find(function(t){ return t.ti === myTeamIdx; }) : null;
+
+  // ── HTML ──
+  var html = '';
+
+  // Champion banner
+  html += '<div style="background:linear-gradient(135deg,#1a2f1a,#0e2a1a);border:1px solid #2ea043;border-radius:10px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:12px">'
+    + '<span style="font-size:28px">🏆</span>'
+    + '<div><div style="font-size:11px;color:#4ade80;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Projected Champion</div>'
+    + '<div style="font-size:18px;font-weight:700;color:#e6edf3;margin-top:2px">'+champion.name+'</div>'
+    + '<div style="font-size:11px;color:#7d8590;margin-top:2px">Score: '+Math.round(champion.total)+' · Grade: <span style="color:'+gradeColors[getGrade(champion.total,avg)]+'">'+getGrade(champion.total,avg)+'</span></div></div>'
+    + '</div>';
+
+  // Position leaders
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px">';
+  [{label:'QB Room',icon:'🎯',entry:topQB},{label:'RB Room',icon:'🏃',entry:topRB},{label:'WR Room',icon:'⚡',entry:topWR},{label:'TE Room',icon:'🔒',entry:topTE}].forEach(function(x) {
+    if (!x.entry) return;
+    var isMe = myTeamIdx >= 0 && x.entry.ti === myTeamIdx;
+    html += '<div style="background:#161b22;border:1px solid '+(isMe?'#388bfd':'#21262d')+';border-radius:8px;padding:10px">'
+      + '<div style="font-size:10px;color:#7d8590;margin-bottom:4px">'+x.icon+' Best '+x.label+'</div>'
+      + '<div style="font-size:13px;font-weight:700;color:'+(isMe?'#93c5fd':'#e6edf3')+'">'+x.entry.name+'</div>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  // Standings table
+  html += '<div style="background:#161b22;border:1px solid #21262d;border-radius:8px;overflow:hidden">';
+  html += '<div style="display:grid;grid-template-columns:28px 1fr 48px 60px 72px;gap:8px;padding:8px 12px;font-size:10px;font-weight:700;color:#7d8590;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #21262d">'
+    + '<span>#</span><span>Team</span><span style="text-align:center">Grade</span><span style="text-align:center">Score</span><span style="text-align:center">Proj W-L</span></div>';
+
+  summaries.forEach(function(t, idx) {
+    var grade = getGrade(t.total, avg);
+    var rec = projRecord(t.total);
+    var isMe = myTeamIdx >= 0 && t.ti === myTeamIdx;
+    var isChamp = idx === 0;
+    html += '<div style="display:grid;grid-template-columns:28px 1fr 48px 60px 72px;gap:8px;padding:8px 12px;border-bottom:1px solid #21262d;align-items:center;background:'+(isMe?'rgba(56,139,253,.06)':'transparent')+'">'
+      + '<span style="font-size:11px;color:#484f58;font-weight:700">'+(idx+1)+'</span>'
+      + '<span style="font-size:12px;font-weight:'+(isMe?'700':'500')+';color:'+(isMe?'#93c5fd':isChamp?'#e6edf3':'#c9d1d9')+'">'
+        +(isChamp?'🏆 ':'')+t.name+'</span>'
+      + '<span style="text-align:center;font-size:12px;font-weight:700;color:'+gradeColors[grade]+'">'+grade+'</span>'
+      + '<span style="text-align:center;font-size:11px;color:#9ca3af">'+Math.round(t.total)+'</span>'
+      + '<span style="text-align:center;font-size:11px;color:#9ca3af">'+rec.w+' – '+rec.l+'</span>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('draftReportContent').innerHTML = html;
+  document.getElementById('draftReportModal').style.display = 'flex';
 }
 
 // ── Auto-size top section to draft board content height (one-time on load) ──
