@@ -755,7 +755,7 @@ function normalizeToMult(val, lo, hi, multLo, multHi) {
 function applyNFLFactors() {
   if (!nflFactorsLoaded) return;
   players.forEach(function(p) {
-    var base = CUSTOM_SCORES[p.name] || 0;
+    var base = p.baseScore || CUSTOM_SCORES[p.name] || 0;
     if (!base) { p.olPct = 0; p.sosPct = 0; return; }
     var team = p.team || '';
     var ol = 1.0;
@@ -3300,9 +3300,11 @@ function _scoreBySleeperRank() {
     if (!pts) return;
     grp.forEach(function(p, i) {
       var score = i < pts.length ? pts[i] : Math.max(40, pts[pts.length - 1] - (i - pts.length + 1) * 2);
+      p.baseScore   = score;
       p.customScore = score;
     });
   });
+  if (nflFactorsLoaded) applyNFLFactors();
 }
 
 // ── 2025 Season Stats → customScore (1-day cache) ──
