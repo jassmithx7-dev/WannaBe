@@ -2281,15 +2281,63 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
 }
 
 
-async function syncSleeperDraft() {
+// ── Auto-sync state ──────────────────────────────────────────────────────
+var _autoSyncTimer    = null;  // setInterval handle
+var _syncIndicatorTmr = null;  // ticks the "Xs ago" label every second
+var _lastSyncTime     = null;  // Date.now() of most recent successful sync
+var _prePickClockTi   = -1;    // clock owner just before a sync — detects "now my turn"
+
+function startAutoSync() {
+  if (_autoSyncTimer) return;                          // already running
+  if (!sleeperDraftId) return;                         // no draft to watch
+  if (document.body.getAttribute('data-mock') === '1') return; // mock mode
+
+  _autoSyncTimer = setInterval(function() {
+    if (currentPick > TOTAL || document.body.getAttribute('data-mock') === '1') {
+      stopAutoSync(); return;
+    }
+    syncSleeperDraft(true); // silent=true
+  }, 30000);
+
+  _syncIndicatorTmr = setInterval(updateSyncIndicator, 1000);
+  updateSyncIndicator();
+  console.log('[AutoSync] Started — every 30s');
+}
+
+function stopAutoSync() {
+  clearInterval(_autoSyncTimer);
+  clearInterval(_syncIndicatorTmr);
+  _autoSyncTimer = null; _syncIndicatorTmr = null;
+  var ind = document.getElementById('liveSync');
+  if (ind) ind.style.display = 'none';
+  console.log('[AutoSync] Stopped');
+}
+
+function updateSyncIndicator() {
+  var ind = document.getElementById('liveSync');
+  if (!ind) return;
+  if (!_autoSyncTimer) { ind.style.display = 'none'; return; }
+  ind.style.display = 'inline-flex';
+  if (_lastSyncTime) {
+    var s = Math.round((Date.now() - _lastSyncTime) / 1000);
+    ind.textContent = s < 60 ? '🟢 Live · ' + s + 's ago' : '🟢 Live · ' + Math.floor(s / 60) + 'm ago';
+  } else {
+    ind.textContent = '🟢 Live · syncing…';
+  }
+}
+
+async function syncSleeperDraft(silent) {
   const draftId = document.getElementById('sleeperDraftInput').value.trim() || sleeperDraftId;
   if (!draftId) { sleeperMsg('No Draft ID — import your league first, or enter Draft ID manually', true); return; }
   sleeperDraftId = draftId;
   localStorage.setItem('ff26_draftId', draftId);
 
+  // Snapshot clock owner before this sync so we can detect "now my turn"
+  _prePickClockTi = clockTeamIdx();
+
   const btn = document.getElementById('syncBtn');
-  if (btn) { btn.textContent = '⏳ Syncing...'; btn.disabled = true; }
-  sleeperMsg('⏳ Syncing draft picks...', false);
+  if (!silent) { if (btn) { btn.textContent = '⏳ Syncing...'; btn.disabled = true; } }
+  if (!silent) sleeperMsg('⏳ Syncing draft picks...', false);
 
   try {
     const BASE = 'https://api.sleeper.app/v1';
@@ -2360,23 +2408,27 @@ async function syncSleeperDraft() {
     setTimeout(scrollToBoardCurrentRound, 100);
 
     const unmatchedNote = unmatched.length ? ` · ${unmatched.length} unmatched (custom players)` : '';
-    sleeperMsg(`✅ Synced ${picks.length} picks · ${matched} matched · ${keepers} keepers${unmatchedNote}`, false);
+    if (!silent) sleeperMsg(`✅ Synced ${picks.length} picks · ${matched} matched · ${keepers} keepers${unmatchedNote}`, false);
 
-    // Auto-sync every 30s if draft is in progress
-    if (picks.length > 0 && currentPick <= TOTAL) {
-      clearInterval(window._autoSync);
-      window._autoSync = setInterval(() => {
-        if (currentPick <= TOTAL) syncSleeperDraft();
-        else clearInterval(window._autoSync);
-      }, 30000);
-      console.log('[Sleeper] Auto-sync started — every 30s');
+    // Record sync time and start/keep auto-sync alive
+    _lastSyncTime = Date.now();
+    updateSyncIndicator();
+    if (currentPick <= TOTAL && !_autoSyncTimer) startAutoSync();
+
+    // Detect: clock just advanced to my pick — fire AI alert
+    const nowClockTi = clockTeamIdx();
+    if (myTeamIdx >= 0 && nowClockTi === myTeamIdx && _prePickClockTi !== myTeamIdx && picks.length > 0) {
+      const rd = Math.ceil(currentPick / TEAMS);
+      addChatMessage('alert', '🏈 It\'s your pick! Pick #' + currentPick + ' · Round ' + rd + '\nChecking AI recommendations…');
+      switchRP('ai');
+      setTimeout(function() { if (apiKey) askAI('quick'); }, 400);
     }
 
   } catch(e) {
     console.error('Sync error:', e);
-    sleeperMsg('❌ ' + e.message, true);
+    if (!silent) sleeperMsg('❌ ' + e.message, true);
   } finally {
-    if (btn) { btn.textContent = '🔄 Sync Picks'; btn.disabled = false; }
+    if (!silent && btn) { btn.textContent = '🔄 Sync Picks'; btn.disabled = false; }
   }
 }
 
@@ -3129,6 +3181,10 @@ function setPosFilter(pos, btn) {
       await loadAllPlayersFromSleeper();
       await fetchSleeperSeasonStats();
     }, 2000);
+    // Auto-start live sync if we have a saved draft ID and are not in mock mode
+    if (sleeperDraftId && currentPick <= TOTAL) {
+      setTimeout(startAutoSync, 3000); // small delay so import/session finish first
+    }
   } catch(e) {
     console.error('[Init error]', e);
     var am = document.getElementById('authModal');
@@ -3289,6 +3345,7 @@ function closeMockModal() {
   }
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   mockState=null;calcVORP();renderAll();
+  if (sleeperDraftId && currentPick <= TOTAL) startAutoSync(); // resume live sync
 }
 
 function startMockDraft() {
@@ -3337,6 +3394,7 @@ function startMockDraft() {
   document.getElementById('mockModal').style.display='none';
   var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
   document.body.setAttribute('data-mock','1');
+  stopAutoSync(); // pause live sync while mock is running
   runMockDraft();
 }
 
@@ -3417,6 +3475,7 @@ function finishMockDraft(){if(!mockState)return;if(mockState.timerInterval){clea
 
 function showMockResults(){
   document.body.removeAttribute('data-mock');var b=document.getElementById('mockBanner');if(b)b.style.display='none';
+  if (sleeperDraftId && currentPick <= TOTAL) startAutoSync(); // resume live sync after mock
   if(mockState&&mockState.savedPickLog!==undefined){pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;}
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   calcVORP();renderAll();

@@ -190,11 +190,12 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 <div class="topbar">
   <img src="headerlogo.png" alt="WannaBeGms AI" style="height:26px;width:auto;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 6px rgba(74,222,128,.4))">
   <span class="tag">Superflex · PPR · Custom scoring</span>
-  <div style="display:flex;gap:4px;margin-left:8px">
+  <div style="display:flex;gap:4px;margin-left:8px;align-items:center">
     <button id="tab-draft" onclick="showDraftTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1f6feb;background:#1158c7;color:#e6edf3;cursor:pointer">Draft</button>
     <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#7d8590;cursor:pointer">AI Chat</button>
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #2ea043;background:#0e2a1a;color:#3fb950;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9e6a03;background:#2d2008;color:#e3b341;cursor:pointer">🎯 Mock Draft</button>
+    <span id="liveSync" style="display:none;font-size:10px;font-weight:600;color:#3fb950;background:#0e2a1a;border:1px solid #1a4731;border-radius:12px;padding:2px 8px;white-space:nowrap;cursor:pointer" onclick="syncSleeperDraft()" title="Click to sync now"></span>
   </div>
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
