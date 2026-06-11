@@ -1259,7 +1259,10 @@ function showPickSuggestions() {
         '<div class="sugg-stat"><div class="sugg-stat-val" style="color:#7d8590">'+ceil+'</div><div class="sugg-stat-lbl">Ceil</div></div>' +
       '</div>' +
       (factorTxt ? '<div class="sugg-factor">'+factorTxt+'</div>' : '') +
-      '<button class="sugg-draft-btn" onclick="draftPlayer('+p.rank+')">⚡ Draft</button>' +
+      '<div style="display:flex;gap:5px;align-items:center">' +
+        '<button class="sugg-draft-btn" onclick="draftPlayer('+p.rank+')">⚡ Draft</button>' +
+        '<button onclick="event.stopPropagation();askAIAboutPlayer('+p.rank+')" style="font-size:10px;background:#161b22;color:#9ca3af;border:1px solid #30363d;border-radius:4px;padding:3px 7px;cursor:pointer;white-space:nowrap" title="Ask Claude about this player">🤖 Ask AI</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -1343,6 +1346,7 @@ function renderBA(){
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
       <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
       <button class="ba-draft-btn" onclick="event.stopPropagation();draftPlayer(${p.rank})" ${p.drafted?'disabled style="opacity:.3;cursor:default"':''}>Draft</button>
+      <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 5px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Ask Claude about this player">🤖</button>
     </div>`;
   }).join("");
 }
@@ -2943,6 +2947,22 @@ function clearAIChat() {
   if (thread) {
     thread.innerHTML = '<div class="ai-empty" style="text-align:center;color:#4b5563;font-size:11px;padding:24px 0">Chat cleared — ask me anything about your draft.</div>';
   }
+}
+
+function askAIAboutPlayer(rank) {
+  var p = players.find(function(x) { return x.rank === rank; });
+  if (!p) return;
+  // Switch to AI Chat tab
+  switchRP('ai');
+  if (!apiKey) {
+    addChatMessage('assistant', 'Connect your Claude API key in Account Settings to get player analysis.');
+    return;
+  }
+  var rd = Math.ceil(currentPick / TEAMS);
+  var adpNote = p.adp ? ' (ADP: ' + Math.round(p.adp) + ')' : '';
+  var byeNote = (p.bye && p.bye !== 'TBD') ? ', Bye Wk ' + p.bye : '';
+  var prompt = 'Should I draft ' + p.name + ' (' + p.pos + ', ' + p.team + byeNote + adpNote + ') at pick #' + currentPick + ' in Round ' + rd + '? How does he fit my current roster?';
+  askAICustom(prompt);
 }
 
 function checkProactiveAlerts(pickedTeamIdx) {
