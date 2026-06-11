@@ -1259,9 +1259,9 @@ function showPickSuggestions() {
         '<div class="sugg-stat"><div class="sugg-stat-val" style="color:#7d8590">'+ceil+'</div><div class="sugg-stat-lbl">Ceil</div></div>' +
       '</div>' +
       (factorTxt ? '<div class="sugg-factor">'+factorTxt+'</div>' : '') +
-      '<div style="display:flex;gap:5px;align-items:center">' +
+      '<div class="sugg-btns">' +
         '<button class="sugg-draft-btn" onclick="draftPlayer('+p.rank+')">⚡ Draft</button>' +
-        '<button onclick="event.stopPropagation();askAIAboutPlayer('+p.rank+')" style="font-size:10px;background:#161b22;color:#9ca3af;border:1px solid #30363d;border-radius:4px;padding:3px 7px;cursor:pointer;white-space:nowrap" title="Ask Claude about this player">🤖 Ask AI</button>' +
+        '<button class="sugg-ai-btn" onclick="event.stopPropagation();askAIAboutPlayer('+p.rank+')">🤖 Ask AI</button>' +
       '</div>' +
     '</div>';
   }).join('');
