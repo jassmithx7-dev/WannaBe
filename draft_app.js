@@ -2196,6 +2196,19 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
         });
       }
     }
+    // Sync the topbar team dropdown to match the freshly-imported Sleeper team order.
+    // loadUserSettings() may have already populated it with stale Supabase names;
+    // this ensures both selectors always reflect the same teamNames ordering.
+    var topbarSel = document.getElementById('myTeamSel');
+    if (topbarSel) {
+      topbarSel.innerHTML = '<option value="-1">— Select your team —</option>';
+      teamNames.forEach(function(n, i) {
+        var o = document.createElement('option');
+        o.value = i; o.text = n;
+        if (i === myTeamIdx) o.selected = true;
+        topbarSel.appendChild(o);
+      });
+    }
 
     // Build summary message
     const slotsAssigned = Object.values(slotMap).length;
