@@ -3180,6 +3180,7 @@ function setPosFilter(pos, btn) {
     setTimeout(async function() {
       await loadAllPlayersFromSleeper();
       await fetchSleeperSeasonStats();
+      await fetchFantasyProsRankings(); // runs last so ECR has final say on scores
     }, 2000);
     // Auto-start live sync if we have a saved draft ID and are not in mock mode
     if (sleeperDraftId && currentPick <= TOTAL) {
@@ -3365,6 +3366,75 @@ function applySleeperStats(statsById) {
   if (fs) fs.textContent = updated ? 'Stats: '+updated+' players' : '';
   if (nflFactorsLoaded) applyNFLFactors();
   else { calcVORP(); renderAll(); }
+}
+
+// ── FantasyPros ECR Rankings (rankings_2026.json) ────────────────────────────
+// Drop a fresh Apify export into rankings_2026.json to update for everyone.
+// Format: array of objects from the lulzasaur/fantasypros-scraper actor.
+// The file is cached by date — refresh happens automatically the next calendar day.
+async function fetchFantasyProsRankings() {
+  try {
+    var today = new Date().toISOString().slice(0, 10);
+    var res = await fetch('./rankings_2026.json?v=' + today);
+    if (!res.ok) return; // file not in repo yet — silently fall back to Sleeper data
+    var data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return;
+    _applyFantasyProsRankings(data);
+  } catch(e) {
+    console.log('[FP Rankings] Not loaded:', e.message);
+  }
+}
+
+function _applyFantasyProsRankings(fpData) {
+  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').trim();
+
+  // Build lookup by normalized name
+  const byName = {};
+  fpData.forEach(function(r) { if (r.playerName) byName[norm(r.playerName)] = r; });
+
+  // Update existing players with ECR rank, tier, and bye week
+  var matched = 0;
+  players.forEach(function(p) {
+    var fp = byName[norm(p.name)];
+    if (!fp) return;
+    p.adp  = fp.ecrRank || fp.averageRank || p.adp;
+    if (fp.tier)    p.tier = fp.tier;
+    if (fp.byeWeek && fp.byeWeek !== 'null') p.bye = String(fp.byeWeek);
+    matched++;
+  });
+
+  // Add players in FP data not yet in our list (e.g. late-breaking adds)
+  const existing = new Set(players.map(p => norm(p.name)));
+  fpData.forEach(function(fp) {
+    if (!fp.playerName || existing.has(norm(fp.playerName))) return;
+    players.push({
+      rank: 9000 + (fp.ecrRank || 999),
+      name: fp.playerName,
+      pos:  (fp.position || '?').toUpperCase(),
+      team: fp.team || '?',
+      bye:  fp.byeWeek ? String(fp.byeWeek) : 'TBD',
+      adp:  fp.ecrRank || 999,
+      sf:   fp.ecrRank || 999,
+      tier: fp.tier || 99,
+      note: 'FantasyPros ECR',
+      customScore: 0, customRank: 9999, vorp: null, vorpRank: 9999,
+      drafted: false, isKeeper: false
+    });
+    existing.add(norm(fp.playerName));
+    matched++;
+  });
+
+  // Re-score using updated ADPs, then recalc VORP and re-render
+  _scoreBySleeperRank();
+  calcVORP();
+  renderAll();
+
+  var date = fpData[0] && fpData[0].scrapedAt
+    ? new Date(fpData[0].scrapedAt).toLocaleDateString()
+    : 'unknown date';
+  var fs = document.getElementById('factorStatus');
+  if (fs) fs.textContent = 'FP ECR · ' + matched + ' players · ' + date;
+  console.log('[FP Rankings] Applied', matched, 'players from FantasyPros ECR (' + date + ')');
 }
 
 // ── MOCK DRAFT ──
