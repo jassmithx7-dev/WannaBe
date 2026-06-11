@@ -3188,6 +3188,7 @@ function setPosFilter(pos, btn) {
     initPlayers();
     calcVORP();
     renderAll();
+    setTimeout(autoSizeTopSection, 50);
     initAIPanel();
     var savedKey = localStorage.getItem('ff26_apiKey');
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
@@ -3660,6 +3661,19 @@ function showMockResults(){
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'+
     '<div style="background:#1a3a2a;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Best pick</div><div style="color:#4ade80;font-weight:600">'+best.name+'</div><div style="color:#6b7280">Rd '+(best.rd||'?')+' · VORP '+(best.vorp>0?'+':'')+best.vorp.toFixed(0)+'</div></div>'+
     '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>';
+}
+
+// ── Auto-size top section to draft board content height (one-time on load) ──
+function autoSizeTopSection() {
+  var topSection = document.getElementById('topSection');
+  var boardGrid  = document.getElementById('boardGrid');
+  var boardPanel = document.getElementById('boardPanel');
+  if (!topSection || !boardGrid || !boardPanel) return;
+  var hdr = boardPanel.querySelector('.panel-hdr');
+  var hdrH = hdr ? hdr.getBoundingClientRect().height : 36;
+  var natural = boardGrid.scrollHeight + hdrH + 16;
+  var maxH = Math.floor(window.innerHeight * 0.82);
+  topSection.style.flex = '0 0 ' + Math.max(100, Math.min(natural, maxH)) + 'px';
 }
 
 // ── Resizable board/bottom splitter ──────────────────────────────────────
