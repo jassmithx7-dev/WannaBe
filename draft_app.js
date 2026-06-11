@@ -3195,7 +3195,7 @@ function setPosFilter(pos, btn) {
 
 // ── Load All Players from Sleeper (auto on startup, 1-day cache) ──
 async function loadAllPlayersFromSleeper() {
-  const CACHE_KEY = 'ff26_sleeperPlayers_v2';
+  const CACHE_KEY = 'ff26_sleeperPlayers_v3';
   const TTL = 24 * 60 * 60 * 1000;
   const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
   try {
@@ -3244,13 +3244,64 @@ async function loadAllPlayersFromSleeper() {
 
 function _applySleeperList(list) {
   const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+
+  // Build a name→sleeper-entry lookup from the incoming list (sorted by search_rank)
+  const sleeperByName = {};
+  list.forEach(function(p) { if (p.name) sleeperByName[norm(p.name)] = p; });
+
+  // 1. Update adp + sleeperId for players already in our list
+  players.forEach(function(p) {
+    var sl = sleeperByName[norm(p.name)];
+    if (!sl) return;
+    p.adp = sl.adp; // live Sleeper search_rank as ADP
+    if (sl.sleeperId && !p.sleeperId) p.sleeperId = sl.sleeperId;
+  });
+
+  // 2. Add players Sleeper knows about that aren't in our list yet
   const existing = new Set(players.map(p => norm(p.name)));
   list.forEach(function(p) {
     if (!p.name || existing.has(norm(p.name))) return;
     players.push(Object.assign({}, p, {drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999}));
     existing.add(norm(p.name));
   });
+
+  // 3. Score every player by their positional rank from live Sleeper ADP
+  _scoreBySleeperRank();
+
   calcVORP(); renderBA();
+}
+
+// Assign customScore based on positional rank derived from Sleeper ADP.
+// This runs before applySleeperStats — actual 2025 stats will override these
+// baselines for established players. Rookies / injury returns keep these scores.
+function _scoreBySleeperRank() {
+  // PPR Superflex projection curves indexed by 0-based positional rank
+  const curves = {
+    QB:  [465,435,415,395,380,365,350,338,326,315,305,295,285,275,265,255,248,241,234,228,222,216,210,205,200,195,190,185,180,175,170,165,160,156,152,148,144,140,136,132],
+    RB:  [340,318,300,283,268,255,243,232,222,213,205,197,189,182,175,169,163,157,151,145,140,135,130,126,122,118,114,110,107,104,101,98,95,92,89,86,83,80,77,74,71,68,65,63,61,59,57,55,53,51],
+    WR:  [295,280,268,257,248,239,231,224,217,210,204,198,192,187,182,177,172,167,163,159,155,151,147,143,140,136,133,130,127,124,121,118,115,112,109,107,104,102,99,97,94,92,90,88,86,84,82,80,78,76],
+    TE:  [245,226,210,196,185,176,167,159,152,145,138,133,128,123,118,114,110,106,102,98,95,92,89,86,83,80,78,75,72,70],
+    K:   [143,141,139,137,135,133,131,129,127,125,123,121,119,117,115,113,111,109,107,105],
+    DEF: [124,122,120,118,116,114,112,110,108,106,104,102,100,98,96,94,92,90,88,86]
+  };
+
+  // Group players that have a live ADP by position, sort by ADP
+  const byPos = {};
+  players.forEach(function(p) {
+    if (!p.adp || p.adp >= 900) return; // no live ADP data
+    if (!byPos[p.pos]) byPos[p.pos] = [];
+    byPos[p.pos].push(p);
+  });
+
+  Object.keys(byPos).forEach(function(pos) {
+    var grp = byPos[pos].sort(function(a, b) { return (a.adp||999) - (b.adp||999); });
+    var pts = curves[pos];
+    if (!pts) return;
+    grp.forEach(function(p, i) {
+      var score = i < pts.length ? pts[i] : Math.max(40, pts[pts.length - 1] - (i - pts.length + 1) * 2);
+      p.customScore = score;
+    });
+  });
 }
 
 // ── 2025 Season Stats → customScore (1-day cache) ──
