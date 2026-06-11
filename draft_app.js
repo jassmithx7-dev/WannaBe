@@ -1315,36 +1315,59 @@ function renderBA(){
   const qbGone=players.filter(p=>p.pos==="QB"&&p.drafted).length;
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
   document.getElementById("baList").innerHTML=list.map((p,idx)=>{
-    const prevTier = idx>0?list[idx-1].tier:null;
-    const tierBreakHtml = (p.tier && p.tier!==prevTier) ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 8px;min-width:680px;border-top:1px dashed #30363d;margin-top:2px"><span style="font-size:10px;color:#484f58;white-space:nowrap">— Tier ${p.tier} —</span></div>` : '';
-
     const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};
     const sc=p.customScore?p.customScore.toFixed(0):"—";
     const intel = PLAYER_INTEL[p.name] || {};
-    const isUrgent = false;
     const olC = intel.ol_grade ? olColor(intel.ol_grade) : {color:'#9ca3af',bg:'#252836'};
     const sosC = intel.sos ? sosColor(intel.sos) : {color:'#9ca3af',bg:'#252836',label:'?'};
-    const tendC = intel.tendency ? tendencyColor(intel.tendency) : {color:'#9ca3af',bg:'#252836'};
-    const tendShort = intel.tendency === 'Pass-Heavy' ? 'Pass↑' : intel.tendency === 'Pass-First' ? 'Pass' : intel.tendency === 'Run-Heavy' ? 'Run↑' : 'Bal';
-    const olLabel = intel.ol_grade ? `${intel.ol_label||'OL'}:${intel.ol_grade}` : '—';
     const sosLabel = intel.sos ? `${intel.sos}` : '—';
     const hasProj = p.customScore && p.customScore > 0;
     const vorpTxt = hasProj ? (p.vorp>0?'+':'')+p.vorp.toFixed(1) : '—';
     const vorpColor = !hasProj ? '#4b5563' : p.vorp>30?'#4ade80':p.vorp>10?'#60a5fa':p.vorp>0?'#9ca3af':'#f87171';
     const posBarColor = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'}[p.pos]||'#7d8590';
-    return tierBreakHtml + `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})"
-      title="${p.note}${p.pos==='QB'?(()=>{const s=QB_STATS[p.name];return s?' | '+Math.round(s.pyds*17).toLocaleString()+'py '+Math.round(s.ptd*17)+'td':' | '+intel.pass_pct+'% pass';})():''}">
+
+    // Per-game stat line beside the player name
+    const st = p.stats || {};
+    const qbs = QB_STATS[p.name];
+    var statLine = '';
+    if (p.pos === 'QB') {
+      const py = st.pyg || (qbs ? Math.round(qbs.pyds) : null);
+      const pt = st.ptg || (qbs ? qbs.ptd : null);
+      const ry = st.ryg || (qbs ? Math.round(qbs.ryds) : null);
+      const rt = st.rtg || (qbs ? qbs.rtd : null);
+      const parts = [];
+      if (py) parts.push(py+'py');
+      if (pt) parts.push(pt+'ptd');
+      if (ry && ry > 5) parts.push(ry+'ry');
+      if (rt && rt >= 0.1) parts.push(rt+'rtd');
+      statLine = parts.join(' · ');
+    } else if (p.pos === 'RB') {
+      const parts = [];
+      if (st.ryg) parts.push(st.ryg+'ry');
+      if (st.rtg && st.rtg >= 0.1) parts.push(st.rtg+'rtd');
+      if (st.reyg) parts.push(st.reyg+'recy');
+      if (st.rec && st.rec >= 0.5) parts.push(st.rec+'rec');
+      statLine = parts.join(' · ');
+    } else if (p.pos === 'WR' || p.pos === 'TE') {
+      const parts = [];
+      if (st.rec && st.rec >= 0.5) parts.push(st.rec+'rec');
+      if (st.reyg) parts.push(st.reyg+'y');
+      if (st.retg && st.retg >= 0.1) parts.push(st.retg+'td');
+      statLine = parts.join(' · ');
+    }
+
+    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${p.note}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}${p.tier&&p.tier<99?'<span style="font-size:12px;font-weight:600;color:'+(p.drafted?'#484f58':'#e6edf3')+';margin-left:6px">· T'+p.tier+'</span>':''}</div>
-        <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team} · Bye ${p.bye||'?'}${intel.pass_pct?' · '+intel.pass_pct+'% pass':''}</div>
+        <div style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
+        <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
       </div>
       <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums">${p.adp&&p.adp<900?p.adp:'—'}</span>
       <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums">${sc}</span>
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums">${vorpTxt}</span>
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
-      <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
+      <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}${p.bye&&p.bye!=='TBD'?'<span style="color:#484f58;margin-left:3px">·B'+p.bye+'</span>':''}</span>
       <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 5px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Ask Claude about this player">🤖</button>
     </div>`;
   }).join("");
@@ -3354,6 +3377,7 @@ function calcStatScore(s) {
 
 function applySleeperStats(statsById) {
   const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+  const G = 17;
   var updated = 0;
   players.forEach(function(p) {
     var sid = p.sleeperId || nameToSleeperId[norm(p.name)];
@@ -3362,6 +3386,18 @@ function applySleeperStats(statsById) {
     if (!s) return;
     var score = calcStatScore(s);
     if (score > 15) { p.customScore = score; updated++; }
+    // Store per-game averages for display in player rows
+    if (s.pass_yd || s.rush_yd || s.rec_yd) {
+      p.stats = {
+        pyg:  s.pass_yd  ? Math.round(s.pass_yd  / G) : null,
+        ptg:  s.pass_td  ? +(s.pass_td  / G).toFixed(1) : null,
+        ryg:  s.rush_yd  ? Math.round(s.rush_yd  / G) : null,
+        rtg:  s.rush_td  ? +(s.rush_td  / G).toFixed(1) : null,
+        rec:  s.rec      ? +(s.rec      / G).toFixed(1) : null,
+        reyg: s.rec_yd   ? Math.round(s.rec_yd   / G) : null,
+        retg: s.rec_td   ? +(s.rec_td   / G).toFixed(1) : null,
+      };
+    }
   });
   var fs = document.getElementById('factorStatus');
   if (fs) fs.textContent = updated ? 'Stats: '+updated+' players' : '';
