@@ -868,7 +868,7 @@
           + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
             + '<div style="font-size:11px;color:var(--muted);text-align:right;cursor:pointer" onclick="viewDraft(\''+d.id+'\')">Rank #'+(d.my_rank||'?')+' of '+(d.team_count||'?')+'<br><span style="font-size:10px">View Report →</span></div>'
-            + '<button onclick="event.stopPropagation();deleteDraft(\''+d.id+'\')" title="Delete this draft" style="background:transparent;border:1px solid #30363d;color:#6b7280;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;line-height:1;flex-shrink:0" onmouseover="this.style.borderColor=\'#f87171\';this.style.color=\'#f87171\'" onmouseout="this.style.borderColor=\'#30363d\';this.style.color=\'#6b7280\'">✕</button>'
+            + ((d.draft_type||'real')==='mock' ? '<button onclick="event.stopPropagation();deleteDraft(\''+d.id+'\')" title="Delete this draft" style="background:transparent;border:1px solid #30363d;color:#6b7280;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;line-height:1;flex-shrink:0" onmouseover="this.style.borderColor=\'#f87171\';this.style.color=\'#f87171\'" onmouseout="this.style.borderColor=\'#30363d\';this.style.color=\'#6b7280\'">✕</button>' : '')
           + '</div>'
           + '</div>';
       }).join('');
@@ -878,6 +878,7 @@
       var d = (window._savedDrafts || []).find(function(x){ return x.id === id; });
       if (!d) return;
       var isMock   = (d.draft_type || 'real') === 'mock';
+      if (!isMock) return;
       var names    = Array.isArray(d.team_names) ? d.team_names : [];
       var myName   = d.my_team_idx >= 0 ? (names[d.my_team_idx] || 'My Team') : 'My Team';
       var date     = d.draft_date ? new Date(d.draft_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
