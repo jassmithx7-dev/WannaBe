@@ -1670,7 +1670,10 @@ function renderBoard() {
       if (entry) {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
         var pos = entry.pos || 'WR';
-        if (entry.nfl) { var nflStroke = (NFL_TEAM_COLORS[entry.nfl] || '#aaaaaa') + '55'; html += '<span class="bg-nfl-wm" style="-webkit-text-stroke:1.2px ' + nflStroke + ';text-stroke:1.2px ' + nflStroke + '">' + entry.nfl + '</span>'; }
+        var POS_COLORS = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'};
+        var posStroke = (POS_COLORS[pos] || '#aaaaaa') + '99';
+        html += '<span class="bg-pos-wm" style="-webkit-text-stroke:1.2px ' + posStroke + ';text-stroke:1.2px ' + posStroke + '">' + pos + '</span>';
+        if (entry.nfl) { var nflStroke = (NFL_TEAM_COLORS[entry.nfl] || '#aaaaaa') + '99'; html += '<span class="bg-nfl-wm" style="-webkit-text-stroke:1.2px ' + nflStroke + ';text-stroke:1.2px ' + nflStroke + '">' + entry.nfl + '</span>'; }
         html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
         if (isTraded) {
           var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
