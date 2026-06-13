@@ -130,6 +130,7 @@ async function onSignedIn(user) {
   if (emailEl) emailEl.textContent = user.email;
   await loadUserSettings();
   loadManagerNotes();
+  loadLeagueIntelligence();
 }
 
 async function saveUserSettings() {
@@ -2949,7 +2950,37 @@ function buildDraftContext() {
     'NOTE: Only players listed here are still available. Any player NOT listed has already been drafted.',
     avail,
     Object.keys(managerNotes).length ? '\n=== OPPONENT SCOUTING NOTES ===' : '',
-    Object.keys(managerNotes).length ? Object.entries(managerNotes).filter(function(e){ return e[1] && parseInt(e[0])!==myTeamIdx; }).map(function(e){ return (teamNames[e[0]]||('Team '+(parseInt(e[0])+1)))+': '+e[1]; }).join('\n') : ''
+    Object.keys(managerNotes).length ? Object.entries(managerNotes).filter(function(e){ return e[1] && parseInt(e[0])!==myTeamIdx; }).map(function(e){ return (teamNames[e[0]]||('Team '+(parseInt(e[0])+1)))+': '+e[1]; }).join('\n') : '',
+
+    // Upcoming picks intelligence (picks before my next turn)
+    (function() {
+      if (!window.leagueTendencies || !pickOwners) return '';
+      var upcomingPicks = [];
+      for (var pk = currentPick; pk <= TEAMS * ROUNDS && upcomingPicks.length < 6; pk++) {
+        var pti = pickOwners[pk - 1];
+        if (pti === undefined) break;
+        if (pti === myTeamIdx) break;
+        var pname   = teamNames[pti] || ('Team ' + (pti + 1));
+        var proster = teamRosters[pti] || [];
+        var pcounts = { QB: 0, RB: 0, WR: 0, TE: 0 };
+        proster.forEach(function(p) { if (pcounts[p.pos] !== undefined) pcounts[p.pos]++; });
+        var t        = window.leagueTendencies[pname];
+        var tLine    = t ? tendencyLineForDraft(t, Math.ceil(pk / TEAMS)) : 'no history';
+        upcomingPicks.push('Pk' + pk + ' Rd' + Math.ceil(pk / TEAMS) + ' ' + pname
+          + ' [QB' + pcounts.QB + ' RB' + pcounts.RB + ' WR' + pcounts.WR + ' TE' + pcounts.TE + ']: ' + tLine);
+      }
+      return upcomingPicks.length ? '\n=== UPCOMING PICKS (before your next turn) ===\n' + upcomingPicks.join('\n') : '';
+    })(),
+
+    // Known keepers from previous season
+    (function() {
+      if (!window.leagueKeepers || !window.leagueKeepers.length) return '';
+      var lines = window.leagueKeepers.map(function(k) {
+        return (teamNames[k.teamIdx] || k.teamName || ('Team ' + (k.teamIdx + 1))) + ': ' + k.player + ' (' + k.pos + ') kept Rd' + k.rd;
+      });
+      return '\n=== KNOWN KEEPERS (' + (window.leagueKeepers[0] && window.leagueKeepers[0].season ? window.leagueKeepers[0].season : 'last season') + ') ===\n' + lines.join('\n');
+    })()
+
   ].filter(function(l) { return l !== undefined; }).join('\n');
 }
 
@@ -3853,6 +3884,79 @@ async function loadManagerNotes() {
     managerNotes = {};
     if (data) data.forEach(function(r){ managerNotes[r.team_idx] = r.notes || ''; });
   } catch(e) {}
+}
+
+// ── League Intelligence: tendencies + keepers from saved_drafts ──────────────
+async function loadLeagueIntelligence() {
+  if (!currentUser || !supa) return;
+  try {
+    var { data } = await supa.from('saved_drafts')
+      .select('season,league_name,team_names,picks,draft_type')
+      .eq('user_id', currentUser.id)
+      .eq('draft_type', 'real')
+      .order('season', { ascending: false })
+      .limit(10);
+    if (!data || !data.length) return;
+
+    var tendencies = {};
+    data.forEach(function(draft) {
+      var tNames = draft.team_names || [];
+      var picks   = (draft.picks || []).filter(function(p) { return !p.isKeeper; });
+      tNames.forEach(function(name, ti) {
+        if (!name || name === 'Empty Slot' || name === 'Unknown') return;
+        var myPicks = picks.filter(function(p) { return p.teamIdx === ti; });
+        if (!myPicks.length) return;
+        if (!tendencies[name]) tendencies[name] = { seasons: 0, earlyByPos: {}, qbRounds: [], teRounds: [] };
+        var t = tendencies[name];
+        t.seasons++;
+        var earlyPos = {};
+        myPicks.filter(function(p) { return p.rd <= 4; }).forEach(function(p) { earlyPos[p.pos] = (earlyPos[p.pos] || 0) + 1; });
+        ['QB','RB','WR','TE'].forEach(function(pos) {
+          (t.earlyByPos[pos] = t.earlyByPos[pos] || []).push(earlyPos[pos] || 0);
+        });
+        var qbP = myPicks.filter(function(p) { return p.pos === 'QB'; }).sort(function(a,b) { return a.rd - b.rd; });
+        var teP = myPicks.filter(function(p) { return p.pos === 'TE'; }).sort(function(a,b) { return a.rd - b.rd; });
+        t.qbRounds.push(qbP.length ? qbP[0].rd : null);
+        t.teRounds.push(teP.length ? teP[0].rd : null);
+      });
+    });
+    window.leagueTendencies = tendencies;
+
+    var latestWithKeepers = data.find(function(d) {
+      return (d.picks || []).some(function(p) { return p.isKeeper; });
+    });
+    window.leagueKeepers = latestWithKeepers
+      ? (latestWithKeepers.picks || []).filter(function(p) { return p.isKeeper; }).map(function(p) {
+          return { player: p.player, pos: p.pos, rd: p.rd, teamIdx: p.teamIdx,
+                   teamName: (latestWithKeepers.team_names || [])[p.teamIdx] || ('Team ' + (p.teamIdx + 1)),
+                   season: latestWithKeepers.season };
+        })
+      : [];
+  } catch(e) { console.error('[loadLeagueIntelligence]', e); }
+}
+
+function tendencyLineForDraft(t, currentRound) {
+  if (!t || t.seasons === 0) return 'no history';
+  var parts = [t.seasons + 'yr'];
+  var avg = function(arr) { var v = (arr||[]).filter(function(x){return x!==null;}); return v.length ? v.reduce(function(a,b){return a+b;},0)/v.length : null; };
+  var earlyRB = avg(t.earlyByPos.RB) || 0;
+  var earlyWR = avg(t.earlyByPos.WR) || 0;
+  var earlyQB = avg(t.earlyByPos.QB) || 0;
+  if (earlyRB >= 1.5)      parts.push('heavy RB early');
+  else if (earlyWR >= 1.5) parts.push('heavy WR early');
+  else if (earlyQB >= 0.7) parts.push('early QB');
+  var avgQB = avg(t.qbRounds);
+  if (avgQB !== null) {
+    var rdQB = Math.round(avgQB);
+    if (currentRound >= rdQB - 1 && currentRound <= rdQB + 1) parts.push('⚠ QB WINDOW (avg rd' + rdQB + ')');
+    else parts.push('QB avg rd' + rdQB);
+  }
+  var avgTE = avg(t.teRounds);
+  if (avgTE !== null) {
+    var rdTE = Math.round(avgTE);
+    if (currentRound >= rdTE - 1 && currentRound <= rdTE + 1) parts.push('⚠ TE WINDOW (avg rd' + rdTE + ')');
+  }
+  return parts.join(' | ');
 }
 
 // ── Auto-size top section to draft board content height (one-time on load) ──
