@@ -1619,7 +1619,16 @@ function renderBoard() {
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
-  var posBg = {QB:'rgba(56,139,253,.28)',RB:'rgba(63,185,80,.28)',WR:'rgba(247,129,102,.28)',TE:'rgba(188,140,255,.28)',K:'rgba(227,179,65,.28)',DEF:'rgba(86,211,100,.28)'};
+  var NFL_TEAM_COLORS = {
+    ARI:'#97233F',ATL:'#A71930',BAL:'#9E7C0C',BUF:'#C60C30',
+    CAR:'#0085CA',CHI:'#C83803',CIN:'#FB4F14',CLE:'#FF3C00',
+    DAL:'#869397',DEN:'#FB4F14',DET:'#0076B6',GB:'#FFB612',
+    HOU:'#D52B1E',IND:'#A2AAAD',JAX:'#D7A22A',KC:'#E31837',
+    LAC:'#FFC20E',LAR:'#FFA300',LV:'#A5ACAF',MIA:'#008E97',
+    MIN:'#4F2683',NE:'#C60C30',NO:'#D3BC8D',NYG:'#A71930',
+    NYJ:'#1E7B55',PHI:'#A5ACAF',PIT:'#FFB612',SEA:'#69BE28',
+    SF:'#AA0000',TB:'#D50A0A',TEN:'#4B92DB',WAS:'#773141'
+  };
 
   // Header row: one col per team (no round column)
   var html = '<table class="bg-table"><thead><tr>';
@@ -1653,7 +1662,7 @@ function renderBoard() {
       var entry = pickMap[pickNum] || null;
       var extraStyle = '';
       if (isMe) extraStyle += 'outline:1px solid rgba(56,139,253,.4);';
-      if (entry) extraStyle += 'background:' + (entry.isKeeper ? '#0e2a1a' : (posBg[entry.pos] || 'rgba(100,100,100,.18)')) + ';';
+      if (entry && entry.isKeeper) extraStyle += 'background:#0e2a1a;';
       if (isTraded && !entry) extraStyle += 'background:#1a1a3a;opacity:0.5;';
 
       html += '<td style="' + extraStyle + '">';
@@ -1661,7 +1670,7 @@ function renderBoard() {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
         var pos = entry.pos || 'WR';
         html += '<span class="bg-pos-wm ' + pos + '">' + pos + '</span>';
-        if (entry.nfl) html += '<span class="bg-nfl-wm">' + entry.nfl + '</span>';
+        if (entry.nfl) { var nflStroke = (NFL_TEAM_COLORS[entry.nfl] || '#aaaaaa') + '55'; html += '<span class="bg-nfl-wm" style="-webkit-text-stroke:1.2px ' + nflStroke + ';text-stroke:1.2px ' + nflStroke + '">' + entry.nfl + '</span>'; }
         html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
         if (isTraded) {
           var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
