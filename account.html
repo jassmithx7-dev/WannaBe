@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
+      color-scheme: dark;
       --bg:       #0a0e17;
       --sidebar:  #0d1117;
       --surface:  #161b22;
@@ -93,6 +94,8 @@
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: 8px; color: var(--text); font-size: 13px;
       outline: none; transition: border-color .15s;
+      -webkit-text-fill-color: var(--text);
+      box-shadow: 0 0 0 1000px var(--surface2) inset;
     }
     .connect-input:focus { border-color: var(--accent); }
     .connect-input::placeholder { color: #4b5563; }
