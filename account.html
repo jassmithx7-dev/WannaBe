@@ -297,6 +297,26 @@
       <div id="draftHistoryList"></div>
     </div>
 
+    <!-- League Intelligence -->
+    <div id="leagueIntelSection" style="margin-top:40px;display:none">
+      <div class="section-hdr">
+        <div class="section-title">League Intelligence</div>
+        <button onclick="saveAllTendenciesToNotes()" id="saveTendenciesBtn" style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Save All to Scouting Notes</button>
+      </div>
+
+      <!-- Keepers sub-section -->
+      <div id="keepersSubSection" style="display:none;margin-bottom:28px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px" id="keepersSeasonLabel">Last Season Keepers</div>
+        <div id="keepersList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+      </div>
+
+      <!-- Tendencies sub-section -->
+      <div id="tendenciesSubSection" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px">Manager Tendencies</div>
+        <div id="tendenciesList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px"></div>
+      </div>
+    </div>
+
     <!-- Manager Scouting -->
     <div id="scoutingSection" style="margin-top:40px;display:none">
       <div class="section-hdr">
@@ -839,10 +859,159 @@
       section.style.display = 'block';
       window._savedDrafts = data;
       renderDraftList(data);
+      buildLeagueIntelligence(data);
 
       // Auto-load scouting for the most recent real league that has team names
       var forScouting = data.find(function(d){ return d.league_id && (d.draft_type||'real')==='real' && Array.isArray(d.team_names) && d.team_names.length > 0; });
       if (forScouting) loadScoutingNotes(forScouting.league_id, forScouting.league_name||'My League', forScouting.team_names);
+    }
+
+    // ── League Intelligence ───────────────────────────────────────────────────
+    function buildLeagueIntelligence(allDrafts) {
+      var realDrafts = allDrafts.filter(function(d){ return (d.draft_type||'real') === 'real'; });
+      if (!realDrafts.length) return;
+      var section = document.getElementById('leagueIntelSection');
+      if (section) section.style.display = '';
+      showKeepersSection(realDrafts);
+      showTendenciesSection(realDrafts);
+    }
+
+    function showKeepersSection(realDrafts) {
+      var sorted = realDrafts.slice().sort(function(a,b){ return (b.season||0)-(a.season||0); });
+      var latest = sorted[0];
+      if (!latest) return;
+      var keepers = (latest.picks||[]).filter(function(p){ return p.isKeeper; });
+      if (!keepers.length) return;
+      var sub = document.getElementById('keepersSubSection');
+      if (sub) sub.style.display = '';
+      var label = document.getElementById('keepersSeasonLabel');
+      if (label) label.textContent = (latest.season||'Last Season') + ' Keepers';
+      var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#a78bfa',TE:'#fb923c'};
+      var byTeam = {};
+      keepers.forEach(function(p){
+        (byTeam[p.teamIdx] = byTeam[p.teamIdx]||[]).push(p);
+      });
+      var teamNames = latest.team_names || [];
+      var html = '';
+      Object.keys(byTeam).sort(function(a,b){ return +a-+b; }).forEach(function(ti){
+        var ps = byTeam[ti];
+        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">';
+        html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">'+(teamNames[+ti]||'Team '+(+ti+1))+'</div>';
+        ps.forEach(function(p){
+          var c = posColors[p.pos]||'#9ca3af';
+          html += '<div style="font-size:11px;color:var(--muted);padding:2px 0;display:flex;gap:6px;align-items:baseline">'
+            +'<span style="font-size:10px;font-weight:700;color:'+c+';width:24px;flex-shrink:0">'+p.pos+'</span>'
+            +'<span style="color:#c9d1d9">'+p.player+'</span>'
+            +'<span style="color:#484f58;margin-left:auto;font-size:10px">Rd '+p.rd+'</span>'
+            +'</div>';
+        });
+        html += '</div>';
+      });
+      document.getElementById('keepersList').innerHTML = html || '<div style="color:var(--muted);font-size:12px">No keepers found</div>';
+    }
+
+    function buildTendencies(realDrafts) {
+      var data = {};
+      realDrafts.forEach(function(draft){
+        var teamNames = draft.team_names || [];
+        var picks = (draft.picks||[]).filter(function(p){ return !p.isKeeper; });
+        teamNames.forEach(function(name, ti){
+          if (!name || name === 'Empty Slot' || name === 'Unknown') return;
+          var myPicks = picks.filter(function(p){ return p.teamIdx === ti; });
+          if (!myPicks.length) return;
+          if (!data[name]) data[name] = { seasons:0, seasonList:[], earlyByPos:{}, qbRounds:[], teRounds:[], totalByPos:{} };
+          data[name].seasons++;
+          data[name].seasonList.push(draft.season);
+          // Early (rds 1-4) position counts
+          var earlyPos = {};
+          myPicks.filter(function(p){ return p.rd<=4; }).forEach(function(p){ earlyPos[p.pos]=(earlyPos[p.pos]||0)+1; });
+          ['QB','RB','WR','TE'].forEach(function(pos){
+            (data[name].earlyByPos[pos]=data[name].earlyByPos[pos]||[]).push(earlyPos[pos]||0);
+          });
+          // First QB/TE round
+          var qbP = myPicks.filter(function(p){ return p.pos==='QB'; }).sort(function(a,b){ return a.rd-b.rd; });
+          var teP = myPicks.filter(function(p){ return p.pos==='TE'; }).sort(function(a,b){ return a.rd-b.rd; });
+          data[name].qbRounds.push(qbP.length ? qbP[0].rd : null);
+          data[name].teRounds.push(teP.length ? teP[0].rd : null);
+          // Total by pos
+          var totalPos = {};
+          myPicks.forEach(function(p){ totalPos[p.pos]=(totalPos[p.pos]||0)+1; });
+          ['QB','RB','WR','TE'].forEach(function(pos){
+            (data[name].totalByPos[pos]=data[name].totalByPos[pos]||[]).push(totalPos[pos]||0);
+          });
+        });
+      });
+      return data;
+    }
+
+    function tendencySummaryText(name, t) {
+      if (!t || t.seasons === 0) return '';
+      var s = t.seasons;
+      var lines = [s + ' season'+(s>1?'s':'')+' ('+t.seasonList.slice().sort().join(', ')+').'];
+      var earlyNotes = [];
+      ['RB','WR','QB','TE'].forEach(function(pos){
+        var arr = t.earlyByPos[pos]||[];
+        var avg = arr.length ? arr.reduce(function(a,b){ return a+b; },0)/s : 0;
+        if (avg >= 1.5) earlyNotes.push('heavy '+pos+' (avg '+avg.toFixed(1)+' picks rds 1-4)');
+        else if (avg >= 0.7) earlyNotes.push(pos+' often early (avg '+avg.toFixed(1)+')');
+      });
+      if (earlyNotes.length) lines.push('Early rounds: '+earlyNotes.join('; ')+'.');
+      var qbV = t.qbRounds.filter(function(r){ return r!==null; });
+      if (qbV.length) lines.push('First QB avg round '+Math.round(qbV.reduce(function(a,b){ return a+b; },0)/qbV.length)+'.');
+      var teV = t.teRounds.filter(function(r){ return r!==null; });
+      if (teV.length) lines.push('First TE avg round '+Math.round(teV.reduce(function(a,b){ return a+b; },0)/teV.length)+'.');
+      var rParts = [];
+      ['QB','RB','WR','TE'].forEach(function(pos){
+        var arr = t.totalByPos[pos]||[];
+        if (!arr.length) return;
+        rParts.push((arr.reduce(function(a,b){ return a+b; },0)/arr.length).toFixed(1)+' '+pos);
+      });
+      if (rParts.length) lines.push('Avg roster: '+rParts.join(', ')+'.');
+      return lines.join(' ');
+    }
+
+    function showTendenciesSection(realDrafts) {
+      if (!realDrafts.length) return;
+      var sub = document.getElementById('tendenciesSubSection');
+      if (sub) sub.style.display = '';
+      var tendencies = buildTendencies(realDrafts);
+      window._tendencyData  = tendencies;
+      window._tendencyDraft = realDrafts.slice().sort(function(a,b){ return (b.season||0)-(a.season||0); })[0];
+      var html = '';
+      Object.entries(tendencies).sort(function(a,b){ return b[1].seasons-a[1].seasons||a[0].localeCompare(b[0]); }).forEach(function(entry){
+        var name = entry[0], t = entry[1];
+        var summary = tendencySummaryText(name, t);
+        if (!summary) return;
+        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">'
+          +'<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">'+name+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);line-height:1.7">'+summary.replace(/\. /g,'.<br>')+'</div>'
+          +'</div>';
+      });
+      document.getElementById('tendenciesList').innerHTML = html || '<div style="color:var(--muted);font-size:12px">Not enough data yet — import past seasons first.</div>';
+    }
+
+    async function saveAllTendenciesToNotes() {
+      if (!window._tendencyData || !currentUser || !supa) return;
+      var draft = window._tendencyDraft;
+      if (!draft) return;
+      var leagueId  = draft.league_id;
+      var teamNames = draft.team_names || [];
+      var btn = document.getElementById('saveTendenciesBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+      for (var ti = 0; ti < teamNames.length; ti++) {
+        var name = teamNames[ti];
+        if (!name || name === 'Empty Slot') continue;
+        var t = window._tendencyData[name];
+        if (!t || t.seasons === 0) continue;
+        var summary = tendencySummaryText(name, t);
+        if (!summary) continue;
+        var { data: existing } = await supa.from('league_managers').select('notes').eq('user_id',currentUser.id).eq('league_id',leagueId).eq('team_idx',ti).single();
+        if (!existing || !existing.notes) {
+          await supa.from('league_managers').upsert({ user_id:currentUser.id, league_id:leagueId, team_idx:ti, team_name:name, notes:'[Auto: '+t.seasons+' season(s)]\n'+summary }, { onConflict:'user_id,league_id,team_idx' });
+        }
+      }
+      if (btn) { btn.disabled=false; btn.textContent='✓ Saved to Scouting Notes'; }
+      loadScoutingNotes(leagueId, '', teamNames);
     }
 
     function viewDraft(id) {
@@ -858,6 +1027,38 @@
       var names = Array.isArray(d.team_names) ? d.team_names : [];
       var rosters = Array.isArray(d.team_rosters) ? d.team_rosters : [];
       var TEAMS = d.team_count || 12;
+
+      // Historical imports have no customScore — show roster grid instead
+      var totalScore = rosters.reduce(function(s,r){ return s+(r||[]).reduce(function(rs,p){ return rs+(p.customScore||0); },0); },0);
+      if (totalScore === 0) {
+        var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#a78bfa',TE:'#fb923c'};
+        var posOrder  = ['QB','RB','WR','TE','K','DEF','FLEX'];
+        var html = '<div style="font-size:11px;color:#7d8590;margin-bottom:16px">Historical import · rosters by position (no score data)</div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">';
+        rosters.forEach(function(r, ti) {
+          if (!r || !r.length) return;
+          var byPos = {};
+          r.forEach(function(p){
+            var key = posOrder.indexOf(p.pos) >= 0 ? p.pos : 'FLEX';
+            (byPos[key] = byPos[key]||[]).push(p);
+          });
+          html += '<div style="background:#161b22;border:1px solid #21262d;border-radius:8px;padding:12px">';
+          html += '<div style="font-size:12px;font-weight:700;color:#e6edf3;margin-bottom:8px">'+(names[ti]||'Team '+(ti+1))+'</div>';
+          posOrder.forEach(function(pos){
+            (byPos[pos]||[]).forEach(function(p){
+              var c = posColors[p.pos]||'#9ca3af';
+              html += '<div style="font-size:11px;padding:2px 0;display:flex;gap:6px;align-items:baseline">'
+                +'<span style="font-size:10px;font-weight:700;color:'+c+';width:24px;flex-shrink:0">'+p.pos+'</span>'
+                +'<span style="color:#c9d1d9">'+p.name+'</span>'
+                +(p.isKeeper?'<span style="color:#f59e0b;font-size:9px;margin-left:auto">KEEP</span>':'')
+                +'</div>';
+            });
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+        return html;
+      }
 
       function getGrade(score, avg) {
         var pct = avg > 0 ? (score - avg) / avg : 0;
