@@ -285,6 +285,11 @@
     <div id="draftHistorySection" style="margin-top:40px;display:none">
       <div class="section-hdr">
         <div class="section-title">Draft History</div>
+        <div style="display:flex;gap:4px">
+          <button onclick="filterDrafts('all')"  id="filterAll"  style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--accent);color:#fff;cursor:pointer">All</button>
+          <button onclick="filterDrafts('real')" id="filterReal" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Real</button>
+          <button onclick="filterDrafts('mock')" id="filterMock" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Mock</button>
+        </div>
       </div>
       <div id="draftHistoryList"></div>
     </div>
@@ -644,42 +649,63 @@
     }
 
     // ── Draft History ────────────────────────────────────────────────────────
-    async function loadDraftHistory() {
-      var section = document.getElementById('draftHistorySection');
-      var list    = document.getElementById('draftHistoryList');
-      if (!section || !list) return;
+    var _activeFilter = 'all';
 
-      var { data, error } = await supa.from('saved_drafts')
-        .select('id,league_name,league_id,season,draft_date,my_grade,my_rank,team_count,my_team_idx,team_names,picks,team_rosters')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+    function filterDrafts(type) {
+      _activeFilter = type;
+      ['all','real','mock'].forEach(function(t) {
+        var btn = document.getElementById('filter'+t.charAt(0).toUpperCase()+t.slice(1));
+        if (btn) { btn.style.background = t===type ? 'var(--accent)' : 'var(--surface)'; btn.style.color = t===type ? '#fff' : 'var(--muted)'; }
+      });
+      renderDraftList(window._savedDrafts || []);
+    }
 
-      if (error || !data || data.length === 0) return;
-      section.style.display = 'block';
+    function renderDraftList(data) {
+      var list = document.getElementById('draftHistoryList');
+      if (!list) return;
+      var filtered = _activeFilter === 'all' ? data : data.filter(function(d){ return (d.draft_type||'real') === _activeFilter; });
+      if (filtered.length === 0) { list.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0">No '+ (_activeFilter==='all'?'':_activeFilter+' ') +'drafts saved yet.</div>'; return; }
 
       var gradeColor = function(g) {
-        return g && g.startsWith('A') ? '#4ade80' : g && g.startsWith('B') ? '#93c5fd' : g && g.startsWith('C') ? '#fde68a' : '#f87171';
+        return g&&g.startsWith('A')?'#4ade80':g&&g.startsWith('B')?'#93c5fd':g&&g.startsWith('C')?'#fde68a':'#f87171';
       };
 
-      list.innerHTML = data.map(function(d) {
-        var names = Array.isArray(d.team_names) ? d.team_names : [];
+      list.innerHTML = filtered.map(function(d) {
+        var names  = Array.isArray(d.team_names) ? d.team_names : [];
         var myName = d.my_team_idx >= 0 ? (names[d.my_team_idx] || 'My Team') : 'My Team';
-        var date = d.draft_date ? new Date(d.draft_date).toLocaleDateString() : '—';
+        var date   = d.draft_date ? new Date(d.draft_date).toLocaleDateString() : '—';
+        var isMock = (d.draft_type||'real') === 'mock';
         return '<div style="display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer" onclick="viewDraft(\''+d.id+'\')">'
           + '<div style="font-size:22px;font-weight:700;color:'+gradeColor(d.my_grade)+';width:36px;text-align:center">'+(d.my_grade||'?')+'</div>'
           + '<div style="flex:1;min-width:0">'
-            + '<div style="font-size:13px;font-weight:600;color:var(--text)">'+(d.league_name||'Draft')+'</div>'
+            + '<div style="display:flex;align-items:center;gap:8px">'
+              + '<span style="font-size:13px;font-weight:600;color:var(--text)">'+(d.league_name||'Draft')+'</span>'
+              + '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;'+(isMock?'background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3)':'background:rgba(63,185,80,.1);color:#3fb950;border:1px solid rgba(63,185,80,.25)')+'">'+( isMock?'MOCK':'REAL')+'</span>'
+            + '</div>'
             + '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+myName+' · '+date+' · '+d.season+'</div>'
           + '</div>'
           + '<div style="font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">Rank #'+(d.my_rank||'?')+' of '+(d.team_count||'?')+'<br><span style="font-size:10px">View Report →</span></div>'
           + '</div>';
       }).join('');
+    }
 
+    async function loadDraftHistory() {
+      var section = document.getElementById('draftHistorySection');
+      if (!section) return;
+
+      var { data, error } = await supa.from('saved_drafts')
+        .select('id,league_name,league_id,season,draft_date,my_grade,my_rank,team_count,my_team_idx,team_names,picks,team_rosters,draft_type')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error || !data || data.length === 0) return;
+      section.style.display = 'block';
       window._savedDrafts = data;
+      renderDraftList(data);
 
-      // Auto-load scouting for the most recent league that has team names
-      var forScouting = data.find(function(d){ return d.league_id && Array.isArray(d.team_names) && d.team_names.length > 0; });
+      // Auto-load scouting for the most recent real league that has team names
+      var forScouting = data.find(function(d){ return d.league_id && (d.draft_type||'real')==='real' && Array.isArray(d.team_names) && d.team_names.length > 0; });
       if (forScouting) loadScoutingNotes(forScouting.league_id, forScouting.league_name||'My League', forScouting.team_names);
     }
 

@@ -3698,6 +3698,9 @@ function showMockResults(){
   // Snapshot for the full report button closure
   window.mockRostersSnapshot  = mockRosters;
   window.mockMyTiSnapshot     = mockMyTi;
+
+  // Save mock draft to account history
+  setTimeout(function(){ saveDraft('mock', mockRosters, mockMyTi); }, 300);
 }
 
 // ── Draft Grade Report ────────────────────────────────────────────────────
@@ -3804,14 +3807,17 @@ function showDraftReport(rostersOverride, myTiOverride) {
 }
 
 // ── Save completed draft to Supabase ─────────────────────────────────────
-async function saveDraft() {
+async function saveDraft(draftType, rostersOverride, myTiOverride) {
   if (!currentUser || !supa) return;
-  var scores = teamRosters.map(function(r){ return r.reduce(function(s,p){ return s+(p.customScore||0); }, 0); });
-  var myScore = myTeamIdx >= 0 ? (scores[myTeamIdx] || 0) : 0;
-  var avg = scores.reduce(function(a,b){ return a+b; }, 0) / TEAMS;
-  var rank = scores.filter(function(s){ return s > myScore; }).length + 1;
-  var d = avg > 0 ? (myScore - avg) / avg : 0;
-  var grade = d>=.15?'A+':d>=.10?'A':d>=.05?'A-':d>=.02?'B+':d>=-.02?'B':d>=-.05?'B-':d>=-.09?'C+':d>=-.14?'C':d>=-.20?'D':'F';
+  var type    = draftType || 'real';
+  var rosters = rostersOverride || teamRosters;
+  var myTi    = myTiOverride !== undefined ? myTiOverride : myTeamIdx;
+  var scores  = rosters.map(function(r){ return r.reduce(function(s,p){ return s+(p.customScore||0); }, 0); });
+  var myScore = myTi >= 0 ? (scores[myTi] || 0) : 0;
+  var avg     = scores.reduce(function(a,b){ return a+b; }, 0) / TEAMS;
+  var rank    = scores.filter(function(s){ return s > myScore; }).length + 1;
+  var d       = avg > 0 ? (myScore - avg) / avg : 0;
+  var grade   = d>=.15?'A+':d>=.10?'A':d>=.05?'A-':d>=.02?'B+':d>=-.02?'B':d>=-.05?'B-':d>=-.09?'C+':d>=-.14?'C':d>=-.20?'D':'F';
   try {
     var { error } = await supa.from('saved_drafts').insert({
       user_id:      currentUser.id,
@@ -3820,16 +3826,19 @@ async function saveDraft() {
       season:       new Date().getFullYear(),
       team_count:   TEAMS,
       rounds:       ROUNDS,
-      my_team_idx:  myTeamIdx,
+      my_team_idx:  myTi,
       team_names:   teamNames,
       picks:        pickLog,
-      team_rosters: teamRosters,
+      team_rosters: rosters,
       my_grade:     grade,
-      my_rank:      rank
+      my_rank:      rank,
+      draft_type:   type
     });
     if (error) throw error;
-    var badge = document.getElementById('draftSavedBadge');
-    if (badge) { badge.style.display = 'flex'; }
+    if (type === 'real') {
+      var badge = document.getElementById('draftSavedBadge');
+      if (badge) badge.style.display = 'flex';
+    }
   } catch(e) { console.error('[saveDraft]', e.message); }
 }
 
