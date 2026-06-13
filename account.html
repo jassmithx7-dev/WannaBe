@@ -326,6 +326,22 @@
       <div id="scoutingList"></div>
     </div>
 
+    <!-- Delete Confirm Modal -->
+    <div id="deleteConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;padding:16px">
+      <div style="background:#0d1117;border:1px solid #30363d;border-radius:14px;width:400px;max-width:96vw;padding:28px 28px 24px">
+        <div style="font-size:32px;text-align:center;margin-bottom:14px">🗑️</div>
+        <div style="font-size:16px;font-weight:700;color:#e6edf3;text-align:center;margin-bottom:6px">Delete this draft?</div>
+        <div id="deleteConfirmBody" style="font-size:12px;color:#7d8590;text-align:center;margin-bottom:20px;line-height:1.6"></div>
+        <div style="font-size:11px;color:#6b7280;text-align:center;margin-bottom:20px;padding:8px 12px;background:#161b22;border-radius:6px;border:1px solid #21262d">
+          This cannot be undone.
+        </div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('deleteConfirmModal').style.display='none'" style="flex:1;padding:10px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:13px;cursor:pointer;font-weight:600">Cancel</button>
+          <button id="deleteConfirmBtn" style="flex:1;padding:10px;border-radius:8px;border:1px solid #8b1a1a;background:#2d1515;color:#ffa198;font-size:13px;cursor:pointer;font-weight:700">Delete Draft</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Draft Detail Modal -->
     <div id="draftDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;align-items:center;justify-content:center;padding:16px">
       <div style="background:#0d1117;border:1px solid #30363d;border-radius:14px;width:860px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column">
@@ -852,20 +868,47 @@
           + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
             + '<div style="font-size:11px;color:var(--muted);text-align:right;cursor:pointer" onclick="viewDraft(\''+d.id+'\')">Rank #'+(d.my_rank||'?')+' of '+(d.team_count||'?')+'<br><span style="font-size:10px">View Report →</span></div>'
-            + '<button onclick="deleteDraft(\''+d.id+'\',\''+d.draft_date+'\')" title="Delete this draft" style="background:transparent;border:1px solid #30363d;color:#6b7280;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;line-height:1;flex-shrink:0" onmouseover="this.style.borderColor=\'#f87171\';this.style.color=\'#f87171\'" onmouseout="this.style.borderColor=\'#30363d\';this.style.color=\'#6b7280\'">✕</button>'
+            + '<button onclick="event.stopPropagation();deleteDraft(\''+d.id+'\')" title="Delete this draft" style="background:transparent;border:1px solid #30363d;color:#6b7280;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;line-height:1;flex-shrink:0" onmouseover="this.style.borderColor=\'#f87171\';this.style.color=\'#f87171\'" onmouseout="this.style.borderColor=\'#30363d\';this.style.color=\'#6b7280\'">✕</button>'
           + '</div>'
           + '</div>';
       }).join('');
     }
 
-    async function deleteDraft(id, draftDate) {
-      var label = draftDate ? new Date(draftDate).toLocaleDateString() : 'this draft';
-      if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
-      var { error } = await supa.from('saved_drafts').delete().eq('id', id).eq('user_id', currentUser.id);
-      if (error) { alert('Delete failed: ' + error.message); return; }
-      window._savedDrafts = (window._savedDrafts || []).filter(function(d){ return d.id !== id; });
-      renderDraftList(window._savedDrafts);
-      buildLeagueIntelligence(window._savedDrafts);
+    function deleteDraft(id) {
+      var d = (window._savedDrafts || []).find(function(x){ return x.id === id; });
+      if (!d) return;
+      var isMock   = (d.draft_type || 'real') === 'mock';
+      var names    = Array.isArray(d.team_names) ? d.team_names : [];
+      var myName   = d.my_team_idx >= 0 ? (names[d.my_team_idx] || 'My Team') : 'My Team';
+      var date     = d.draft_date ? new Date(d.draft_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+      var typeTag  = isMock ? 'Mock Draft' : 'Real Draft';
+      var grade    = d.my_grade ? ' · Grade: ' + d.my_grade : '';
+      var rank     = d.my_rank  ? ' · Rank #' + d.my_rank + ' of ' + (d.team_count || '?') : '';
+
+      document.getElementById('deleteConfirmBody').innerHTML =
+        '<span style="color:#e6edf3;font-weight:600">' + (d.league_name || 'Draft') + '</span> · ' + d.season +
+        '<br>' + typeTag + ' · ' + myName + grade + rank +
+        '<br><span style="color:#484f58">' + date + '</span>';
+
+      var modal = document.getElementById('deleteConfirmModal');
+      modal.style.display = 'flex';
+
+      var btn = document.getElementById('deleteConfirmBtn');
+      btn.onclick = async function() {
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+        var { error } = await supa.from('saved_drafts').delete().eq('id', id).eq('user_id', currentUser.id);
+        modal.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = 'Delete Draft';
+        if (error) { alert('Delete failed: ' + error.message); return; }
+        window._savedDrafts = (window._savedDrafts || []).filter(function(x){ return x.id !== id; });
+        renderDraftList(window._savedDrafts);
+        buildLeagueIntelligence(window._savedDrafts);
+      };
+
+      // Close on backdrop click
+      modal.onclick = function(e) { if (e.target === modal) modal.style.display = 'none'; };
     }
 
     async function loadDraftHistory() {
