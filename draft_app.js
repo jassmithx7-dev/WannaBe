@@ -1689,6 +1689,7 @@ function renderBoard() {
 function renderAll(){
   renderBoard();
   renderClock();renderBA();renderLog();renderRoster();
+  renderNextPicksPanel();
   const at=document.querySelector(".tc.on");
   if(at){
     const id=at.id.replace("tc-","");
@@ -3933,6 +3934,80 @@ async function loadLeagueIntelligence() {
         })
       : [];
   } catch(e) { console.error('[loadLeagueIntelligence]', e); }
+}
+
+function renderNextPicksPanel() {
+  var el  = document.getElementById('nextPicksList');
+  var hdr = document.getElementById('nextPicksHdr');
+  if (!el) return;
+
+  var TOTAL    = TEAMS * ROUNDS;
+  var onClock  = pickOwners ? pickOwners[currentPick - 1] : -1;
+  var isMyPick = myTeamIdx >= 0 && onClock === myTeamIdx;
+  var posC     = { QB: '#60a5fa', RB: '#4ade80', WR: '#a78bfa', TE: '#fb923c' };
+
+  if (isMyPick) {
+    if (hdr) { hdr.textContent = '🟢 Your Pick'; hdr.style.color = '#4ade80'; }
+    el.innerHTML = '<div style="text-align:center;padding:12px 0">'
+      + '<div style="font-size:22px;margin-bottom:6px">🏈</div>'
+      + '<div style="font-size:13px;font-weight:700;color:#4ade80">Pick #' + currentPick + '</div>'
+      + '<div style="font-size:11px;color:#7d8590;margin-top:6px;line-height:1.5">Open <b style="color:#e6edf3">AI Chat</b> → ⚡ My pick</div>'
+      + '</div>';
+    return;
+  }
+
+  if (hdr) { hdr.textContent = '🕐 On Deck'; hdr.style.color = '#e6edf3'; }
+
+  var upcoming = [];
+  for (var pk = currentPick; pk <= TOTAL && upcoming.length < 5; pk++) {
+    var ti = pickOwners ? pickOwners[pk - 1] : -1;
+    if (ti === undefined || ti < 0) break;
+    if (ti === myTeamIdx) break;
+    var name   = teamNames[ti] || ('Team ' + (ti + 1));
+    var roster = teamRosters[ti] || [];
+    var counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    roster.forEach(function(p) { if (counts[p.pos] !== undefined) counts[p.pos]++; });
+    var rd = Math.ceil(pk / TEAMS);
+    var t  = window.leagueTendencies && window.leagueTendencies[name];
+    upcoming.push({ pk: pk, rd: rd, name: name, counts: counts, t: t, isFirst: upcoming.length === 0 });
+  }
+
+  if (!upcoming.length) {
+    el.innerHTML = '<div style="color:#7d8590;font-size:11px;text-align:center;padding:12px 0">Draft not started</div>';
+    return;
+  }
+
+  var html = '';
+  upcoming.forEach(function(u) {
+    var tParts = u.t ? tendencyLineForDraft(u.t, u.rd).split(' | ') : null;
+    var hasWarning = tParts && tParts.some(function(p) { return p.startsWith('⚠'); });
+
+    html += '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #21262d'
+      + (u.isFirst ? ';background:#0d1117;border:1px solid ' + (hasWarning ? '#f59e0b' : '#30363d') + ';border-radius:8px;padding:10px;' : ';') + '">';
+
+    html += '<div style="font-size:10px;color:#484f58;margin-bottom:3px">Pk' + u.pk + ' · Rd' + u.rd + '</div>';
+    html += '<div style="font-size:' + (u.isFirst ? '13' : '12') + 'px;font-weight:700;color:#e6edf3;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + u.name + '</div>';
+
+    var countHtml = ['QB','RB','WR','TE'].map(function(pos) {
+      return '<span style="font-size:10px;font-weight:700;color:' + (posC[pos]) + ';margin-right:6px">' + pos + u.counts[pos] + '</span>';
+    }).join('');
+    html += '<div style="margin-bottom:' + (tParts ? '5' : '0') + 'px">' + countHtml + '</div>';
+
+    if (tParts) {
+      tParts.forEach(function(part) {
+        var warn = part.startsWith('⚠');
+        html += '<div style="font-size:10px;color:' + (warn ? '#fbbf24' : '#7d8590') + ';margin-top:2px' + (warn ? ';font-weight:600' : '') + '">' + part + '</div>';
+      });
+    } else {
+      html += '<div style="font-size:10px;color:#484f58">No history</div>';
+    }
+
+    html += '</div>';
+  });
+
+  // Show "then your pick" footer
+  html += '<div style="font-size:10px;color:#4ade80;text-align:center;padding-top:4px">→ Your pick next</div>';
+  el.innerHTML = html;
 }
 
 function tendencyLineForDraft(t, currentRound) {

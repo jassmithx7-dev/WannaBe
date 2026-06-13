@@ -302,6 +302,14 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
     <!-- Horizontal drag handle -->
     <div class="resizer-v" id="sideResizer" title="Drag to resize"></div>
 
+    <!-- On Deck: upcoming picks intelligence -->
+    <div class="panel" id="nextPicksPanel" style="width:170px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+      <div class="panel-hdr" style="padding:6px 10px">
+        <span id="nextPicksHdr" style="font-size:12px;font-weight:700;color:#e6edf3">🕐 On Deck</span>
+      </div>
+      <div id="nextPicksList" style="flex:1;overflow-y:auto;padding:8px;font-size:11px"></div>
+    </div>
+
     <!-- My Draft | AI Chat -->
     <div class="panel" id="rightPanel" style="width:max(35vw,380px);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
       <div class="sp-tabs">
