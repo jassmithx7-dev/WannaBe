@@ -3659,7 +3659,7 @@ function executeMockPick(p){
   if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}
   var bt=document.getElementById('mockBannerTimer');if(bt)bt.textContent='';
   var bc=document.getElementById('mockBannerPick');if(bc)bc.textContent='Pick '+mockState.currentPick+'/'+mockState.totalPicks;
-  renderBA();setTimeout(runMockDraft,isMe?300:60);
+  renderBA();renderNextPicksPanel();setTimeout(runMockDraft,isMe?300:60);
 }
 
 function executeMockPickSilent(p){if(!mockState)return;p.mockDrafted=true;var pick=mockState.currentPick,ti=mockState.pickOwners[pick-1],rd=Math.ceil(pick/TEAMS);if(!mockState.rosters[ti])mockState.rosters[ti]=[];mockState.rosters[ti].push(p);mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:false,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});mockState.currentPick++;while(mockState.currentPick<=TOTAL&&pickLog.some(function(l){return l.pick===mockState.currentPick&&l.isKeeper;}))mockState.currentPick++;}
@@ -3675,7 +3675,7 @@ function runMockDraft(){
     if(clk){clk.textContent='MOCK — Pick #'+mockState.currentPick+' · Rd '+rd+' · YOUR PICK';clk.style.background='#1e3a5f';}
     var te=document.getElementById('mockBannerTimer');
     if(mockState.myStrategy!=='manual'){setTimeout(mockAutoPick,1200);return;}
-    mockState.waiting=true;renderBA();
+    mockState.waiting=true;renderBA();renderNextPicksPanel();
     if(mockState.timerSecs>0){mockState.timerLeft=mockState.timerSecs;if(te)te.textContent=mockState.timerLeft+'s';
       mockState.timerInterval=setInterval(function(){mockState.timerLeft--;if(te)te.textContent=mockState.timerLeft+'s';if(mockState.timerLeft<=0){clearInterval(mockState.timerInterval);mockState.timerInterval=null;if(te)te.textContent='';mockAutoPick();}},1000);}
   } else {
@@ -3941,16 +3941,23 @@ function renderNextPicksPanel() {
   var hdr = document.getElementById('nextPicksHdr');
   if (!el) return;
 
-  var TOTAL    = TEAMS * ROUNDS;
-  var onClock  = pickOwners ? pickOwners[currentPick - 1] : -1;
-  var isMyPick = myTeamIdx >= 0 && onClock === myTeamIdx;
+  // Use mock state when a mock draft is running
+  var ms       = window.mockState;
+  var curPick  = ms ? ms.currentPick  : currentPick;
+  var owners   = ms ? ms.pickOwners   : pickOwners;
+  var myTi     = ms ? ms.myTi         : myTeamIdx;
+  var rosters  = ms ? ms.rosters      : teamRosters;
+  var total    = ms ? ms.totalPicks   : (TEAMS * ROUNDS);
+
+  var onClock  = owners ? owners[curPick - 1] : -1;
+  var isMyPick = myTi >= 0 && onClock === myTi;
   var posC     = { QB: '#60a5fa', RB: '#4ade80', WR: '#a78bfa', TE: '#fb923c' };
 
   if (isMyPick) {
     if (hdr) { hdr.textContent = '🟢 Your Pick'; hdr.style.color = '#4ade80'; }
     el.innerHTML = '<div style="text-align:center;padding:12px 0">'
       + '<div style="font-size:22px;margin-bottom:6px">🏈</div>'
-      + '<div style="font-size:13px;font-weight:700;color:#4ade80">Pick #' + currentPick + '</div>'
+      + '<div style="font-size:13px;font-weight:700;color:#4ade80">Pick #' + curPick + '</div>'
       + '<div style="font-size:11px;color:#7d8590;margin-top:6px;line-height:1.5">Open <b style="color:#e6edf3">AI Chat</b> → ⚡ My pick</div>'
       + '</div>';
     return;
@@ -3959,12 +3966,12 @@ function renderNextPicksPanel() {
   if (hdr) { hdr.textContent = '🕐 On Deck'; hdr.style.color = '#e6edf3'; }
 
   var upcoming = [];
-  for (var pk = currentPick; pk <= TOTAL && upcoming.length < 5; pk++) {
-    var ti = pickOwners ? pickOwners[pk - 1] : -1;
+  for (var pk = curPick; pk <= total && upcoming.length < 5; pk++) {
+    var ti = owners ? owners[pk - 1] : -1;
     if (ti === undefined || ti < 0) break;
-    if (ti === myTeamIdx) break;
+    if (ti === myTi) break;
     var name   = teamNames[ti] || ('Team ' + (ti + 1));
-    var roster = teamRosters[ti] || [];
+    var roster = (rosters && rosters[ti]) ? rosters[ti] : [];
     var counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
     roster.forEach(function(p) { if (counts[p.pos] !== undefined) counts[p.pos]++; });
     var rd = Math.ceil(pk / TEAMS);
@@ -4005,8 +4012,7 @@ function renderNextPicksPanel() {
     html += '</div>';
   });
 
-  // Show "then your pick" footer
-  html += '<div style="font-size:10px;color:#4ade80;text-align:center;padding-top:4px">→ Your pick next</div>';
+  if (myTi >= 0) html += '<div style="font-size:10px;color:#4ade80;text-align:center;padding-top:4px">→ Your pick next</div>';
   el.innerHTML = html;
 }
 
