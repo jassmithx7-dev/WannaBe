@@ -1661,6 +1661,7 @@ function renderBoard() {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
         var pos = entry.pos || 'WR';
         html += '<span class="bg-pos-wm ' + pos + '">' + pos + '</span>';
+        if (entry.nfl) html += '<span class="bg-nfl-wm">' + entry.nfl + '</span>';
         html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
         if (isTraded) {
           var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
@@ -1668,7 +1669,6 @@ function renderBoard() {
           html += '<span style="font-size:9px;color:#a78bfa;position:relative;z-index:1">→ ' + tradedToName + '</span>';
         }
         html += '<span class="bg-player ' + posClass + '" title="' + (entry.player || '') + '" style="position:relative;z-index:1">' + (entry.player || '') + '</span>';
-        html += '<span style="font-size:9px;color:#4b5563;position:relative;z-index:1">' + (entry.nfl || '') + '</span>';
       } else if (isTraded) {
         var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
           ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
