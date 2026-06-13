@@ -1381,7 +1381,7 @@ function renderBA(){
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
-        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
+        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
       </div>
       <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums">${p.adp&&p.adp<900?p.adp:'—'}</span>
@@ -1389,7 +1389,6 @@ function renderBA(){
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums">${vorpTxt}</span>
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
       <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
-      <span style="font-size:10px;font-weight:600;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums">${p.bye&&p.bye!=='TBD'?p.bye:'—'}</span>
       <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 5px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Ask Claude about this player">🤖</button>
     </div>`;
   }).join("");
@@ -1660,15 +1659,16 @@ function renderBoard() {
       html += '<td style="' + extraStyle + '">';
       if (entry) {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
-        html += '<span class="bg-pick">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
+        var pos = entry.pos || 'WR';
+        html += '<span class="bg-pos-wm ' + pos + '">' + pos + '</span>';
+        html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
         if (isTraded) {
-          // Traded slot — show who received it + the player drafted there
           var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
             ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
-          html += '<span style="font-size:9px;color:#a78bfa">→ ' + tradedToName + '</span>';
+          html += '<span style="font-size:9px;color:#a78bfa;position:relative;z-index:1">→ ' + tradedToName + '</span>';
         }
-        html += '<span class="bg-player ' + posClass + '" title="' + (entry.player || '') + '">' + (entry.player || '') + '</span>';
-        html += '<span style="font-size:9px;color:#4b5563">' + (entry.nfl || '') + '</span>';
+        html += '<span class="bg-player ' + posClass + '" title="' + (entry.player || '') + '" style="position:relative;z-index:1">' + (entry.player || '') + '</span>';
+        html += '<span style="font-size:9px;color:#4b5563;position:relative;z-index:1">' + (entry.nfl || '') + '</span>';
       } else if (isTraded) {
         var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
           ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';

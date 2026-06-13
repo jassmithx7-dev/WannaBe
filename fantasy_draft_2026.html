@@ -69,7 +69,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .TE{background:rgba(188,140,255,.18);color:#bc8cff}
 .K{background:rgba(227,179,65,.18);color:#e3b341}
 .DEF{background:rgba(86,211,100,.18);color:#56d364}
-.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 54px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:680px}
+.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:620px}
 .ba:hover{background:#1c2128}
 .ba.out{opacity:.22;pointer-events:none;text-decoration:line-through}
 .ba.keeper-pick{background:#0e1f3d;border-left:2px solid #1f6feb}
@@ -123,7 +123,14 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .bg-table{border-collapse:collapse;width:100%}
 .bg-table th{background:#21262d;color:#7d8590;font-size:9px;font-weight:600;padding:3px 4px;border:1px solid #30363d;text-align:center;position:sticky;top:0;z-index:2;white-space:nowrap}
 .bg-table th.my-col{color:#3fb950}
-.bg-table td{border:1px solid #21262d;padding:2px 4px;vertical-align:top;min-width:72px;max-width:90px}
+.bg-table td{border:1px solid #21262d;padding:2px 4px;vertical-align:top;min-width:72px;max-width:90px;position:relative;overflow:hidden}
+.bg-pos-wm{position:absolute;right:-4px;top:50%;transform:translateY(-50%);font-size:34px;font-weight:900;font-style:italic;line-height:1;pointer-events:none;user-select:none;z-index:0;color:transparent}
+.bg-pos-wm.QB{-webkit-text-stroke:1.5px rgba(56,139,253,.18);text-stroke:1.5px rgba(56,139,253,.18)}
+.bg-pos-wm.RB{-webkit-text-stroke:1.5px rgba(63,185,80,.18);text-stroke:1.5px rgba(63,185,80,.18)}
+.bg-pos-wm.WR{-webkit-text-stroke:1.5px rgba(247,129,102,.18);text-stroke:1.5px rgba(247,129,102,.18)}
+.bg-pos-wm.TE{-webkit-text-stroke:1.5px rgba(188,140,255,.18);text-stroke:1.5px rgba(188,140,255,.18)}
+.bg-pos-wm.K{-webkit-text-stroke:1.5px rgba(227,179,65,.18);text-stroke:1.5px rgba(227,179,65,.18)}
+.bg-pos-wm.DEF{-webkit-text-stroke:1.5px rgba(86,211,100,.18);text-stroke:1.5px rgba(86,211,100,.18)}
 .bg-table tr:nth-child(even) td{background:#0d1117}
 .bg-table tr:nth-child(odd) td{background:#111317}
 .bg-rd{background:#21262d !important;color:#484f58;font-size:9px;font-weight:600;text-align:center;padding:2px;min-width:28px;max-width:28px}
@@ -286,14 +293,13 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
       </div>
-      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:520px">
+      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:520px">
         <span>#</span><span>Pos</span><span>Player</span>
         <span style="text-align:center">ADP</span>
         <span style="text-align:center" title="Projected pts">Proj</span>
         <span style="text-align:center" title="VORP">VORP</span>
         <span style="text-align:center" title="OL grade">OL</span>
         <span style="text-align:center" title="Schedule strength">SoS</span>
-        <span style="text-align:center" title="Bye week">Bye</span>
         <span></span>
       </div>
       <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
