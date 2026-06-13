@@ -285,10 +285,13 @@
     <div id="draftHistorySection" style="margin-top:40px;display:none">
       <div class="section-hdr">
         <div class="section-title">Draft History</div>
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <button onclick="filterDrafts('all')"  id="filterAll"  style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--accent);color:#fff;cursor:pointer">All</button>
           <button onclick="filterDrafts('real')" id="filterReal" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Real</button>
           <button onclick="filterDrafts('mock')" id="filterMock" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Mock</button>
+          <span style="width:1px;height:14px;background:var(--border);margin:0 2px"></span>
+          <button id="importPastBtn" onclick="importPastSeasons()" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Import Past Seasons</button>
+          <span id="importStatus" style="font-size:11px;color:var(--muted)"></span>
         </div>
       </div>
       <div id="draftHistoryList"></div>
@@ -646,6 +649,139 @@
       }
 
       btn.disabled = false; btn.textContent = 'Save';
+    }
+
+    // ── Import Past Seasons from Sleeper ─────────────────────────────────────
+    async function importPastSeasons() {
+      var btn    = document.getElementById('importPastBtn');
+      var status = document.getElementById('importStatus');
+      if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+      if (status) status.textContent = 'Fetching league history…';
+
+      // Get league ID from user settings
+      var { data: settings } = await supa.from('user_settings').select('sleeper_league_id').eq('user_id', currentUser.id).single();
+      var startId = settings && settings.sleeper_league_id;
+      if (!startId) {
+        if (status) status.textContent = 'No Sleeper league found — import a league first.';
+        if (btn) { btn.disabled = false; btn.textContent = 'Import Past Seasons'; }
+        return;
+      }
+
+      var mySleeperUserId = (currentUser.user_metadata || {}).sleeper_user_id;
+
+      async function sf(url) { var r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+      // Walk the previous_league_id chain to find past seasons
+      var pastIds = [];
+      var walkId  = startId;
+      for (var hop = 0; hop < 6; hop++) {
+        try {
+          var lg = await sf('https://api.sleeper.app/v1/league/' + walkId);
+          var prevId = lg && lg.previous_league_id;
+          if (!prevId || prevId === '0' || prevId === 0) break;
+          pastIds.push(prevId);
+          walkId = prevId;
+        } catch(e) { break; }
+      }
+
+      if (pastIds.length === 0) {
+        if (status) status.textContent = 'No previous seasons found on Sleeper.';
+        if (btn) { btn.disabled = false; btn.textContent = 'Import Past Seasons'; }
+        return;
+      }
+
+      var imported = 0, skipped = 0, errors = 0;
+
+      for (var s = 0; s < pastIds.length; s++) {
+        var lid = pastIds[s];
+        try {
+          if (status) status.textContent = 'Checking season ' + (s + 1) + ' of ' + pastIds.length + '…';
+
+          // Skip if already saved
+          var { data: existing } = await supa.from('saved_drafts').select('id').eq('user_id', currentUser.id).eq('league_id', lid).limit(1);
+          if (existing && existing.length > 0) { skipped++; continue; }
+
+          // Fetch league info, users, rosters in parallel
+          var [league, users, rosters] = await Promise.all([
+            sf('https://api.sleeper.app/v1/league/' + lid),
+            sf('https://api.sleeper.app/v1/league/' + lid + '/users'),
+            sf('https://api.sleeper.app/v1/league/' + lid + '/rosters')
+          ]);
+
+          var season    = parseInt(league.season) || (new Date().getFullYear() - (s + 1));
+          var teamCount = parseInt(league.total_rosters) || (rosters || []).length;
+
+          // Build user_id → display_name map
+          var userMap = {};
+          (users || []).forEach(function(u) { userMap[u.user_id] = u.display_name || u.username || ('User ' + u.user_id.slice(-4)); });
+
+          // Sort rosters by roster_id (1-indexed slots), build team name array
+          var sortedRosters = (rosters || []).slice().sort(function(a, b) { return a.roster_id - b.roster_id; });
+          var teamNames     = sortedRosters.map(function(r) { return r.owner_id ? (userMap[r.owner_id] || 'Unknown') : 'Empty Slot'; });
+          var myTi          = mySleeperUserId ? sortedRosters.findIndex(function(r) { return r.owner_id === mySleeperUserId; }) : -1;
+
+          // Get the completed draft
+          var drafts    = await sf('https://api.sleeper.app/v1/league/' + lid + '/drafts');
+          var mainDraft = (drafts || []).find(function(d) { return d.status === 'complete'; }) || (drafts || [])[0];
+          if (!mainDraft) { skipped++; continue; }
+
+          if (status) status.textContent = 'Loading ' + season + ' picks…';
+          var rawPicks = await sf('https://api.sleeper.app/v1/draft/' + mainDraft.draft_id + '/picks');
+          if (!rawPicks || rawPicks.length === 0) { skipped++; continue; }
+
+          // Sort by overall pick number
+          rawPicks.sort(function(a, b) { return (a.pick_no || 0) - (b.pick_no || 0); });
+
+          // Build pickLog + per-team rosters
+          var pickLog      = [];
+          var teamRosters  = Array.from({ length: teamCount }, function() { return []; });
+          var rounds       = 0;
+
+          rawPicks.forEach(function(pick) {
+            var ti   = parseInt(pick.roster_id) - 1; // roster_id is 1-indexed
+            if (ti < 0 || ti >= teamCount) return;
+            var meta = pick.metadata || {};
+            var name = meta.player_name || ((meta.first_name || '') + ' ' + (meta.last_name || '')).trim() || 'Unknown';
+            var pos  = meta.position || '?';
+            var nfl  = meta.team || '?';
+            var rd   = parseInt(pick.round) || 1;
+            var pno  = parseInt(pick.pick_no) || 1;
+            rounds   = Math.max(rounds, rd);
+
+            pickLog.push({ pick: pno, rd: rd, teamIdx: ti, team: teamNames[ti] || ('Team '+(ti+1)), player: name, pos: pos, nfl: nfl, isKeeper: !!pick.is_keeper });
+            teamRosters[ti].push({ name: name, pos: pos, team: nfl, customScore: 0, vorp: null, pickNum: pno, rd: rd, isKeeper: !!pick.is_keeper });
+          });
+
+          await supa.from('saved_drafts').insert({
+            user_id:      currentUser.id,
+            league_id:    lid,
+            league_name:  league.name || 'My League',
+            season:       season,
+            team_count:   teamCount,
+            rounds:       rounds,
+            my_team_idx:  myTi >= 0 ? myTi : null,
+            team_names:   teamNames,
+            picks:        pickLog,
+            team_rosters: teamRosters,
+            my_grade:     null,
+            my_rank:      null,
+            draft_type:   'real'
+          });
+
+          imported++;
+          if (status) status.textContent = '✓ ' + season + ' saved (' + imported + ' so far)…';
+        } catch(e) {
+          console.error('[importPastSeasons]', lid, e);
+          errors++;
+        }
+      }
+
+      var msg = imported > 0 ? '✓ Imported ' + imported + ' season' + (imported > 1 ? 's' : '') : 'Done';
+      if (skipped > 0) msg += ' · ' + skipped + ' already saved';
+      if (errors  > 0) msg += ' · ' + errors + ' failed';
+      if (status) status.textContent = msg;
+      if (btn)   { btn.disabled = false; btn.textContent = 'Import Past Seasons'; }
+      if (imported > 0) loadDraftHistory();
     }
 
     // ── Draft History ────────────────────────────────────────────────────────
