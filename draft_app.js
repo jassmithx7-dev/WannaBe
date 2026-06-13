@@ -3651,37 +3651,52 @@ function finishMockDraft(){if(!mockState)return;if(mockState.timerInterval){clea
 
 function showMockResults(){
   document.body.removeAttribute('data-mock');var b=document.getElementById('mockBanner');if(b)b.style.display='none';
-  if (sleeperDraftId && currentPick <= TOTAL) startAutoSync(); // resume live sync after mock
+  if (sleeperDraftId && currentPick <= TOTAL) startAutoSync();
+
+  // Capture mock rosters BEFORE restoring pre-mock state
+  var mockRosters = mockState ? mockState.rosters.map(function(r){return r.slice();}) : [];
+  var mockLog     = mockState ? mockState.log.slice() : [];
+  var mockMyTi    = mockState ? mockState.myTi : myTeamIdx;
+
   if(mockState&&mockState.savedPickLog!==undefined){pickLog=mockState.savedPickLog;teamRosters=mockState.savedTeamRosters;currentPick=mockState.savedCurrentPick;myRosterSlots=mockState.savedMyRosterSlots;if(mockState.savedMyTeamIdx!==undefined)myTeamIdx=mockState.savedMyTeamIdx;}
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   calcVORP();renderAll();
+
   document.getElementById('mockModal').style.display='flex';
   var ms=document.getElementById('mockSettings'),ml=document.getElementById('mockLive'),mr=document.getElementById('mockResults');
   if(ms)ms.style.display='none';if(ml)ml.style.display='none';if(mr)mr.style.display='block';
-  var myRoster=mockState.rosters[mockState.myTi]||[];
-  var proj=myRoster.slice(0,10).reduce(function(s,p){return s+(p.customScore||0);},0);
-  var all=mockState.rosters.map(function(r){return r.slice(0,10).reduce(function(s,p){return s+(p.customScore||0);},0);});
+
+  var myRoster=mockRosters[mockMyTi]||[];
+  var proj=myRoster.reduce(function(s,p){return s+(p.customScore||0);},0);
+  var all=mockRosters.map(function(r){return r.reduce(function(s,p){return s+(p.customScore||0);},0);});
   var avg=all.reduce(function(a,b){return a+b;},0)/TEAMS;
   var rank=all.filter(function(x){return x>proj;}).length+1;
   var grade=rank<=2?'A+':rank<=4?'A':rank<=6?'B+':rank<=8?'B':'C';
   var gc=grade.startsWith('A')?'#4ade80':grade.startsWith('B')?'#60a5fa':'#f87171';
-  var picks=mockState.log.filter(function(e){return e.isMe;});
-  var best=picks.reduce(function(b,e){return e.vorp>b.vorp?e:b;},picks[0]||{vorp:0,name:'—',rd:0});
-  var worst=picks.reduce(function(w,e){return e.vorp<w.vorp?e:w;},picks[0]||{vorp:0,name:'—',rd:0});
+  var picks=mockLog.filter(function(e){return e.isMe;});
+  var best=picks.length?picks.reduce(function(b,e){return e.vorp>b.vorp?e:b;},picks[0]):{vorp:0,name:'—',rd:0};
+  var worst=picks.length?picks.reduce(function(w,e){return e.vorp<w.vorp?e:w;},picks[0]):{vorp:0,name:'—',rd:0};
   var rc=document.getElementById('mockResultsContent');if(!rc)return;
-  rc.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
-    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:36px;font-weight:700;color:'+gc+'">'+grade+'</div><div style="font-size:11px;color:#6b7280">Draft grade</div></div>'+
-    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80">'+proj.toFixed(0)+'</div><div style="font-size:11px;color:#6b7280">Proj pts · Rank #'+rank+' of '+TEAMS+'</div></div></div>'+
+  rc.innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
+    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:36px;font-weight:700;color:'+gc+'">'+grade+'</div><div style="font-size:11px;color:#6b7280">Your grade · Rank #'+rank+' of '+TEAMS+'</div></div>'+
+    '<div style="background:#252836;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80">'+proj.toFixed(0)+'</div><div style="font-size:11px;color:#6b7280">Projected points</div></div></div>'+
     '<div style="background:#252836;border-radius:8px;padding:12px;font-size:11px;margin-bottom:10px"><div style="font-weight:600;color:#9ca3af;margin-bottom:6px">YOUR ROSTER ('+myRoster.length+' picks)</div>'+
     myRoster.map(function(p,i){var c=p.pos==='QB'?'#60a5fa':p.pos==='RB'?'#4ade80':p.pos==='WR'?'#fb923c':'#c084fc';return '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1a1d27"><span style="width:18px;color:#4b5563;font-size:10px">'+(i+1)+'</span><span style="font-weight:700;width:24px;color:'+c+';font-size:10px">'+p.pos+'</span><span style="flex:1;color:#e8eaf0;font-size:11px">'+p.name+'</span><span style="color:#4ade80;font-size:10px">'+(p.vorp>0?'+':'')+(p.vorp||0).toFixed(0)+'V</span></div>';}).join('')+'</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;margin-bottom:12px">'+
     '<div style="background:#1a3a2a;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Best pick</div><div style="color:#4ade80;font-weight:600">'+best.name+'</div><div style="color:#6b7280">Rd '+(best.rd||'?')+' · VORP '+(best.vorp>0?'+':'')+best.vorp.toFixed(0)+'</div></div>'+
-    '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>';
+    '<div style="background:#2d1515;border-radius:6px;padding:10px"><div style="color:#6b7280;margin-bottom:4px">Biggest reach</div><div style="color:#fca5a5;font-weight:600">'+worst.name+'</div><div style="color:#6b7280">Rd '+(worst.rd||'?')+' · VORP '+(worst.vorp>0?'+':'')+worst.vorp.toFixed(0)+'</div></div></div>'+
+    '<button onclick="showDraftReport(mockRostersSnapshot,mockMyTiSnapshot)" style="width:100%;padding:10px;background:#1f2d1f;color:#4ade80;border:1px solid #2ea043;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">📋 View Full Draft Report (All Teams)</button>';
+
+  // Snapshot for the full report button closure
+  window.mockRostersSnapshot  = mockRosters;
+  window.mockMyTiSnapshot     = mockMyTi;
 }
 
 // ── Draft Grade Report ────────────────────────────────────────────────────
-function showDraftReport() {
+function showDraftReport(rostersOverride, myTiOverride) {
   var gradeColors = {'A+':'#4ade80','A':'#4ade80','A-':'#86efac','B+':'#93c5fd','B':'#93c5fd','B-':'#bfdbfe','C+':'#fde68a','C':'#fde68a','D':'#f97316','F':'#f87171'};
+  var activeTi = myTiOverride !== undefined ? myTiOverride : myTeamIdx;
 
   function getGrade(score, avg) {
     var d = (score - avg) / avg;
@@ -3691,10 +3706,13 @@ function showDraftReport() {
     return 'F';
   }
 
-  // Build team summaries from teamRosters
+  // Use provided rosters (mock) or live teamRosters
+  var sourceRosters = rostersOverride || teamRosters;
+
+  // Build team summaries
   var summaries = [];
   for (var ti = 0; ti < TEAMS; ti++) {
-    var roster = teamRosters[ti] || [];
+    var roster = sourceRosters[ti] || [];
     var total = 0, pos = {QB:[], RB:[], WR:[], TE:[]};
     roster.forEach(function(p) {
       total += p.customScore || 0;
@@ -3728,7 +3746,7 @@ function showDraftReport() {
   var topQB = topAtPos('QB',1), topRB = topAtPos('RB',2), topWR = topAtPos('WR',3), topTE = topAtPos('TE',1);
 
   var champion = summaries[0];
-  var myEntry  = myTeamIdx >= 0 ? summaries.find(function(t){ return t.ti === myTeamIdx; }) : null;
+  var myEntry  = activeTi >= 0 ? summaries.find(function(t){ return t.ti === activeTi; }) : null;
 
   // ── HTML ──
   var html = '';
@@ -3745,7 +3763,7 @@ function showDraftReport() {
   html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px">';
   [{label:'QB Room',icon:'🎯',entry:topQB},{label:'RB Room',icon:'🏃',entry:topRB},{label:'WR Room',icon:'⚡',entry:topWR},{label:'TE Room',icon:'🔒',entry:topTE}].forEach(function(x) {
     if (!x.entry) return;
-    var isMe = myTeamIdx >= 0 && x.entry.ti === myTeamIdx;
+    var isMe = activeTi >= 0 && x.entry.ti === activeTi;
     html += '<div style="background:#161b22;border:1px solid '+(isMe?'#388bfd':'#21262d')+';border-radius:8px;padding:10px">'
       + '<div style="font-size:10px;color:#7d8590;margin-bottom:4px">'+x.icon+' Best '+x.label+'</div>'
       + '<div style="font-size:13px;font-weight:700;color:'+(isMe?'#93c5fd':'#e6edf3')+'">'+x.entry.name+'</div>'
@@ -3761,7 +3779,7 @@ function showDraftReport() {
   summaries.forEach(function(t, idx) {
     var grade = getGrade(t.total, avg);
     var rec = projRecord(t.total);
-    var isMe = myTeamIdx >= 0 && t.ti === myTeamIdx;
+    var isMe = activeTi >= 0 && t.ti === activeTi;
     var isChamp = idx === 0;
     html += '<div style="display:grid;grid-template-columns:28px 1fr 48px 60px 72px;gap:8px;padding:8px 12px;border-bottom:1px solid #21262d;align-items:center;background:'+(isMe?'rgba(56,139,253,.06)':'transparent')+'">'
       + '<span style="font-size:11px;color:#484f58;font-weight:700">'+(idx+1)+'</span>'
