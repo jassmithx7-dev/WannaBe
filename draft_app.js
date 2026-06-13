@@ -1667,7 +1667,9 @@ function renderBoard() {
             ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
           html += '<span style="font-size:9px;color:#a78bfa">→ ' + tradedToName + '</span>';
         }
-        html += '<span class="bg-player ' + posClass + '">' + (entry.player || '').split(' ').pop() + '</span>';
+        var _np = (entry.player || '').split(' ');
+        while (_np.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(_np[_np.length - 1])) _np.pop();
+        html += '<span class="bg-player ' + posClass + '">' + (_np.pop() || '') + '</span>';
         html += '<span style="font-size:9px;color:#4b5563">' + (entry.nfl || '') + '</span>';
       } else if (isTraded) {
         var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
