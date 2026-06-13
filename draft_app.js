@@ -1662,7 +1662,7 @@ function renderBoard() {
         var posClass = 'bg-pos-' + (entry.pos || 'WR');
         var pos = entry.pos || 'WR';
         var POS_COLORS = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'};
-        var posStroke = (POS_COLORS[pos] || '#aaaaaa') + '99';
+        var posStroke = (POS_COLORS[pos] || '#aaaaaa') + 'BF';
         html += '<span class="bg-pos-wm" style="-webkit-text-stroke:1.2px ' + posStroke + ';text-stroke:1.2px ' + posStroke + '">' + pos + '</span>';
         if (entry.nfl) { var espnAbbr = ESPN_ABBR_MAP[entry.nfl] || entry.nfl.toLowerCase(); html += '<img class="bg-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/' + espnAbbr + '.png" alt="" onerror="this.style.display=\'none\'">'; }
         html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
