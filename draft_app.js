@@ -656,6 +656,7 @@ var TEAMS=12, ROUNDS=18, TOTAL=216;
 let players=[];
 let setup=null; // loaded from JSON
 let teamNames=[];
+let teamUserIds=[]; // Sleeper user_id per team slot (stable across name changes)
 let teamSlots=[]; // slot per team index (1-based, 0=unset)
 let teamRosterIds=(function(){try{var v=localStorage.getItem('ff26_teamRosterIds');return v?JSON.parse(v):[];}catch(e){return[];}})();
 let pickOwners=[]; // pickOwners[pick-1] = teamIdx who owns that pick (after trades)
@@ -1380,7 +1381,7 @@ function renderBA(){
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
+        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
       </div>
       <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums">${p.adp&&p.adp<900?p.adp:'—'}</span>
@@ -2053,9 +2054,11 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
     rosters.sort((a,b) => (a.roster_id||0) - (b.roster_id||0));
     const rosterMap = {}; // roster_id → teamIdx
     teamRosterIds = []; // reset global
+    teamUserIds = [];
     rosters.forEach((roster, i) => {
       if (i < teamNames.length) {
         teamNames[i] = umap[roster.owner_id] || ('Team ' + (i+1));
+        teamUserIds[i] = roster.owner_id || null;
         rosterMap[roster.roster_id] = i;
         teamRosterIds[i] = roster.roster_id;
       }
@@ -2965,7 +2968,8 @@ function buildDraftContext() {
         var proster = teamRosters[pti] || [];
         var pcounts = { QB: 0, RB: 0, WR: 0, TE: 0 };
         proster.forEach(function(p) { if (pcounts[p.pos] !== undefined) pcounts[p.pos]++; });
-        var t        = window.leagueTendencies[pname];
+        var puid     = teamUserIds && teamUserIds[pti];
+        var t        = window.leagueTendencies && ((puid && window.leagueTendencies[puid]) || window.leagueTendencies[pname]);
         var tLine    = t ? tendencyLineForDraft(t, Math.ceil(pk / TEAMS)) : 'no history';
         upcomingPicks.push('Pk' + pk + ' Rd' + Math.ceil(pk / TEAMS) + ' ' + pname
           + ' [QB' + pcounts.QB + ' RB' + pcounts.RB + ' WR' + pcounts.WR + ' TE' + pcounts.TE + ']: ' + tLine);
@@ -3892,7 +3896,7 @@ async function loadLeagueIntelligence() {
   if (!currentUser || !supa) return;
   try {
     var { data } = await supa.from('saved_drafts')
-      .select('season,league_name,team_names,picks,draft_type')
+      .select('season,league_name,team_names,team_user_ids,picks,draft_type')
       .eq('user_id', currentUser.id)
       .eq('draft_type', 'real')
       .order('season', { ascending: false })
@@ -3901,15 +3905,19 @@ async function loadLeagueIntelligence() {
 
     var tendencies = {};
     data.forEach(function(draft) {
-      var tNames = draft.team_names || [];
-      var picks   = (draft.picks || []).filter(function(p) { return !p.isKeeper; });
+      var tNames = draft.team_names    || [];
+      var uids   = draft.team_user_ids || [];
+      var picks  = (draft.picks || []).filter(function(p) { return !p.isKeeper; });
       tNames.forEach(function(name, ti) {
         if (!name || name === 'Empty Slot' || name === 'Unknown') return;
         var myPicks = picks.filter(function(p) { return p.teamIdx === ti; });
         if (!myPicks.length) return;
-        if (!tendencies[name]) tendencies[name] = { seasons: 0, earlyByPos: {}, qbRounds: [], teRounds: [] };
-        var t = tendencies[name];
+        // Key by user_id when available (stable across team name changes), else display_name
+        var key = uids[ti] || name;
+        if (!tendencies[key]) tendencies[key] = { seasons: 0, earlyByPos: {}, qbRounds: [], teRounds: [], displayName: name };
+        var t = tendencies[key];
         t.seasons++;
+        t.displayName = name; // keep most recent display_name for UI
         var earlyPos = {};
         myPicks.filter(function(p) { return p.rd <= 4; }).forEach(function(p) { earlyPos[p.pos] = (earlyPos[p.pos] || 0) + 1; });
         ['QB','RB','WR','TE'].forEach(function(pos) {
@@ -3975,7 +3983,10 @@ function renderNextPicksPanel() {
     var counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
     roster.forEach(function(p) { if (counts[p.pos] !== undefined) counts[p.pos]++; });
     var rd = Math.ceil(pk / TEAMS);
-    var t  = window.leagueTendencies && window.leagueTendencies[name];
+    var uid = teamUserIds && teamUserIds[ti];
+    var t   = window.leagueTendencies && (
+      (uid && window.leagueTendencies[uid]) || window.leagueTendencies[name]
+    );
     upcoming.push({ pk: pk, rd: rd, name: name, counts: counts, t: t, isFirst: upcoming.length === 0 });
   }
 

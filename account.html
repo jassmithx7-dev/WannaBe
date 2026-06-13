@@ -717,11 +717,10 @@
         try {
           if (status) status.textContent = 'Checking season ' + (s + 1) + ' of ' + pastIds.length + '…';
 
-          // Skip if already saved
-          var { data: existing } = await supa.from('saved_drafts').select('id').eq('user_id', currentUser.id).eq('league_id', lid).limit(1);
-          if (existing && existing.length > 0) { skipped++; continue; }
+          // Check if already saved (fetch team_user_ids so we can backfill if missing)
+          var { data: existing } = await supa.from('saved_drafts').select('id,team_user_ids').eq('user_id', currentUser.id).eq('league_id', lid).limit(1);
 
-          // Fetch league info, users, rosters in parallel
+          // Fetch league info, users, rosters in parallel (needed for both new + backfill)
           var [league, users, rosters] = await Promise.all([
             sf('https://api.sleeper.app/v1/league/' + lid),
             sf('https://api.sleeper.app/v1/league/' + lid + '/users'),
@@ -735,10 +734,20 @@
           var userMap = {};
           (users || []).forEach(function(u) { userMap[u.user_id] = u.display_name || u.username || ('User ' + u.user_id.slice(-4)); });
 
-          // Sort rosters by roster_id (1-indexed slots), build team name array
+          // Sort rosters by roster_id (1-indexed slots), build team name + user_id arrays
           var sortedRosters = (rosters || []).slice().sort(function(a, b) { return a.roster_id - b.roster_id; });
           var teamNames     = sortedRosters.map(function(r) { return r.owner_id ? (userMap[r.owner_id] || 'Unknown') : 'Empty Slot'; });
+          var teamUserIds   = sortedRosters.map(function(r) { return r.owner_id || null; });
           var myTi          = mySleeperUserId ? sortedRosters.findIndex(function(r) { return r.owner_id === mySleeperUserId; }) : -1;
+
+          // If already saved, backfill team_user_ids if missing then skip
+          if (existing && existing.length > 0) {
+            var ex = existing[0];
+            if (!ex.team_user_ids || !ex.team_user_ids.length) {
+              await supa.from('saved_drafts').update({ team_user_ids: teamUserIds }).eq('id', ex.id);
+            }
+            skipped++; continue;
+          }
 
           // Get the completed draft
           var drafts    = await sf('https://api.sleeper.app/v1/league/' + lid + '/drafts');
@@ -780,12 +789,13 @@
             team_count:   teamCount,
             rounds:       rounds,
             my_team_idx:  myTi >= 0 ? myTi : null,
-            team_names:   teamNames,
-            picks:        pickLog,
-            team_rosters: teamRosters,
-            my_grade:     null,
-            my_rank:      null,
-            draft_type:   'real'
+            team_names:     teamNames,
+            team_user_ids:  teamUserIds,
+            picks:          pickLog,
+            team_rosters:   teamRosters,
+            my_grade:       null,
+            my_rank:        null,
+            draft_type:     'real'
           });
 
           imported++;
