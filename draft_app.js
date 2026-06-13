@@ -129,6 +129,7 @@ async function onSignedIn(user) {
   var emailEl = document.getElementById('userEmail');
   if (emailEl) emailEl.textContent = user.email;
   await loadUserSettings();
+  loadManagerNotes();
 }
 
 async function saveUserSettings() {
@@ -663,7 +664,9 @@ let trades=[];
 let sleeperRosterMap={}; // roster_id→teamIdx, populated during import, used by sync
 let myTeamIdx=(function(){var v=localStorage.getItem('ff26_myTeamIdx');return v!==null?parseInt(v):-1;})();
 let sleeperLeagueId=localStorage.getItem('ff26_leagueId')||'';
+let sleeperLeagueName=localStorage.getItem('ff26_leagueName')||'';
 let sleeperDraftId=localStorage.getItem('ff26_draftId')||'';
+let managerNotes={}; // teamIdx → notes string
 let sleeperSyncing=false;
 let sleeperImportDone=false; // set to true only after a successful import this session
 let currentPick=1;
@@ -1080,10 +1083,11 @@ function draftPlayer(rank){
   if(ti===myTeamIdx) setTimeout(showPickSuggestions, 200);
   // Proactive AI alerts after any pick
   setTimeout(function(){ checkProactiveAlerts(ti); }, 600);
-  // Draft complete — show report button and auto-open report
+  // Draft complete — show report button, auto-open report, save to account
   if(currentPick>TOTAL){
     var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block';
     setTimeout(showDraftReport, 400);
+    setTimeout(saveDraft, 900);
   }
 }
 
@@ -1984,6 +1988,7 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
 
     sleeperMsg('⏳ Step 1/5 — Loading league info...', false);
     const league = await sleeperFetch(`${BASE}/league/${leagueId}`);
+    if (league && league.name) { sleeperLeagueName = league.name; localStorage.setItem('ff26_leagueName', sleeperLeagueName); }
 
     sleeperMsg('⏳ Step 2/5 — Loading team rosters...', false);
     const [users, rosters] = await Promise.all([
@@ -2942,7 +2947,9 @@ function buildDraftContext() {
     '',
     '=== TOP 40 AVAILABLE (STEAL = ahead of ADP, REACH = behind) ===',
     'NOTE: Only players listed here are still available. Any player NOT listed has already been drafted.',
-    avail
+    avail,
+    Object.keys(managerNotes).length ? '\n=== OPPONENT SCOUTING NOTES ===' : '',
+    Object.keys(managerNotes).length ? Object.entries(managerNotes).filter(function(e){ return e[1] && parseInt(e[0])!==myTeamIdx; }).map(function(e){ return (teamNames[e[0]]||('Team '+(parseInt(e[0])+1)))+': '+e[1]; }).join('\n') : ''
   ].filter(function(l) { return l !== undefined; }).join('\n');
 }
 
@@ -3794,6 +3801,49 @@ function showDraftReport(rostersOverride, myTiOverride) {
 
   document.getElementById('draftReportContent').innerHTML = html;
   document.getElementById('draftReportModal').style.display = 'flex';
+}
+
+// ── Save completed draft to Supabase ─────────────────────────────────────
+async function saveDraft() {
+  if (!currentUser || !supa) return;
+  var scores = teamRosters.map(function(r){ return r.reduce(function(s,p){ return s+(p.customScore||0); }, 0); });
+  var myScore = myTeamIdx >= 0 ? (scores[myTeamIdx] || 0) : 0;
+  var avg = scores.reduce(function(a,b){ return a+b; }, 0) / TEAMS;
+  var rank = scores.filter(function(s){ return s > myScore; }).length + 1;
+  var d = avg > 0 ? (myScore - avg) / avg : 0;
+  var grade = d>=.15?'A+':d>=.10?'A':d>=.05?'A-':d>=.02?'B+':d>=-.02?'B':d>=-.05?'B-':d>=-.09?'C+':d>=-.14?'C':d>=-.20?'D':'F';
+  try {
+    var { error } = await supa.from('saved_drafts').insert({
+      user_id:      currentUser.id,
+      league_id:    sleeperLeagueId || null,
+      league_name:  sleeperLeagueName || 'My League',
+      season:       new Date().getFullYear(),
+      team_count:   TEAMS,
+      rounds:       ROUNDS,
+      my_team_idx:  myTeamIdx,
+      team_names:   teamNames,
+      picks:        pickLog,
+      team_rosters: teamRosters,
+      my_grade:     grade,
+      my_rank:      rank
+    });
+    if (error) throw error;
+    var badge = document.getElementById('draftSavedBadge');
+    if (badge) { badge.style.display = 'flex'; }
+  } catch(e) { console.error('[saveDraft]', e.message); }
+}
+
+// ── Load manager scouting notes from Supabase ────────────────────────────
+async function loadManagerNotes() {
+  if (!currentUser || !supa || !sleeperLeagueId) return;
+  try {
+    var { data } = await supa.from('league_managers')
+      .select('team_idx,notes')
+      .eq('user_id', currentUser.id)
+      .eq('league_id', sleeperLeagueId);
+    managerNotes = {};
+    if (data) data.forEach(function(r){ managerNotes[r.team_idx] = r.notes || ''; });
+  } catch(e) {}
 }
 
 // ── Auto-size top section to draft board content height (one-time on load) ──
