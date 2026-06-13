@@ -1619,16 +1619,7 @@ function renderBoard() {
   var pickMap = {};
   pickLog.forEach(function(l) { pickMap[l.pick] = l; });
 
-  var NFL_TEAM_COLORS = {
-    ARI:'#97233F',ATL:'#A71930',BAL:'#9E7C0C',BUF:'#C60C30',
-    CAR:'#0085CA',CHI:'#C83803',CIN:'#FB4F14',CLE:'#FF3C00',
-    DAL:'#869397',DEN:'#FB4F14',DET:'#0076B6',GB:'#FFB612',
-    HOU:'#D52B1E',IND:'#A2AAAD',JAX:'#D7A22A',KC:'#E31837',
-    LAC:'#FFC20E',LAR:'#FFA300',LV:'#A5ACAF',MIA:'#008E97',
-    MIN:'#4F2683',NE:'#C60C30',NO:'#D3BC8D',NYG:'#A71930',
-    NYJ:'#1E7B55',PHI:'#A5ACAF',PIT:'#FFB612',SEA:'#69BE28',
-    SF:'#AA0000',TB:'#D50A0A',TEN:'#4B92DB',WAS:'#773141'
-  };
+  var ESPN_ABBR_MAP = {WAS:'wsh',JAX:'jax',LAR:'lar',LAC:'lac',LV:'lv'};
 
   // Header row: one col per team (no round column)
   var html = '<table class="bg-table"><thead><tr>';
@@ -1673,7 +1664,7 @@ function renderBoard() {
         var POS_COLORS = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'};
         var posStroke = (POS_COLORS[pos] || '#aaaaaa') + '99';
         html += '<span class="bg-pos-wm" style="-webkit-text-stroke:1.2px ' + posStroke + ';text-stroke:1.2px ' + posStroke + '">' + pos + '</span>';
-        if (entry.nfl) { var nflStroke = (NFL_TEAM_COLORS[entry.nfl] || '#aaaaaa') + '99'; html += '<span class="bg-nfl-wm" style="-webkit-text-stroke:1.2px ' + nflStroke + ';text-stroke:1.2px ' + nflStroke + '">' + entry.nfl + '</span>'; }
+        if (entry.nfl) { var espnAbbr = ESPN_ABBR_MAP[entry.nfl] || entry.nfl.toLowerCase(); html += '<img class="bg-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/' + espnAbbr + '.png" alt="" onerror="this.style.display=\'none\'">'; }
         html += '<span class="bg-pick" style="position:relative;z-index:1">#' + pickNum + (entry.isKeeper ? ' 🔒' : '') + '</span>';
         if (isTraded) {
           var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
