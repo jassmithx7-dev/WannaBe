@@ -1,0 +1,27 @@
+---
+description: JSON rankings and data schema consistency
+globs: "rankings_*.json"
+alwaysApply: false
+---
+
+# Rankings & Data
+
+## Sources
+
+| Source | Format | Consumer |
+|--------|--------|----------|
+| `rankings_2026.json` | FantasyPros ECR array | `_applyFantasyProsRankings()` |
+| `league_setup.json` | `{ version, teams, trades }` | `applySetup()` |
+| Sleeper API | Live JSON | `fetchSleeperLeague()` |
+
+Do not invent parallel player schemas — extend the existing runtime player object.
+
+## FantasyPros row shape
+
+`playerName`, `team`, `position`, `ecrRank`, `tier`, `byeWeek`, `averageRank`
+
+Name matching uses normalized lowercase (strip punctuation).
+
+## Rankings update
+
+Replace `rankings_2026.json`; app cache-busts with `?v=YYYY-MM-DD`. After merge, recalc VORP.

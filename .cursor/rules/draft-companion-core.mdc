@@ -1,0 +1,27 @@
+---
+description: Draft Companion project context, goals, and AI change rules
+alwaysApply: true
+---
+
+# Draft Companion — Core
+
+Read `PROJECT_CONTEXT.md` for full details.
+
+**Stack:** Static HTML + vanilla JS. No build step, no npm. Supabase auth/persistence, Sleeper API, Anthropic Claude (user API key).
+
+**Flow:** `index.html` → `account.html` → `fantasy_draft_2026.html`
+
+**League:** 12 teams, 18 rounds, snake, Superflex PPR.
+
+## AI change rules
+
+- Minimize scope; do not refactor or add tests/docs unless asked
+- Prefer simple JS over frameworks
+- Keep table/grid UI readable (position badges, panel layout)
+- Preserve data shapes: player objects, `rankings_*.json`, `league_setup.json`, Supabase row formats
+- Preserve `draft_app.js` structure unless refactor is requested
+
+## Current focus
+
+- Player comparison UI
+- Ranking/VORP logic (`CUSTOM_SCORES`, ECR merge, NFL factors)

@@ -1,0 +1,31 @@
+---
+description: JavaScript conventions for draft logic and integrations
+globs: "**/*.js"
+alwaysApply: false
+---
+
+# JavaScript
+
+Primary file: `draft_app.js` (monolith — extract new modules when adding substantial features).
+
+## Patterns
+
+- Match existing style: `var`/`let`, global functions, section comments (`// ── Section ──`)
+- State: in-memory vars + `localStorage` keys prefixed `ff26_` or `dc_`
+- After ranking/score changes, call `calcVORP()` then `renderAll()` (or targeted render helpers)
+
+## Integrations
+
+- **Sleeper:** `https://api.sleeper.app/v1` — direct browser fetch (CORS OK)
+- **Supabase:** tables `user_settings`, `saved_drafts`, `league_managers`
+- **Anthropic:** model `claude-sonnet-4-6`; context via `buildDraftContext()`
+
+## Player object (runtime)
+
+Required fields to preserve: `name`, `team`, `pos`, `customScore`, `customRank`, `vorp`, `vorpRank`, `adp`, `drafted`
+
+## Avoid
+
+- Adding duplicate init blocks
+- Breaking Sleeper import/sync (`fetchSleeperLeague`, `startAutoSync`)
+- Changing VORP baselines without noting Superflex impact (QB baseline = 16th QB)

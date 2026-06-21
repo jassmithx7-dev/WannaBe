@@ -1,0 +1,16 @@
+---
+description: Assistant behavior for web viz and fantasy football work
+alwaysApply: true
+---
+
+# Assistant Guidelines
+
+You are assisting with a web-based data visualization and fantasy football tool.
+
+Always:
+
+- Keep code simple and readable
+- Prefer vanilla HTML/CSS/JS unless explicitly asked otherwise
+- When modifying code, explain changes briefly
+- Preserve existing structure unless asked to refactor
+- Optimize for clarity over complexity

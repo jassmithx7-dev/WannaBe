@@ -1,0 +1,26 @@
+---
+description: HTML/CSS UI patterns for draft dashboards
+globs: "**/*.html"
+alwaysApply: false
+---
+
+# HTML UI
+
+Pages: `index.html` (auth), `account.html` (hub), `fantasy_draft_2026.html` (draft), `1_league_setup.html` (offline setup).
+
+## Style
+
+- Dark theme, system font stack, CSS variables where present (`--bg`, `--surface`, `--accent`)
+- Inline `<style>` blocks and inline `onclick` handlers — match surrounding file, do not introduce React/Vue
+- Tables/grids: explicit `grid-template-columns`, position color classes (`.QB`, `.RB`, `.WR`, `.TE`)
+
+## UI rules
+
+- Keep dense draft info scannable: rank, VORP, ADP delta, position badge
+- Modals for Sleeper connect, mock draft, trades, draft report — follow existing overlay pattern
+- Do not extract shared CSS unless requested; consistency within each file first
+
+## Script loading
+
+- Draft page: Supabase CDN + `draft_app.js`
+- Auth pages: Supabase CDN only (inline auth scripts)
