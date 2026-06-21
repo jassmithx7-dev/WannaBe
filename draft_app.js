@@ -3436,7 +3436,7 @@ function toggleBoard() {
   if (_boardExpanded) {
     section.style.flex = '1 1 auto';
   } else {
-    restoreTopSectionHeight();
+    scheduleRestoreTopSectionHeight();
   }
 }
 function switchRPanel(tab) { switchRP(tab === 'ai' ? 'roster' : tab); }
@@ -3466,7 +3466,7 @@ function setPosFilter(pos, btn) {
     initPlayers();
     calcVORP();
     renderAll();
-    restoreTopSectionHeight();
+    scheduleRestoreTopSectionHeight();
     if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
     initAIPanel();
     var savedKey = localStorage.getItem('ff26_apiKey');
@@ -4286,22 +4286,38 @@ function tendencyLineForDraft(t, currentRound) {
 
 // ── Top / bottom splitter height ───────────────────────────────────────────
 var TOP_SECTION_H_KEY = 'ff26_topSectionH';
-var TOP_SECTION_DEFAULT = 280;
-var TOP_SECTION_MIN = 80;
+var TOP_SECTION_DEFAULT = 220;
+var TOP_SECTION_MIN = 100;
+var TOP_SECTION_MAX_RATIO = 0.55;
+var TOP_SECTION_MIN_BOTTOM = 220;
 
 function applyTopSectionHeight(h) {
   var topSection = document.getElementById('topSection');
   var main = document.querySelector('.main');
   if (!topSection || !main) return;
   var mainH = main.getBoundingClientRect().height;
-  var maxH = Math.floor(mainH * 0.42);
-  var clamped = Math.max(TOP_SECTION_MIN, Math.min(h, maxH, mainH - 160));
+  if (mainH < TOP_SECTION_MIN + TOP_SECTION_MIN_BOTTOM) return;
+  var maxH = Math.floor(mainH * TOP_SECTION_MAX_RATIO);
+  var clamped = Math.max(TOP_SECTION_MIN, Math.min(h, maxH, mainH - TOP_SECTION_MIN_BOTTOM));
   topSection.style.flex = '0 0 ' + clamped + 'px';
 }
 
 function restoreTopSectionHeight() {
+  var main = document.querySelector('.main');
+  var mainH = main ? main.getBoundingClientRect().height : 0;
   var saved = parseInt(localStorage.getItem(TOP_SECTION_H_KEY), 10);
-  applyTopSectionHeight(!isNaN(saved) && saved > 0 ? saved : TOP_SECTION_DEFAULT);
+  var h = TOP_SECTION_DEFAULT;
+  if (!isNaN(saved) && saved > 0) {
+    // Ignore old saves that reserved too much space for the board (pre-fix drag / auto-size)
+    if (!mainH || saved <= Math.floor(mainH * 0.35)) h = saved;
+  }
+  applyTopSectionHeight(h);
+}
+
+function scheduleRestoreTopSectionHeight() {
+  requestAnimationFrame(function() {
+    requestAnimationFrame(restoreTopSectionHeight);
+  });
 }
 
 function saveTopSectionHeight() {
@@ -4318,6 +4334,8 @@ function saveTopSectionHeight() {
     var main     = document.querySelector('.main');
     if (!resizer || !section || !main) return;
 
+    scheduleRestoreTopSectionHeight();
+
     var startY, startH;
 
     resizer.addEventListener('mousedown', function(e) {
@@ -4331,9 +4349,10 @@ function saveTopSectionHeight() {
       e.preventDefault();
     });
 
+    // Drag down → shrink board, expand player list / My Draft / AI
     function onMove(e) {
       var delta = e.clientY - startY;
-      applyTopSectionHeight(startH + delta);
+      applyTopSectionHeight(startH - delta);
     }
 
     function onUp() {
@@ -4346,7 +4365,7 @@ function saveTopSectionHeight() {
     }
 
     window.addEventListener('resize', function() {
-      restoreTopSectionHeight();
+      scheduleRestoreTopSectionHeight();
     });
   }
 
