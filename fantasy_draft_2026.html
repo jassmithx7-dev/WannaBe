@@ -69,7 +69,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .TE{background:rgba(188,140,255,.18);color:#bc8cff}
 .K{background:rgba(227,179,65,.18);color:#e3b341}
 .DEF{background:rgba(86,211,100,.18);color:#56d364}
-.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:620px}
+.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 54px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:652px}
 .ba:hover{background:#1c2128}
 .ba.out{opacity:.22;pointer-events:none;text-decoration:line-through}
 .ba.keeper-pick{background:#0e1f3d;border-left:2px solid #1f6feb}
@@ -198,6 +198,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
     <button id="tab-aiChat" onclick="showAIChatTab()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#7d8590;cursor:pointer">AI Chat</button>
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #2ea043;background:#0e2a1a;color:#3fb950;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9e6a03;background:#2d2008;color:#e3b341;cursor:pointer">🎯 Mock Draft</button>
+    <button onclick="openTradesModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #7c3aed;background:#1e1033;color:#c084fc;cursor:pointer" title="View recorded pick trades">🔄 Trades</button>
     <span id="liveSync" style="display:none;font-size:10px;font-weight:600;color:#3fb950;background:#0e2a1a;border:1px solid #1a4731;border-radius:12px;padding:2px 8px;white-space:nowrap;cursor:pointer" onclick="syncSleeperDraft()" title="Click to sync now"></span>
   </div>
   <label>Sort:</label>
@@ -245,6 +246,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <div class="clock" id="clk">Waiting for draft to start...</div>
         <button onclick="scrollToBoardCurrentRound()" title="Current pick" style="font-size:10px;background:#21262d;border:1px solid #30363d;color:#7d8590;border-radius:5px;padding:2px 7px;cursor:pointer;flex-shrink:0;margin-left:6px">📍</button>
       </div>
+      <div id="recentPicksStrip" style="font-size:10px;padding:4px 12px;border-bottom:1px solid #21262d;flex-shrink:0;overflow-x:auto;white-space:nowrap;color:#7d8590;background:#161b22"></div>
       <div id="mockBanner" style="display:none;background:#241e0e;border-bottom:2px solid #9e6a03;padding:6px 12px;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:12px;font-weight:700;color:#e3b341">🎯 MOCK</span>
         <span id="mockBannerPick" style="font-size:11px;color:#c9982b"></span>
@@ -287,14 +289,21 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </select>
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+        <div id="probLegend" style="font-size:9px;color:#7d8590;display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;white-space:nowrap" title="Left border color = estimated chance player goes before your next pick">
+          <span style="color:#484f58">Border:</span>
+          <span><span style="display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:1px;vertical-align:middle;margin-right:3px"></span>≥70%</span>
+          <span><span style="display:inline-block;width:8px;height:8px;background:#fbbf24;border-radius:1px;vertical-align:middle;margin-right:3px"></span>≥40%</span>
+          <span><span style="display:inline-block;width:8px;height:8px;background:#484f58;border-radius:1px;vertical-align:middle;margin-right:3px"></span>≥15%</span>
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:520px">
+      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 54px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:652px">
         <span>#</span><span>Pos</span><span>Player</span>
         <span style="text-align:center">ADP</span>
         <span style="text-align:center" title="Projected pts">Proj</span>
         <span style="text-align:center" title="VORP">VORP</span>
         <span style="text-align:center" title="OL grade">OL</span>
         <span style="text-align:center" title="Schedule strength">SoS</span>
+        <span style="text-align:center" title="Scheme fit grade">Fit</span>
         <span></span>
       </div>
       <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>

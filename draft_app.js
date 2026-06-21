@@ -133,8 +133,8 @@ async function onSignedIn(user) {
   loadLeagueIntelligence();
 }
 
-async function saveUserSettings() {
-  if (!currentUser) { alert('Sign in to save settings'); return; }
+async function saveUserSettings(silent) {
+  if (!currentUser) { if (!silent) alert('Sign in to save settings'); return false; }
   const settings = {
     user_id: currentUser.id,
     sleeper_league_id: sleeperLeagueId || '',
@@ -147,11 +147,14 @@ async function saveUserSettings() {
   const { error } = await supa.from('user_settings').upsert(settings, { onConflict: 'user_id' });
   if (error) {
     console.error('Save error:', error);
-    alert('Save failed: ' + error.message);
-  } else {
-    const btn = document.querySelector('#userBar button');
-    if (btn) { const orig = btn.textContent; btn.textContent = '✅ Saved!'; setTimeout(()=>btn.textContent=orig, 2000); }
+    if (!silent) alert('Save failed: ' + error.message);
+    return false;
   }
+  if (!silent) {
+    const btn = document.querySelector('#userBar button[onclick*="saveUserSettings"]');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✅ Saved!'; setTimeout(function(){ btn.textContent = orig; }, 2000); }
+  }
+  return true;
 }
 
 async function loadUserSettings() {
@@ -1376,7 +1379,8 @@ function renderBA(){
 
     const prob = (!p.drafted && !p.mockDrafted) ? (probMap[p.rank] || 0) : 0;
     const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
-    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${p.note}" style="border-left:3px solid ${probBorder}">
+    const probTitle = prob > 0 ? ('Pick prob ~' + prob + '% before your next turn') : p.note;
+    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
@@ -1388,6 +1392,7 @@ function renderBA(){
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums">${vorpTxt}</span>
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
       <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
+      <span class="fit-badge" style="background:${fit.bg};color:${fit.color}" title="Scheme fit">${fit.grade}</span>
       <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 5px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Ask Claude about this player">🤖</button>
     </div>`;
   }).join("");
@@ -1418,6 +1423,27 @@ function renderLog(){
     </div>`;
   }
   document.getElementById("pLog").innerHTML=rows;
+}
+
+function renderRecentPicks() {
+  var el = document.getElementById('recentPicksStrip');
+  if (!el) return;
+  if (!pickLog.length) {
+    el.innerHTML = '<span style="color:#484f58;font-style:italic">Recent picks appear here as the draft progresses</span>';
+    return;
+  }
+  var items = pickLog.slice(-6).map(function(l) {
+    var me = myTeamIdx >= 0 && l.teamIdx === myTeamIdx;
+    var teamLabel = (teamNames[l.teamIdx] || l.team || '?').split(' ')[0];
+    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;padding:1px 0' +
+      (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
+      '<span style="color:#484f58;font-variant-numeric:tabular-nums">#' + l.pick + '</span>' +
+      '<span class="pos ' + l.pos + '" style="font-size:9px">' + l.pos + '</span>' +
+      '<span style="color:#cdd9e5;max-width:120px;overflow:hidden;text-overflow:ellipsis">' + l.player + '</span>' +
+      '<span style="color:#484f58;font-size:9px">' + teamLabel + '</span>' +
+      '</span>';
+  }).join('');
+  el.innerHTML = '<span style="color:#484f58;margin-right:8px;font-weight:600">Recent:</span>' + items;
 }
 
 function renderRoster(){
@@ -1668,7 +1694,7 @@ function renderBoard() {
 
 function renderAll(){
   renderBoard();
-  renderClock();renderBA();renderLog();renderRoster();
+  renderClock();renderBA();renderLog();renderRecentPicks();renderRoster();
   renderNextPicksPanel();
   const at=document.querySelector(".tc.on");
   if(at){
@@ -2250,6 +2276,10 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
         `✅ Imported! ${rosters.length} teams · ${slotsAssigned} slots assigned · ${tradesFound} pick trades${draftStatus}${draftIdMsg}${tradeNote}`,
         false
       );
+    }
+
+    if (currentUser && supa) {
+      await saveUserSettings(true);
     }
 
   } catch(e) {
