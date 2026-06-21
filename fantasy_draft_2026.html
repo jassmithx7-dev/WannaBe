@@ -63,6 +63,11 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .sugg-draft-btn:hover{background:#3fb950}
 .sugg-ai-btn{flex:1;background:#1f6feb;border:none;color:#fff;font-size:12px;font-weight:700;padding:7px;border-radius:6px;cursor:pointer;letter-spacing:.02em}
 .sugg-ai-btn:hover{background:#388bfd}
+.sugg-tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#7d8590;font-size:10px;font-weight:600;padding:7px 4px;cursor:pointer}
+.sugg-tab:hover{color:#e6edf3}
+.sugg-tab.sugg-on{color:#388bfd;border-bottom-color:#388bfd}
+.ba.limit-pos{opacity:.45;cursor:not-allowed}
+.ba.limit-pos:hover{background:transparent}
 .pos{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;text-align:center}
 .QB{background:rgba(56,139,253,.18);color:#388bfd}
 .RB{background:rgba(63,185,80,.18);color:#3fb950}
@@ -236,15 +241,19 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
   <!-- TOP: Picks (left) + Board (right), same height -->
   <div id="topSection" style="flex:0 0 52%;display:flex;gap:6px;overflow:hidden;min-height:120px">
 
-    <!-- Top Picks panel -->
+    <!-- Pick suggestions panel -->
     <div class="panel" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
-      <div class="panel-hdr" style="padding:7px 10px">
-        <span style="font-size:12px;font-weight:700;color:#e6edf3">💡 Top Picks</span>
-        <span id="factorStatus" style="font-size:9px;color:#7d8590;margin-left:auto"></span>
+      <div class="panel-hdr" style="padding:7px 10px;flex-wrap:wrap">
+        <span id="suggPanelTitle" style="font-size:12px;font-weight:700;color:#e6edf3">💡 Pick Help</span>
+        <span id="posLimitsTag" style="font-size:9px;color:#7d8590;margin-left:auto"></span>
+      </div>
+      <div style="display:flex;border-bottom:1px solid #30363d;background:#21262d;flex-shrink:0">
+        <button type="button" id="suggTabFit" class="sugg-tab sugg-on" onclick="setSuggTab('fit')">Best Fit</button>
+        <button type="button" id="suggTabVorp" class="sugg-tab" onclick="setSuggTab('vorp')">Top VORP</button>
       </div>
       <div id="suggBar" style="flex:1;overflow-y:auto">
         <div id="suggCards">
-          <div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">Loading suggestions...</div>
+          <div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">Select your team for suggestions</div>
         </div>
       </div>
     </div>
@@ -300,6 +309,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </select>
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+        <span id="factorStatus" style="font-size:9px;color:#7d8590;flex-shrink:0"></span>
         <div id="probLegend" style="font-size:9px;color:#7d8590;display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;white-space:nowrap" title="Left border = pick prob · Δ = ADP vs current pick (STEAL/REACH)">
           <span style="color:#484f58">⚖ compare · Δ · Border:</span>
           <span><span style="display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:1px;vertical-align:middle;margin-right:3px"></span>≥70%</span>
@@ -404,7 +414,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="draft_app.js?v=c7b018f"></script>
+<script src="draft_app.js?v=poslimits1"></script>
 <script>
   // Auto-login: if a Supabase session exists (set from account page), dismiss auth modal silently
   if (supa) {
