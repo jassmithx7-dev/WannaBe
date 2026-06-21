@@ -4286,10 +4286,10 @@ function tendencyLineForDraft(t, currentRound) {
 
 // ── Top / bottom splitter height ───────────────────────────────────────────
 var TOP_SECTION_H_KEY = 'ff26_topSectionH';
-var TOP_SECTION_DEFAULT = 220;
-var TOP_SECTION_MIN = 100;
-var TOP_SECTION_MAX_RATIO = 0.55;
-var TOP_SECTION_MIN_BOTTOM = 220;
+var TOP_SECTION_MIN = 120;
+var TOP_SECTION_MAX_RATIO = 0.78;
+var TOP_SECTION_MIN_BOTTOM = 100;
+var TOP_SECTION_DEFAULT_RATIO = 0.52;
 
 function applyTopSectionHeight(h) {
   var topSection = document.getElementById('topSection');
@@ -4302,16 +4302,22 @@ function applyTopSectionHeight(h) {
   topSection.style.flex = '0 0 ' + clamped + 'px';
 }
 
-function restoreTopSectionHeight() {
+function defaultTopSectionHeight() {
   var main = document.querySelector('.main');
   var mainH = main ? main.getBoundingClientRect().height : 0;
+  return mainH ? Math.floor(mainH * TOP_SECTION_DEFAULT_RATIO) : 400;
+}
+
+function restoreTopSectionHeight() {
   var saved = parseInt(localStorage.getItem(TOP_SECTION_H_KEY), 10);
-  var h = TOP_SECTION_DEFAULT;
-  if (!isNaN(saved) && saved > 0) {
-    // Ignore old saves that reserved too much space for the board (pre-fix drag / auto-size)
-    if (!mainH || saved <= Math.floor(mainH * 0.35)) h = saved;
+  var main = document.querySelector('.main');
+  var mainH = main ? main.getBoundingClientRect().height : 0;
+  var minSaved = mainH ? Math.floor(mainH * 0.38) : 0;
+  if (!isNaN(saved) && saved > 0 && (!mainH || saved >= minSaved)) {
+    applyTopSectionHeight(saved);
+  } else {
+    applyTopSectionHeight(defaultTopSectionHeight());
   }
-  applyTopSectionHeight(h);
 }
 
 function scheduleRestoreTopSectionHeight() {
@@ -4349,10 +4355,10 @@ function saveTopSectionHeight() {
       e.preventDefault();
     });
 
-    // Drag down → shrink board, expand player list / My Draft / AI
+    // Drag down → taller draft board; drag up → taller player list
     function onMove(e) {
       var delta = e.clientY - startY;
-      applyTopSectionHeight(startH - delta);
+      applyTopSectionHeight(startH + delta);
     }
 
     function onUp() {
