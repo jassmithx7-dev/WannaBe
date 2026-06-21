@@ -1306,7 +1306,7 @@ function formatByeParen(playerOrName) {
         var p = players.find(function(x) { return x.name === name; });
         return p && p.bye && p.bye !== 'TBD' ? p.bye : null;
       })();
-  return bye ? ' (Bye ' + bye + ')' : '';
+  return bye ? ' (' + bye + ')' : '';
 }
 
 function toggleComparePlayer(rank, ev) {
