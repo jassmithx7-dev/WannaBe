@@ -678,6 +678,7 @@ let currentPick=1;
 let pickLog=[]; // {pick,teamIdx,player,pos,nfl,isKeeper,isTraded}
 let teamRosters=Array.from({length:TEAMS},()=>[]);
 let history=[];
+var compareRanks = []; // up to 3 player ranks for side-by-side compare
 
 // ── AI state ──
 let apiKey = localStorage.getItem('ff26_apiKey') || '';
@@ -1074,6 +1075,8 @@ function draftPlayer(rank){
   const rd=ptRd(currentPick);
   history.push({pick:currentPick,ti,rank,ps:players.map(x=>({...x})),rosterSlots:[...myRosterSlots],rs:teamRosters.map(r=>[...r]),pl:[...pickLog],cp:currentPick});
   p.drafted=true;
+  compareRanks = compareRanks.filter(function(r) { return r !== rank; });
+  if (compareRanks.length < 2) closeCompareModal();
   teamRosters[ti]=[...teamRosters[ti],{...p,pickNum:currentPick,rd,isKeeper:false}];
   // Smart assign to My Roster slot if this is the user's team
   {const myTi2=myTeamIdx!==''?parseInt(myTeamIdx):-1;
@@ -1124,6 +1127,7 @@ function resetDraft(){
   teamRosters=Array.from({length:TEAMS},()=>[]);
   myRosterSlots=Array(18).fill(null);
   pickLog=[];history=[];currentPick=1;
+  compareRanks = [];
   initPlayers();
   if(setup){buildPickOwners();buildKeeperPicks();}
   renderAll();
@@ -1282,6 +1286,158 @@ function showPickSuggestions() {
 }
 
 
+// ── Player comparison ──
+function getAdpDeltaLabel(p) {
+  if (!p.adp || p.adp >= 900) return { text: '—', color: '#7d8590' };
+  var delta = Math.round(p.adp - currentPick);
+  if (delta > 8) return { text: 'STEAL +' + delta, color: '#4ade80' };
+  if (delta < -8) return { text: 'REACH ' + delta, color: '#f87171' };
+  return { text: 'Fair ' + (delta > 0 ? '+' : '') + delta, color: '#9ca3af' };
+}
+
+function toggleComparePlayer(rank, ev) {
+  if (ev) ev.stopPropagation();
+  var p = players.find(function(x) { return x.rank === rank; });
+  if (!p || p.drafted || p.mockDrafted) return;
+  var idx = compareRanks.indexOf(rank);
+  if (idx >= 0) compareRanks.splice(idx, 1);
+  else {
+    if (compareRanks.length >= 3) compareRanks.shift();
+    compareRanks.push(rank);
+  }
+  renderCompareBar();
+  renderBA();
+}
+
+function clearCompare() {
+  compareRanks = [];
+  closeCompareModal();
+  renderCompareBar();
+  renderBA();
+}
+
+function renderCompareBar() {
+  var bar = document.getElementById('compareBar');
+  if (!bar) return;
+  if (!compareRanks.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  var chips = compareRanks.map(function(rank) {
+    var p = players.find(function(x) { return x.rank === rank; });
+    if (!p) return '';
+    var safeName = p.name.replace(/'/g, '&#39;');
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#21262d;border:1px solid #30363d;border-radius:12px;padding:2px 8px;font-size:10px">' +
+      '<span class="pos ' + p.pos + '" style="font-size:9px">' + p.pos + '</span>' +
+      '<span style="color:#e6edf3">' + safeName + '</span>' +
+      '<button onclick="toggleComparePlayer(' + rank + ', event)" style="background:transparent;border:none;color:#7d8590;cursor:pointer;font-size:11px;padding:0 2px;line-height:1" title="Remove">×</button>' +
+      '</span>';
+  }).join('');
+  var canCompare = compareRanks.length >= 2;
+  bar.innerHTML = '<span style="font-size:10px;color:#7d8590;font-weight:600;margin-right:4px">Compare:</span>' + chips +
+    '<button onclick="openCompareModal()" style="margin-left:auto;font-size:10px;background:' + (canCompare ? '#1f6feb' : '#21262d') + ';color:' + (canCompare ? '#fff' : '#484f58') + ';border:1px solid ' + (canCompare ? '#1f6feb' : '#30363d') + ';border-radius:5px;padding:4px 10px;cursor:' + (canCompare ? 'pointer' : 'default') + '"' + (canCompare ? '' : ' disabled') + '>Open (' + compareRanks.length + '/3)</button>' +
+    '<button onclick="clearCompare()" style="font-size:10px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:5px;padding:4px 8px;cursor:pointer">Clear</button>';
+}
+
+function openCompareModal() {
+  if (compareRanks.length < 2) return;
+  renderCompareModal();
+  var modal = document.getElementById('compareModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeCompareModal() {
+  var modal = document.getElementById('compareModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function compareBestIdx(metric, ps) {
+  if (!metric.best || !metric.numKey) return -1;
+  var best = null;
+  var bestI = -1;
+  ps.forEach(function(p, i) {
+    var v = p[metric.numKey];
+    if (v == null || v === 9999 || v === 999) return;
+    if (best === null) { best = v; bestI = i; return; }
+    if (metric.best === 'max' && v > best) { best = v; bestI = i; }
+    if (metric.best === 'min' && v < best) { best = v; bestI = i; }
+  });
+  return bestI;
+}
+
+function renderCompareModal() {
+  var el = document.getElementById('compareModalContent');
+  if (!el) return;
+  var ps = compareRanks.map(function(rank) {
+    return players.find(function(x) { return x.rank === rank; });
+  }).filter(Boolean);
+  if (ps.length < 2) {
+    el.innerHTML = '<p style="color:#7d8590;font-size:12px">Select at least 2 available players using ⚖ on the board.</p>';
+    return;
+  }
+
+  var metrics = [
+    { label: 'Team', fn: function(p) { return p.team || '—'; } },
+    { label: 'Custom rank', fn: function(p) { return p.customRank < 9000 ? '#' + p.customRank : '—'; }, best: 'min', numKey: 'customRank' },
+    { label: 'Proj pts', fn: function(p) { return p.customScore ? p.customScore.toFixed(0) : '—'; }, best: 'max', numKey: 'customScore' },
+    { label: 'VORP', fn: function(p) {
+      return (p.vorp != null && p.customScore) ? ((p.vorp > 0 ? '+' : '') + p.vorp.toFixed(1)) : '—';
+    }, best: 'max', numKey: 'vorp' },
+    { label: 'ADP', fn: function(p) { return (p.adp && p.adp < 900) ? p.adp : '—'; }, best: 'min', numKey: 'adp' },
+    { label: 'vs pick #' + currentPick, fn: function(p) { return getAdpDeltaLabel(p).text; }, colorFn: function(p) { return getAdpDeltaLabel(p).color; } },
+    { label: 'Tier', fn: function(p) { return p.tier || '—'; }, best: 'min', numKey: 'tier' },
+    { label: 'Bye', fn: function(p) { return (p.bye && p.bye !== 'TBD') ? 'Wk ' + p.bye : '—'; } },
+    { label: 'Scheme fit', fn: function(p) { var f = SCHEME_FIT[p.name]; return f ? f.grade : '?'; } },
+    { label: 'OL', fn: function(p) { var i = PLAYER_INTEL[p.name]; return i.ol_grade || '—'; } },
+    { label: 'SoS', fn: function(p) {
+      var i = PLAYER_INTEL[p.name];
+      return i.sos ? i.sos + (i.sos_label ? ' · ' + i.sos_label : '') : '—';
+    } },
+    { label: 'Usage', fn: function(p) { var i = PLAYER_INTEL[p.name]; return i.usage || '—'; }, wrap: true },
+    { label: 'Intel / notes', fn: function(p) {
+      var i = PLAYER_INTEL[p.name];
+      if (p.note) return p.note;
+      if (i && i.hc) return i.hc + (i.oc ? ' · ' + i.oc : '') + (i.tendency ? ' · ' + i.tendency : '');
+      return '—';
+    }, wrap: true }
+  ];
+
+  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  html += '<thead><tr style="border-bottom:1px solid #30363d">';
+  html += '<th style="text-align:left;padding:8px 10px;color:#7d8590;font-weight:600;width:96px"></th>';
+  ps.forEach(function(p) {
+    html += '<th style="text-align:center;padding:8px 10px;min-width:150px;vertical-align:bottom">' +
+      '<span class="pos ' + p.pos + '" style="font-size:10px">' + p.pos + '</span>' +
+      '<div style="font-size:13px;font-weight:700;color:#e6edf3;margin:4px 0 6px;line-height:1.25">' + p.name + '</div>' +
+      '<button onclick="draftPlayer(' + p.rank + ');closeCompareModal()" style="font-size:10px;background:#2ea043;color:#fff;border:1px solid #3fb950;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Draft</button>' +
+      '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  metrics.forEach(function(metric) {
+    var bi = compareBestIdx(metric, ps);
+    html += '<tr style="border-bottom:1px solid #21262d">';
+    html += '<td style="padding:7px 10px;color:#7d8590;font-weight:600;white-space:nowrap;vertical-align:top">' + metric.label + '</td>';
+    ps.forEach(function(p, ci) {
+      var val = metric.fn(p);
+      var color = metric.colorFn ? metric.colorFn(p) : (bi === ci ? '#4ade80' : '#e6edf3');
+      var weight = bi === ci ? '700' : '500';
+      html += '<td style="padding:7px 10px;text-align:' + (metric.wrap ? 'left' : 'center') + ';color:' + color + ';font-weight:' + weight + ';vertical-align:top' + (metric.wrap ? ';line-height:1.45;font-size:10px' : '') + '">' + val + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  var best = ps.slice().sort(function(a, b) { return (b.vorp || 0) - (a.vorp || 0); })[0];
+  var adp = getAdpDeltaLabel(best);
+  html += '<div style="margin-top:14px;padding:10px 12px;background:#0e2a1a;border:1px solid #2ea043;border-radius:8px;font-size:11px;color:#86efac;line-height:1.5">' +
+    '<strong style="color:#4ade80">Recommendation:</strong> ' + best.name +
+    ' — highest VORP (' + (best.vorp > 0 ? '+' : '') + (best.vorp || 0).toFixed(1) + ')' +
+    (adp.text !== '—' ? ' · ' + adp.text : '') +
+    '</div>';
+
+  el.innerHTML = html;
+}
+
+
 function renderBA(){
   const sort=document.getElementById("sortSel").value;
   const filt=document.getElementById("posFilt").value;
@@ -1380,7 +1536,8 @@ function renderBA(){
     const prob = (!p.drafted && !p.mockDrafted) ? (probMap[p.rank] || 0) : 0;
     const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
     const probTitle = prob > 0 ? ('Pick prob ~' + prob + '% before your next turn') : p.note;
-    return `<div class="ba${p.drafted?" out":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
+    const inCompare = compareRanks.indexOf(p.rank) >= 0;
+    return `<div class="ba${p.drafted?" out":""}${inCompare?" compare-on":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
@@ -1393,7 +1550,10 @@ function renderBA(){
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
       <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
       <span class="fit-badge" style="background:${fit.bg};color:${fit.color}" title="Scheme fit">${fit.grade}</span>
-      <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 5px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Ask Claude about this player">🤖</button>
+      <span style="display:flex;gap:2px;justify-content:center;flex-shrink:0">
+        <button onclick="event.stopPropagation();toggleComparePlayer(${p.rank}, event)" style="font-size:9px;background:${inCompare?'#1f6feb':'transparent'};color:${inCompare?'#fff':'#7d8590'};border:1px solid ${inCompare?'#1f6feb':'#30363d'};border-radius:3px;padding:2px 4px;cursor:pointer" title="Add to compare (up to 3)">⚖</button>
+        <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 4px;cursor:pointer" title="Ask Claude about this player">🤖</button>
+      </span>
     </div>`;
   }).join("");
 }
@@ -1694,7 +1854,7 @@ function renderBoard() {
 
 function renderAll(){
   renderBoard();
-  renderClock();renderBA();renderLog();renderRecentPicks();renderRoster();
+  renderClock();renderBA();renderLog();renderRecentPicks();renderCompareBar();renderRoster();
   renderNextPicksPanel();
   const at=document.querySelector(".tc.on");
   if(at){
