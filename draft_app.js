@@ -3433,7 +3433,11 @@ function toggleBoard() {
   var section = document.getElementById('topSection');
   if (!section) return;
   _boardExpanded = !_boardExpanded;
-  section.style.flex = _boardExpanded ? '1 1 auto' : '0 0 280px';
+  if (_boardExpanded) {
+    section.style.flex = '1 1 auto';
+  } else {
+    restoreTopSectionHeight();
+  }
 }
 function switchRPanel(tab) { switchRP(tab === 'ai' ? 'roster' : tab); }
 
@@ -3462,7 +3466,7 @@ function setPosFilter(pos, btn) {
     initPlayers();
     calcVORP();
     renderAll();
-    setTimeout(autoSizeTopSection, 50);
+    restoreTopSectionHeight();
     if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
     initAIPanel();
     var savedKey = localStorage.getItem('ff26_apiKey');
@@ -4280,17 +4284,30 @@ function tendencyLineForDraft(t, currentRound) {
   return parts.join(' | ');
 }
 
-// ── Auto-size top section to draft board content height (one-time on load) ──
-function autoSizeTopSection() {
+// ── Top / bottom splitter height ───────────────────────────────────────────
+var TOP_SECTION_H_KEY = 'ff26_topSectionH';
+var TOP_SECTION_DEFAULT = 280;
+var TOP_SECTION_MIN = 80;
+
+function applyTopSectionHeight(h) {
   var topSection = document.getElementById('topSection');
-  var boardGrid  = document.getElementById('boardGrid');
-  var boardPanel = document.getElementById('boardPanel');
-  if (!topSection || !boardGrid || !boardPanel) return;
-  var hdr = boardPanel.querySelector('.panel-hdr');
-  var hdrH = hdr ? hdr.getBoundingClientRect().height : 36;
-  var natural = boardGrid.scrollHeight + hdrH + 16;
-  var maxH = Math.floor(window.innerHeight * 0.82);
-  topSection.style.flex = '0 0 ' + Math.max(100, Math.min(natural, maxH)) + 'px';
+  var main = document.querySelector('.main');
+  if (!topSection || !main) return;
+  var mainH = main.getBoundingClientRect().height;
+  var maxH = Math.floor(mainH * 0.42);
+  var clamped = Math.max(TOP_SECTION_MIN, Math.min(h, maxH, mainH - 160));
+  topSection.style.flex = '0 0 ' + clamped + 'px';
+}
+
+function restoreTopSectionHeight() {
+  var saved = parseInt(localStorage.getItem(TOP_SECTION_H_KEY), 10);
+  applyTopSectionHeight(!isNaN(saved) && saved > 0 ? saved : TOP_SECTION_DEFAULT);
+}
+
+function saveTopSectionHeight() {
+  var topSection = document.getElementById('topSection');
+  if (!topSection) return;
+  try { localStorage.setItem(TOP_SECTION_H_KEY, String(Math.round(topSection.getBoundingClientRect().height))); } catch(e) {}
 }
 
 // ── Resizable board/bottom splitter ──────────────────────────────────────
@@ -4316,9 +4333,7 @@ function autoSizeTopSection() {
 
     function onMove(e) {
       var delta = e.clientY - startY;
-      var mainH = main.getBoundingClientRect().height;
-      var newH  = Math.max(80, Math.min(startH + delta, mainH - 120));
-      section.style.flex = '0 0 ' + newH + 'px';
+      applyTopSectionHeight(startH + delta);
     }
 
     function onUp() {
@@ -4327,7 +4342,12 @@ function autoSizeTopSection() {
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      saveTopSectionHeight();
     }
+
+    window.addEventListener('resize', function() {
+      restoreTopSectionHeight();
+    });
   }
 
   if (document.readyState === 'loading') {
