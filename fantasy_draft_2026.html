@@ -69,7 +69,14 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .TE{background:rgba(188,140,255,.18);color:#bc8cff}
 .K{background:rgba(227,179,65,.18);color:#e3b341}
 .DEF{background:rgba(86,211,100,.18);color:#56d364}
-.ba{display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 72px;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s;min-width:680px}
+.ba-grid{display:grid;grid-template-columns:26px 36px minmax(160px,1fr) 36px 42px 42px 36px 36px 32px 72px;gap:4px;align-items:center;padding:5px 8px;box-sizing:border-box}
+.ba-hdr{background:#21262d;border-bottom:1px solid #21262d;font-size:10px;color:#7d8590;font-weight:600;padding:4px 8px;position:sticky;top:0;z-index:2}
+.ba-hdr-num{text-align:right}
+.ba-hdr-c{text-align:center}
+.ba-hdr-player{text-align:left}
+.ba-wrap{flex:1;min-height:0;overflow:auto}
+.ba-table{min-width:680px}
+.ba{border-bottom:1px solid #21262d;cursor:pointer;transition:background .1s}
 .ba:hover{background:#1c2128}
 .ba.compare-on{background:rgba(56,139,253,.08);box-shadow:inset 0 0 0 1px rgba(56,139,253,.35)}
 .ba.out{opacity:.22;pointer-events:none;text-decoration:line-through}
@@ -200,6 +207,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
     <button onclick="openSleeperModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #2ea043;background:#0e2a1a;color:#3fb950;cursor:pointer">🔗 Sleeper</button>
     <button onclick="openMockDraft()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #9e6a03;background:#2d2008;color:#e3b341;cursor:pointer">🎯 Mock Draft</button>
     <button onclick="openTradesModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #7c3aed;background:#1e1033;color:#c084fc;cursor:pointer" title="View recorded pick trades">🔄 Trades</button>
+    <button id="compareTopBtn" onclick="openCompareModal()" style="font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #1f6feb;background:#0e1f3d;color:#388bfd;cursor:pointer;opacity:.55" title="Select 2–3 players with ⚖ on the board, then compare">⚖ Compare</button>
     <span id="liveSync" style="display:none;font-size:10px;font-weight:600;color:#3fb950;background:#0e2a1a;border:1px solid #1a4731;border-radius:12px;padding:2px 8px;white-space:nowrap;cursor:pointer" onclick="syncSleeperDraft()" title="Click to sync now"></span>
   </div>
   <label>Sort:</label>
@@ -297,18 +305,26 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
           <span><span style="display:inline-block;width:8px;height:8px;background:#484f58;border-radius:1px;vertical-align:middle;margin-right:3px"></span>≥15%</span>
         </div>
       </div>
-      <div id="compareBar" style="display:none;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid #21262d;background:#0e1f3d;flex-shrink:0;flex-wrap:wrap"></div>
-      <div style="display:grid;grid-template-columns:26px 36px 1fr 36px 42px 42px 36px 36px 32px 72px;gap:4px;align-items:center;padding:4px 8px;font-size:10px;color:#7d8590;border-bottom:1px solid #21262d;flex-shrink:0;background:#21262d;min-width:680px">
-        <span>#</span><span>Pos</span><span>Player</span>
-        <span style="text-align:center">ADP</span>
-        <span style="text-align:center" title="Projected pts">Proj</span>
-        <span style="text-align:center" title="VORP">VORP</span>
-        <span style="text-align:center" title="OL grade">OL</span>
-        <span style="text-align:center" title="Schedule strength">SoS</span>
-        <span style="text-align:center" title="Scheme fit grade">Fit</span>
-        <span></span>
+      <div id="compareBar" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid #21262d;background:#0e1f3d;flex-shrink:0;flex-wrap:wrap;font-size:10px;color:#7d8590">
+        <span>Click <strong style="color:#388bfd">⚖</strong> on player rows to compare up to 3 · then use <strong style="color:#388bfd">Compare</strong> in the top bar</span>
       </div>
-      <div id="baList" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0"></div>
+      <div class="ba-wrap">
+        <div class="ba-table">
+          <div class="ba-grid ba-hdr">
+            <span class="ba-hdr-num">#</span>
+            <span class="ba-hdr-c">Pos</span>
+            <span class="ba-hdr-player">Player</span>
+            <span class="ba-hdr-c">ADP</span>
+            <span class="ba-hdr-c" title="Projected pts">Proj</span>
+            <span class="ba-hdr-c" title="VORP">VORP</span>
+            <span class="ba-hdr-c" title="OL grade">OL</span>
+            <span class="ba-hdr-c" title="Schedule strength">SoS</span>
+            <span class="ba-hdr-c" title="Scheme fit grade">Fit</span>
+            <span class="ba-hdr-c" title="Compare / AI">⚖</span>
+          </div>
+          <div id="baList"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Horizontal drag handle -->

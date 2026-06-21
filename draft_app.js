@@ -1316,11 +1316,25 @@ function clearCompare() {
   renderBA();
 }
 
+function updateCompareTopBtn() {
+  var btn = document.getElementById('compareTopBtn');
+  if (!btn) return;
+  var n = compareRanks.length;
+  btn.disabled = n < 2;
+  btn.textContent = n ? ('⚖ Compare (' + n + ')') : '⚖ Compare';
+  btn.style.opacity = n >= 2 ? '1' : '0.55';
+  btn.style.cursor = n >= 2 ? 'pointer' : 'default';
+}
+
 function renderCompareBar() {
   var bar = document.getElementById('compareBar');
   if (!bar) return;
-  if (!compareRanks.length) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
+  if (!compareRanks.length) {
+    bar.innerHTML = '<span style="font-size:10px;color:#7d8590">Click <strong style="color:#388bfd">⚖</strong> on player rows to compare up to 3 · then <strong style="color:#388bfd">Compare</strong> in the top bar</span>';
+    updateCompareTopBtn();
+    return;
+  }
   var chips = compareRanks.map(function(rank) {
     var p = players.find(function(x) { return x.rank === rank; });
     if (!p) return '';
@@ -1335,6 +1349,7 @@ function renderCompareBar() {
   bar.innerHTML = '<span style="font-size:10px;color:#7d8590;font-weight:600;margin-right:4px">Compare:</span>' + chips +
     '<button onclick="openCompareModal()" style="margin-left:auto;font-size:10px;background:' + (canCompare ? '#1f6feb' : '#21262d') + ';color:' + (canCompare ? '#fff' : '#484f58') + ';border:1px solid ' + (canCompare ? '#1f6feb' : '#30363d') + ';border-radius:5px;padding:4px 10px;cursor:' + (canCompare ? 'pointer' : 'default') + '"' + (canCompare ? '' : ' disabled') + '>Open (' + compareRanks.length + '/3)</button>' +
     '<button onclick="clearCompare()" style="font-size:10px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:5px;padding:4px 8px;cursor:pointer">Clear</button>';
+  updateCompareTopBtn();
 }
 
 function openCompareModal() {
@@ -1537,20 +1552,20 @@ function renderBA(){
     const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
     const probTitle = prob > 0 ? ('Pick prob ~' + prob + '% before your next turn') : p.note;
     const inCompare = compareRanks.indexOf(p.rank) >= 0;
-    return `<div class="ba${p.drafted?" out":""}${inCompare?" compare-on":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
+    return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
-      <span class="pos ${p.pos}">${p.pos}</span>
+      <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
         <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
       </div>
-      <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums">${p.adp&&p.adp<900?p.adp:'—'}</span>
-      <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums">${sc}</span>
-      <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums">${vorpTxt}</span>
-      <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color}">${intel.ol_grade||'—'}</span>
-      <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color}">${sosLabel}</span>
-      <span class="fit-badge" style="background:${fit.bg};color:${fit.color}" title="Scheme fit">${fit.grade}</span>
-      <span style="display:flex;gap:2px;justify-content:center;flex-shrink:0">
+      <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums;justify-self:center">${p.adp&&p.adp<900?p.adp:'—'}</span>
+      <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums;justify-self:center">${sc}</span>
+      <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums;justify-self:center">${vorpTxt}</span>
+      <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color};justify-self:center">${intel.ol_grade||'—'}</span>
+      <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color};justify-self:center">${sosLabel}</span>
+      <span class="fit-badge" style="background:${fit.bg};color:${fit.color};justify-self:center" title="Scheme fit">${fit.grade}</span>
+      <span style="display:flex;gap:2px;justify-content:center;flex-shrink:0;justify-self:center">
         <button onclick="event.stopPropagation();toggleComparePlayer(${p.rank}, event)" style="font-size:9px;background:${inCompare?'#1f6feb':'transparent'};color:${inCompare?'#fff':'#7d8590'};border:1px solid ${inCompare?'#1f6feb':'#30363d'};border-radius:3px;padding:2px 4px;cursor:pointer" title="Add to compare (up to 3)">⚖</button>
         <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 4px;cursor:pointer" title="Ask Claude about this player">🤖</button>
       </span>
