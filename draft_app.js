@@ -239,7 +239,7 @@ const BASE_PLAYERS=[
   {rank:11,name:"Caleb Williams",team:"CHI",pos:"QB",bye:"TBD",adp:30,sf:11,note:"Ben Johnson HC yr 2 \u2014 massive leap"},
   {rank:12,name:"Patrick Mahomes",team:"KC",pos:"QB",bye:"TBD",adp:32,sf:12,note:"Reid/Bieniemy \u2014 GOAT floor"},
   {rank:13,name:"Dak Prescott",team:"DAL",pos:"QB",bye:"TBD",adp:35,sf:13,note:"Schottenheimer \u2014 pass-heavy, comeback yr"},
-  {rank:14,name:"Kyler Murray",team:"MIN",pos:"QB",bye:"TBD",adp:40,sf:14,note:"O’Connell HC \u2014 scheme fit"},
+  {rank:14,name:"Kyler Murray",team:"ARI",pos:"QB",bye:"TBD",adp:40,sf:14,note:"Petzing OC \u2014 rushing upside"},
   {rank:15,name:"Jordan Love",team:"GB",pos:"QB",bye:"TBD",adp:45,sf:15,note:"LaFleur \u2014 bounce-back"},
   {rank:16,name:"Justin Herbert",team:"LAC",pos:"QB",bye:"TBD",adp:48,sf:16,note:"Harbaugh yr 2 \u2014 McDaniel OC"},
   {rank:17,name:"Baker Mayfield",team:"TB",pos:"QB",bye:"TBD",adp:55,sf:17,note:"Bowles/Robinson \u2014 proven system"},
@@ -724,7 +724,7 @@ function calcVORP() {
 }
 
 function initPlayers(){
-  players=BASE_PLAYERS.map(p=>({...p,drafted:false,customRank:customRank(p.name),customScore:CUSTOM_SCORES[p.name]||0}));
+  players=BASE_PLAYERS.map(p=>({...p,id:p.rank,drafted:false,customRank:customRank(p.name),customScore:CUSTOM_SCORES[p.name]||0}));
   if(nflFactorsLoaded) applyNFLFactors();
 }
 
@@ -1046,7 +1046,7 @@ function clockTeamIdx(){
 }
 
 function isKeeperPick(pick){return keeperPicks.find(kp=>kp.pick===pick);}
-isTradedPick=(pick)=>{
+const isTradedPick=(pick)=>{
   if(!trades.length||pickOwners[pick-1]===undefined||origPickOwners[pick-1]===undefined) return false;
   return pickOwners[pick-1] !== origPickOwners[pick-1];
 };
@@ -1280,7 +1280,6 @@ function showPickSuggestions() {
 
 
 function renderBA(){
-  calcVORP();
   const sort=document.getElementById("sortSel").value;
   const filt=document.getElementById("posFilt").value;
   const fit=document.getElementById("fitFilt").value;
@@ -1419,29 +1418,6 @@ function renderLog(){
     </div>`;
   }
   document.getElementById("pLog").innerHTML=rows;
-}
-
-/*OLD*/ function renderRoster_OLD(){
-  const ti=myTeamIdx>=0?myTeamIdx:-1;
-  const roster=ti>=0?teamRosters[ti]:[];
-  const qbs=roster.filter(p=>p.pos==="QB").length;
-  document.getElementById("statsBar").innerHTML=`
-    <div class="sv"><div class="sv-n">${roster.length}</div><div class="sv-l">Picked</div></div>
-    <div class="sv"><div class="sv-n">${ROUNDS-roster.length}</div><div class="sv-l">Left</div></div>
-    <div class="sv"><div class="sv-n${qbs>=3?" warn":""}">${qbs}/3</div><div class="sv-l">QBs</div></div>
-    <div class="sv"><div class="sv-n">${roster.filter(p=>p.pos==="RB").length}</div><div class="sv-l">RBs</div></div>
-    <div class="sv"><div class="sv-n">${roster.filter(p=>p.pos==="WR").length}</div><div class="sv-l">WRs</div></div>
-    <div class="sv"><div class="sv-n">${roster.filter(p=>p.pos==="TE").length}</div><div class="sv-l">TEs</div></div>`;
-  if(ti<0){document.getElementById("rNote").textContent="Select your team above.";document.getElementById("rList").innerHTML="";return;}
-  document.getElementById("rNote").textContent=`${teamNames[ti]} \u00b7 ${roster.length}/${ROUNDS} picks \u00b7 QBs: ${qbs}/3 max`;
-  document.getElementById("rList").innerHTML=RSLOTS.map((slot,i)=>{
-    const p=roster[i];
-    const fit=p?SCHEME_FIT[p.name]:null;
-    return `<div class="rslot">
-      <span class="rslot-lbl${slot.sf?" sf":""}">${slot.l}</span>
-      ${p?`<span class="rslot-p"><span class="pos ${p.pos}" style="font-size:9px">${p.pos}</span>${p.isKeeper?"<span style='font-size:9px;color:#60a5fa;margin:0 2px'>[K]</span>":""}${p.name} <span style="color:#6b7280;font-size:9px">(${p.team||p.nflTeam||"?"})</span>${fit?`<span class="fit-badge" style="background:${fit.bg};color:${fit.color};margin-left:3px">${fit.grade}</span>`:""}</span>`:`<span class="rslot-empty">empty</span>`}
-    </div>`;
-  }).join("");
 }
 
 function renderRoster(){
@@ -1898,57 +1874,6 @@ function showMainTab(tab) {
 }
 
 
-// ── AI Functions ──
-
-function showKeyActive() {
-  var entry = document.getElementById('aiKeyEntry');
-  var tag = document.getElementById('aiActiveTag');
-  var btns = document.getElementById('aiActionBtns');
-  var chips = document.getElementById('aiChipsRow');
-  var inputRow = document.getElementById('aiInputRow');
-  if (entry) entry.style.display = 'none';
-  if (tag) tag.style.display = 'inline';
-  if (btns) { btns.style.display = 'flex'; }
-  if (chips) chips.style.display = 'block';
-  if (inputRow) { inputRow.style.display = 'flex'; }
-  var resp = document.getElementById('aiResponse');
-  if (resp) resp.innerHTML = '<span style="color:#4b5563;font-style:italic">Click ⚡ for pick advice.</span>';
-}
-
-function sendStrip() {
-  var el = document.getElementById('aiStripInputEl');
-  if (el && el.value.trim()) { askAICustom(el.value); el.value = ''; }
-}
-
-function askAIChip(el){askAICustom(el.getAttribute("data-c"));}
-function doAskAIQuick() { askAI('quick'); }
-function doAskAIFull()  { askAI('full'); }
-
-
-(function init(){
-  try {
-  teamSlots=Array(TEAMS).fill(0);
-  pickOwners=[];
-  for(let pick=1;pick<=TOTAL;pick++){
-    const rd=Math.ceil(pick/TEAMS),pos=pick-(rd-1)*TEAMS;
-    pickOwners.push(rd%2===1?pos-1:TEAMS-pos);
-  }
-  initPlayers();
-  calcVORP();
-  renderAll();
-  // Check Supabase session — shows auth modal or loads saved settings
-  checkSession();
-  // Background: pull current NFL team assignments from Sleeper (24h cache)
-  // Fixes stale data like Tua listed as MIA after he moved to ATL
-  setTimeout(refreshPlayerTeams, 1500);
-  } catch(e) {
-    console.error('[Init error]', e);
-    // Show auth modal even if init fails
-    var am = document.getElementById('authModal');
-    if (am) am.style.display = 'flex';
-  }
-})();
-
 
 
 
@@ -2208,9 +2133,11 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
     sleeperMsg('⏳ Step 5/5 — Rebuilding draft board...', false);
 
     // ── Rebuild Sleeper modal team dropdown with freshly-loaded names ──
-    // Reset myTeamIdx so user must explicitly re-confirm their team after each import
-    myTeamIdx = -1;
-    localStorage.removeItem('ff26_myTeamIdx');
+    // Manual re-import: re-confirm team. Account launch keeps overrideRosterId selection.
+    if (overrideRosterId == null) {
+      myTeamIdx = -1;
+      localStorage.removeItem('ff26_myTeamIdx');
+    }
     const modalSel = document.getElementById('sleeperMyTeamSel');
     if (modalSel) {
       modalSel.innerHTML = '<option value="-1">— Select your team —</option>';
@@ -2378,8 +2305,10 @@ function updateSyncIndicator() {
 }
 
 async function syncSleeperDraft(silent) {
+  if (sleeperSyncing) return;
   const draftId = document.getElementById('sleeperDraftInput').value.trim() || sleeperDraftId;
   if (!draftId) { sleeperMsg('No Draft ID — import your league first, or enter Draft ID manually', true); return; }
+  sleeperSyncing = true;
   sleeperDraftId = draftId;
   localStorage.setItem('ff26_draftId', draftId);
 
@@ -2479,6 +2408,7 @@ async function syncSleeperDraft(silent) {
     console.error('Sync error:', e);
     if (!silent) sleeperMsg('❌ ' + e.message, true);
   } finally {
+    sleeperSyncing = false;
     if (!silent && btn) { btn.textContent = '🔄 Sync Picks'; btn.disabled = false; }
   }
 }
@@ -3057,7 +2987,23 @@ async function sendToAI(userMessage) {
       })
     });
     var data = await res.json();
-    var reply = (data.content && data.content[0]) ? data.content[0].text : 'No response.';
+    if (!res.ok || data.error) {
+      var errMsg = (data.error && data.error.message) ? data.error.message : ('HTTP ' + res.status);
+      if (res.status === 401) errMsg = 'Invalid API key — update it in Account settings.';
+      else if (res.status === 429) errMsg = 'Rate limited — wait a moment and try again.';
+      else if (res.status === 400) errMsg = 'Bad request — ' + errMsg;
+      if (thinking) thinking.remove();
+      addChatMessage('assistant', '❌ ' + errMsg);
+      aiConversation.pop(); // remove user message so they can retry
+      return;
+    }
+    var reply = (data.content && data.content[0]) ? data.content[0].text : null;
+    if (!reply) {
+      if (thinking) thinking.remove();
+      addChatMessage('assistant', '❌ No response from API — check your key and try again.');
+      aiConversation.pop();
+      return;
+    }
     if (thinking) thinking.remove();
     aiConversation.push({ role: 'assistant', content: reply });
     addChatMessage('assistant', reply);
@@ -3067,6 +3013,7 @@ async function sendToAI(userMessage) {
     if (errMsg.includes('429')) errMsg = 'Rate limited — wait a moment and try again.';
     if (thinking) thinking.remove();
     addChatMessage('assistant', '❌ ' + errMsg);
+    aiConversation.pop();
   } finally {
     aiLoading = false;
     if (btn) btn.textContent = '⚡ My pick';
@@ -3184,6 +3131,7 @@ function saveApiKey() {
   showKeyActive();
 }
 
+function askAIChip(el) { askAICustom(el.getAttribute('data-c')); }
 function sendStrip() {
   var el = document.getElementById('aiStripInputEl');
   if (el && el.value.trim()) { askAICustom(el.value); el.value = ''; }
@@ -3195,8 +3143,6 @@ function switchRoster() { switchTab('roster'); }
 function switchTeams()  { /* removed — All teams tab gone */ }
 function switchQBs()    { /* removed — QB tracker tab gone */ }
 function switchTrades() { /* removed — Trades tab gone */ }
-function showDraftTab()  { showMainTab('draft'); }
-function showAIChatTab() { showMainTab('aiChat'); }
 
 function switchLP(tab) {
   ['picks','ai'].forEach(function(t) {
@@ -3314,7 +3260,7 @@ async function loadAllPlayersFromSleeper() {
       if (p.search_rank&&p.search_rank>500) return;
       if (!fn) return;
       maxId++;
-      toCache.push({rank:maxId,name:fn,pos:pos,team:p.team,bye:'TBD',
+      toCache.push({id:maxId,rank:maxId,name:fn,pos:pos,team:p.team,bye:'TBD',
         adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',sleeperId:pid});
     });
     toCache.sort((a,b)=>(a.adp||999)-(b.adp||999));
@@ -3348,7 +3294,7 @@ function _applySleeperList(list) {
   const existing = new Set(players.map(p => norm(p.name)));
   list.forEach(function(p) {
     if (!p.name || existing.has(norm(p.name))) return;
-    players.push(Object.assign({}, p, {drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999}));
+    players.push(Object.assign({}, p, {id:p.rank||p.id,drafted:false,isKeeper:false,customScore:0,customRank:9999,vorp:null,vorpRank:9999}));
     existing.add(norm(p.name));
   });
 
