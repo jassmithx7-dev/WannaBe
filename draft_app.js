@@ -1512,6 +1512,8 @@ function renderBA(){
   });
   const qbGone=players.filter(p=>p.pos==="QB"&&p.drafted).length;
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
+  var deltaHdr = document.getElementById('baDeltaHdr');
+  if (deltaHdr) deltaHdr.title = 'ADP vs pick #' + currentPick + ' — STEAL = fell, REACH = early';
   // Pick probability: rank each available player, color border by likelihood of going next round
   const availByRank = list.filter(p => !p.drafted && !p.mockDrafted && p.customScore > 0)
     .sort((a,b) => a.customRank - b.customRank);
@@ -1566,6 +1568,10 @@ function renderBA(){
     const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
     const probTitle = prob > 0 ? ('Pick prob ~' + prob + '% before your next turn') : p.note;
     const inCompare = compareRanks.indexOf(p.rank) >= 0;
+    const adpDelta = (!p.drafted && !p.mockDrafted) ? getAdpDeltaLabel(p) : null;
+    const adpDeltaCell = adpDelta && adpDelta.text !== '—'
+      ? `<span style="font-size:8px;font-weight:700;text-align:center;color:${adpDelta.color};justify-self:center;white-space:nowrap;line-height:1.15" title="ADP vs pick #${currentPick}">${adpDelta.text}</span>`
+      : `<span style="font-size:10px;text-align:center;color:#484f58;justify-self:center">—</span>`;
     return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}" onclick="draftPlayer(${p.rank})" title="${probTitle}" style="border-left:3px solid ${probBorder}">
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
       <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
@@ -1574,6 +1580,7 @@ function renderBA(){
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
       </div>
       <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums;justify-self:center">${p.adp&&p.adp<900?p.adp:'—'}</span>
+      ${adpDeltaCell}
       <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums;justify-self:center">${sc}</span>
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums;justify-self:center">${vorpTxt}</span>
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color};justify-self:center">${intel.ol_grade||'—'}</span>
