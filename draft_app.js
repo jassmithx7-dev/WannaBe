@@ -1635,6 +1635,54 @@ function renderRecentPicks() {
   el.innerHTML = '<span style="color:#484f58;margin-right:8px;font-weight:600">Recent:</span>' + items;
 }
 
+function renderKnownKeepersBanner() {
+  var el = document.getElementById('knownKeepersBanner');
+  if (!el) return;
+
+  var sections = [];
+
+  var locked = pickLog.filter(function(l) { return l.isKeeper; });
+  if (locked.length) {
+    var lockedItems = locked.map(function(k) {
+      var team = teamNames[k.teamIdx] || k.team || ('T' + (k.teamIdx + 1));
+      var shortTeam = team.split(' ')[0];
+      var me = myTeamIdx >= 0 && k.teamIdx === myTeamIdx;
+      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px' +
+        (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
+        '<span style="color:#484f58;font-variant-numeric:tabular-nums">#' + k.pick + '</span>' +
+        '<span class="pos ' + k.pos + '" style="font-size:9px">' + k.pos + '</span>' +
+        '<span style="color:#cdd9e5">' + k.player + formatByeParen(k.player) + '</span>' +
+        '<span style="color:#484f58;font-size:9px">' + shortTeam + '</span></span>';
+    }).join('');
+    sections.push('<span style="color:#60a5fa;font-weight:600;margin-right:8px">🔒 Locked:</span>' + lockedItems);
+  }
+
+  var hist = window.leagueKeepers || [];
+  if (hist.length) {
+    var season = hist[0].season || 'Prior';
+    var histItems = hist.map(function(k) {
+      var team = teamNames[k.teamIdx] || k.teamName || ('T' + (k.teamIdx + 1));
+      var shortTeam = team.split(' ')[0];
+      var me = myTeamIdx >= 0 && k.teamIdx === myTeamIdx;
+      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px' +
+        (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
+        '<span class="pos ' + k.pos + '" style="font-size:9px">' + k.pos + '</span>' +
+        '<span style="color:#cdd9e5">' + k.player + formatByeParen(k.player) + '</span>' +
+        '<span style="color:#484f58;font-size:9px">' + shortTeam + ' · R' + k.rd + '</span></span>';
+    }).join('');
+    sections.push('<span style="color:#a78bfa;font-weight:600;margin-right:8px">📋 ' + season + ' keepers:</span>' + histItems);
+  }
+
+  if (!sections.length) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  el.style.display = 'block';
+  el.innerHTML = sections.join('<span style="color:#30363d;margin:0 8px">|</span>');
+}
+
 function renderRoster(){
   const myTi = myTeamIdx >= 0 ? parseInt(myTeamIdx) : -1;
   const filled = myRosterSlots.filter(Boolean);
@@ -1883,7 +1931,7 @@ function renderBoard() {
 
 function renderAll(){
   renderBoard();
-  renderClock();renderBA();renderLog();renderRecentPicks();renderCompareBar();renderRoster();
+  renderClock();renderBA();renderLog();renderRecentPicks();renderKnownKeepersBanner();renderCompareBar();renderRoster();
   renderNextPicksPanel();
   const at=document.querySelector(".tc.on");
   if(at){
@@ -4109,6 +4157,8 @@ async function loadLeagueIntelligence() {
                    season: latestWithKeepers.season };
         })
       : [];
+    renderKnownKeepersBanner();
+    renderNextPicksPanel();
   } catch(e) { console.error('[loadLeagueIntelligence]', e); }
 }
 
