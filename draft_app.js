@@ -1075,8 +1075,7 @@ function draftPlayer(rank){
   const rd=ptRd(currentPick);
   history.push({pick:currentPick,ti,rank,ps:players.map(x=>({...x})),rosterSlots:[...myRosterSlots],rs:teamRosters.map(r=>[...r]),pl:[...pickLog],cp:currentPick});
   p.drafted=true;
-  compareRanks = compareRanks.filter(function(r) { return r !== rank; });
-  if (compareRanks.length < 2) closeCompareModal();
+  if (compareRanks.length) clearCompare();
   teamRosters[ti]=[...teamRosters[ti],{...p,pickNum:currentPick,rd,isKeeper:false}];
   // Smart assign to My Roster slot if this is the user's team
   {const myTi2=myTeamIdx!==''?parseInt(myTeamIdx):-1;
@@ -1343,6 +1342,11 @@ function updateCompareTopBtn() {
 function renderCompareBar() {
   var bar = document.getElementById('compareBar');
   if (!bar) return;
+  compareRanks = compareRanks.filter(function(rank) {
+    var p = players.find(function(x) { return x.rank === rank; });
+    return p && !p.drafted && !p.mockDrafted;
+  });
+  if (compareRanks.length > 0 && compareRanks.length < 2) closeCompareModal();
   bar.style.display = 'flex';
   if (!compareRanks.length) {
     bar.innerHTML = '<span style="font-size:10px;color:#7d8590">Click <strong style="color:#388bfd">⚖</strong> on player rows to compare up to 3 · then <strong style="color:#388bfd">Compare</strong> in the top bar</span>';
@@ -1436,7 +1440,7 @@ function renderCompareModal() {
     html += '<th style="text-align:center;padding:8px 10px;min-width:150px;vertical-align:bottom">' +
       '<span class="pos ' + p.pos + '" style="font-size:10px">' + p.pos + '</span>' +
       '<div style="font-size:13px;font-weight:700;color:#e6edf3;margin:4px 0 6px;line-height:1.25">' + p.name + '</div>' +
-      '<button onclick="draftPlayer(' + p.rank + ');closeCompareModal()" style="font-size:10px;background:#2ea043;color:#fff;border:1px solid #3fb950;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Draft</button>' +
+      '<button onclick="draftPlayer(' + p.rank + ')" style="font-size:10px;background:#2ea043;color:#fff;border:1px solid #3fb950;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Draft</button>' +
       '</th>';
   });
   html += '</tr></thead><tbody>';
@@ -3881,7 +3885,7 @@ function executeMockPick(p){
   teamRosters[ti].push(entry);
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
   currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
-  if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);}
+  if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);if(compareRanks.length)clearCompare();}
   else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
   mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
