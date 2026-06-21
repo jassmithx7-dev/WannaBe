@@ -1290,9 +1290,23 @@ function showPickSuggestions() {
 function getAdpDeltaLabel(p) {
   if (!p.adp || p.adp >= 900) return { text: '—', color: '#7d8590' };
   var delta = Math.round(p.adp - currentPick);
-  if (delta > 8) return { text: 'STEAL +' + delta, color: '#4ade80' };
-  if (delta < -8) return { text: 'REACH ' + delta, color: '#f87171' };
+  // delta > 0: ADP later than this pick → drafting early (reach)
+  // delta < 0: ADP earlier than this pick → player fell (steal)
+  if (delta > 8) return { text: 'REACH +' + delta, color: '#f87171' };
+  if (delta < -8) return { text: 'STEAL +' + Math.abs(delta), color: '#4ade80' };
   return { text: 'Fair ' + (delta > 0 ? '+' : '') + delta, color: '#9ca3af' };
+}
+
+function formatByeParen(playerOrName) {
+  var name = typeof playerOrName === 'string' ? playerOrName : (playerOrName && playerOrName.name);
+  if (!name) return '';
+  var bye = (typeof playerOrName === 'object' && playerOrName && playerOrName.bye && playerOrName.bye !== 'TBD')
+    ? playerOrName.bye
+    : (function() {
+        var p = players.find(function(x) { return x.name === name; });
+        return p && p.bye && p.bye !== 'TBD' ? p.bye : null;
+      })();
+  return bye ? ' (Bye ' + bye + ')' : '';
 }
 
 function toggleComparePlayer(rank, ev) {
@@ -1590,8 +1604,8 @@ function renderLog(){
     rows+=`<div class="${cls}">
       <span class="pr-num">#${pick}</span><span class="pr-rd">R${rd}</span>
       <div><div class="pr-team">${tname}</div>
-      ${kp?`<div class="pr-player" style="color:#60a5fa">[K] ${kp.player} (${kp.pos})</div>`
-        :log?`<div class="pr-player"><span class="pos ${log.pos}" style="font-size:9px;padding:1px 3px;margin-right:2px">${log.pos}</span>${log.player} (${log.nfl})</div>`
+      ${kp?`<div class="pr-player" style="color:#60a5fa">[K] ${kp.player}${formatByeParen(kp.player)} (${kp.pos})</div>`
+        :log?`<div class="pr-player"><span class="pos ${log.pos}" style="font-size:9px;padding:1px 3px;margin-right:2px">${log.pos}</span>${log.player}${formatByeParen(log.player)} (${log.nfl})</div>`
         :traded?`<div class="pr-player" style="color:#fbbf24">Traded pick</div>`
         :`<div class="pr-empty">\u2014</div>`}
       </div>
@@ -1614,7 +1628,7 @@ function renderRecentPicks() {
       (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
       '<span style="color:#484f58;font-variant-numeric:tabular-nums">#' + l.pick + '</span>' +
       '<span class="pos ' + l.pos + '" style="font-size:9px">' + l.pos + '</span>' +
-      '<span style="color:#cdd9e5;max-width:120px;overflow:hidden;text-overflow:ellipsis">' + l.player + '</span>' +
+      '<span style="color:#cdd9e5;max-width:120px;overflow:hidden;text-overflow:ellipsis">' + l.player + formatByeParen(l.player) + '</span>' +
       '<span style="color:#484f58;font-size:9px">' + teamLabel + '</span>' +
       '</span>';
   }).join('');
@@ -1678,7 +1692,7 @@ function renderRoster(){
         ? `<span class="rslot-p">
             <span class="pos ${p.pos}" style="font-size:9px">${p.pos}</span>
             ${p.isKeeper ? '<span style="color:#60a5fa;font-size:9px;margin:0 2px">[K]</span>' : ''}
-            <span style="font-size:11px;color:#e8eaf0">${p.name}</span>
+            <span style="font-size:11px;color:#e8eaf0">${p.name}${formatByeParen(p)}</span>
 
             ${fit ? `<span class="fit-badge" style="background:${fit.bg};color:${fit.color};margin-left:2px">${fit.grade}</span>` : ''}
             <button onclick="moveToRoster(${p.id},'remove')" style="margin-left:auto;background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:9px" title="Remove">✕</button>
@@ -1848,7 +1862,7 @@ function renderBoard() {
             ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
           html += '<span style="font-size:9px;color:#a78bfa;position:relative;z-index:1">→ ' + tradedToName + '</span>';
         }
-        html += '<span class="bg-player ' + posClass + '" title="' + (entry.player || '') + '" style="position:relative;z-index:1">' + (entry.player || '') + '</span>';
+        html += '<span class="bg-player ' + posClass + '" title="' + (entry.player || '') + formatByeParen(entry.player) + '" style="position:relative;z-index:1">' + (entry.player || '') + formatByeParen(entry.player) + '</span>';
       } else if (isTraded) {
         var tradedToName = (actualOwner >= 0 && teamNames[actualOwner])
           ? teamNames[actualOwner].replace(/^The /,'').split(' ')[0] : '?';
@@ -3047,8 +3061,8 @@ function buildDraftContext() {
     var adpDelta = p.adp ? Math.round(p.adp - currentPick) : null;
     var deltaTag = '';
     if (adpDelta !== null) {
-      if (adpDelta > 8)  deltaTag = ' [STEAL +' + adpDelta + ']';
-      else if (adpDelta < -8) deltaTag = ' [REACH ' + adpDelta + ']';
+      if (adpDelta > 8)  deltaTag = ' [REACH +' + adpDelta + ']';
+      else if (adpDelta < -8) deltaTag = ' [STEAL +' + Math.abs(adpDelta) + ']';
     }
     var byeStr = (p.bye && p.bye !== 'TBD') ? ' Bye:Wk' + p.bye : '';
     return p.pos + ' ' + p.name + ' (' + (p.team || '?') + ', ' +
@@ -3088,7 +3102,7 @@ function buildDraftContext() {
     '=== RECENT PICKS (last 12) ===',
     recentStr,
     '',
-    '=== TOP 40 AVAILABLE (STEAL = ahead of ADP, REACH = behind) ===',
+    '=== TOP 40 AVAILABLE (STEAL = fell vs ADP, REACH = early vs ADP) ===',
     'NOTE: Only players listed here are still available. Any player NOT listed has already been drafted.',
     avail,
     Object.keys(managerNotes).length ? '\n=== OPPONENT SCOUTING NOTES ===' : '',
