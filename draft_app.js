@@ -679,9 +679,8 @@ let pickLog=[]; // {pick,teamIdx,player,pos,nfl,isKeeper,isTraded}
 let teamRosters=Array.from({length:TEAMS},()=>[]);
 let history=[];
 let compareRanks = []; // up to 3 player ranks for side-by-side compare
-var leaguePosLimits = {}; // e.g. { QB: 3 } from Sleeper settings
+var leaguePosLimits = {}; // e.g. { QB: 3, WR: 8 } from Sleeper settings
 var sleeperRosterPositions = [];
-var suggTab = 'fit';
 
 // ── AI state ──
 let apiKey = localStorage.getItem('ff26_apiKey') || '';
@@ -1204,9 +1203,6 @@ function showPickSuggestions() {
     return;
   }
 
-  var roster = myRosterSlots.filter(Boolean);
-  var available = players.filter(function(p) { return !p.drafted && !p.mockDrafted && p.customScore > 0 && !isAtPosLimit(p.pos); });
-  var rd = Math.ceil(currentPick / TEAMS);
   var onClock = clockTeamIdx();
   var isMyPick = mockTi >= 0 && onClock === mockTi;
 
@@ -1214,21 +1210,11 @@ function showPickSuggestions() {
     title.textContent = isMyPick ? '💡 Your pick' : '💡 Target next';
   }
 
-  if (!available.length) {
+  var scored = getBestFitScoredPlayers();
+  if (!scored.length) {
     cards.innerHTML = '<div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">No eligible players — check position limits or filters</div>';
     return;
   }
-
-  var scored;
-  if (suggTab === 'vorp') {
-    scored = available.map(function(p) {
-      return { p: p, score: p.vorp || 0, reason: (p.vorp > 0 ? 'VORP ' + (p.vorp > 0 ? '+' : '') + p.vorp.toFixed(0) : '') };
-    });
-  } else {
-    scored = available.map(function(p) { return scorePlayerForNeedFit(p, roster, rd); }).filter(Boolean);
-  }
-
-  scored.sort(function(a, b) { return b.score - a.score; });
 
   var seenPos = {};
   var diverse = [];
@@ -1472,6 +1458,15 @@ function renderBA(){
   const filt=document.getElementById("posFilt").value;
   const fit=document.getElementById("fitFilt").value;
   const q=(document.getElementById("srch").value||"").toLowerCase();
+  const hasScore = p => p.customScore && p.customScore > 0;
+  const isDrafted = p => !!(p.drafted || p.mockDrafted);
+
+  if (filt === 'BESTFIT' && myTeamIdx < 0) {
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#484f58;font-size:12px">Select your team to see Best Fit rankings</div>';
+    return;
+  }
+
   // Use players directly — they are already references so drafted flag is live
   let list = players.filter(function(p, idx) {
     // Deduplicate by name — keep first occurrence with stats, skip later dupes without
@@ -1485,13 +1480,23 @@ function renderBA(){
     return true;
   });
   if(filt==='SFLX') list=list.filter(p=>['QB','RB','WR','TE'].includes(p.pos));
-  else if(filt!=="ALL") list=list.filter(p=>p.pos===filt);
+  else if(filt!=='ALL' && filt!=='BESTFIT') list=list.filter(p=>p.pos===filt);
   if(q) list=list.filter(p=>p.name.toLowerCase().includes(q)||p.team.toLowerCase().includes(q));
   if(fit==="A") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return f&&(f.grade==="A"||f.grade==="A+");});
   if(fit==="B") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return !f||!f.grade.startsWith("C");});
-  // Always push unranked players (no projection) to bottom regardless of sort
-  const hasScore = p => p.customScore && p.customScore > 0;
-  const isDrafted = p => !!(p.drafted || p.mockDrafted);
+
+  var fitMap = {};
+  if (filt === 'BESTFIT') {
+    var roster = myRosterSlots.filter(Boolean);
+    var rd = Math.ceil(currentPick / TEAMS);
+    list = list.filter(function(p) { return !isDrafted(p) && hasScore(p) && !isAtPosLimit(p.pos); });
+    var scored = list.map(function(p) { return scorePlayerForNeedFit(p, roster, rd); }).filter(Boolean);
+    scored.sort(function(a, b) { return b.score - a.score; });
+    scored.forEach(function(item, i) {
+      fitMap[item.p.rank] = { score: item.score, reason: item.reason, idx: i };
+    });
+    list = scored.map(function(item) { return item.p; });
+  } else {
   if(sort==="custom") list.sort((a,b)=>{
     if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
@@ -1510,6 +1515,7 @@ function renderBA(){
     if(hasScore(a)&&!hasScore(b)) return -1;
     return a.pos.localeCompare(b.pos)||a.customRank-b.customRank;
   });
+  }
   const qbGone=players.filter(p=>p.pos==="QB"&&p.drafted).length;
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
   var deltaHdr = document.getElementById('baDeltaHdr');
@@ -1575,12 +1581,18 @@ function renderBA(){
       ? `<span style="font-size:8px;font-weight:700;text-align:center;color:${adpDelta.color};justify-self:center;white-space:nowrap;line-height:1.15" title="ADP vs pick #${currentPick}">${adpDelta.text}</span>`
       : `<span style="font-size:10px;text-align:center;color:#484f58;justify-self:center">—</span>`;
     const clickAction = atLimit ? ("showPosLimitWarn('" + p.pos + "')") : ("draftPlayer(" + p.rank + ")");
-    return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}${atLimit?" limit-pos":""}" onclick="${clickAction}" title="${probTitle}" style="border-left:3px solid ${probBorder}">
-      <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${p.customRank<9000?p.customRank:"—"}</span>
+    const fitInfo = fitMap[p.rank];
+    const fitTopClass = fitInfo && fitInfo.idx < 12 ? ' fit-top' : '';
+    const fitReasonHtml = fitInfo && fitInfo.reason
+      ? '<div class="ba-fit-reason">' + fitInfo.reason + '</div>'
+      : '';
+    return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}${atLimit?" limit-pos":""}${fitTopClass}" onclick="${clickAction}" title="${probTitle}" style="border-left:3px solid ${probBorder}">
+      <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${fitInfo ? fitInfo.idx + 1 : (p.customRank<9000?p.customRank:"—")}</span>
       <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
         <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
+        ${fitReasonHtml}
       </div>
       <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums;justify-self:center">${p.adp&&p.adp<900?p.adp:'—'}</span>
       ${adpDeltaCell}
@@ -1712,10 +1724,15 @@ function renderRoster(){
     return '<div class="sv"><div class="sv-n' + (warn ? ' warn' : '') + '">' + txt + '</div><div class="sv-l">' + lbl + '</div></div>';
   }
 
-  document.getElementById('statsBar').innerHTML=
+  var kCount = filled.filter(function(p) { return p.pos === 'K'; }).length;
+  var defCount = filled.filter(function(p) { return p.pos === 'DEF'; }).length;
+  var statsHtml =
     '<div class="sv"><div class="sv-n">' + filled.length + '</div><div class="sv-l">Picked</div></div>' +
     '<div class="sv"><div class="sv-n">' + (ROUNDS - filled.length) + '</div><div class="sv-l">Left</div></div>' +
     statCell('QB', qbs) + statCell('RB', rbs) + statCell('WR', wrs) + statCell('TE', tes);
+  if (getPosLimit('K') != null) statsHtml += statCell('K', kCount);
+  if (getPosLimit('DEF') != null) statsHtml += statCell('DEF', defCount);
+  document.getElementById('statsBar').innerHTML = statsHtml;
 
   if(myTi<0){
     document.getElementById('rNote').textContent='Select your team above.';
@@ -2132,13 +2149,31 @@ function getPositionNeeds() {
 }
 
 var POS_LIMIT_SETTING_KEYS = {
-  QB: ['max_qb', 'pos_limit_qb', 'position_limit_qb', 'limit_qb'],
-  RB: ['max_rb', 'pos_limit_rb', 'position_limit_rb', 'limit_rb'],
-  WR: ['max_wr', 'pos_limit_wr', 'position_limit_wr', 'limit_wr'],
-  TE: ['max_te', 'pos_limit_te', 'position_limit_te', 'limit_te'],
-  K: ['max_k', 'pos_limit_k', 'position_limit_k', 'limit_k'],
-  DEF: ['max_def', 'pos_limit_def', 'position_limit_def', 'limit_def']
+  QB: ['max_qb', 'max_qbs', 'pos_limit_qb', 'position_limit_qb', 'limit_qb', 'qb_max', 'qb_limit', 'limit_pos_qb'],
+  RB: ['max_rb', 'max_rbs', 'pos_limit_rb', 'position_limit_rb', 'limit_rb', 'rb_max', 'rb_limit', 'limit_pos_rb'],
+  WR: ['max_wr', 'max_wrs', 'pos_limit_wr', 'position_limit_wr', 'limit_wr', 'wr_max', 'wr_limit', 'limit_pos_wr'],
+  TE: ['max_te', 'max_tes', 'pos_limit_te', 'position_limit_te', 'limit_te', 'te_max', 'te_limit', 'limit_pos_te'],
+  K: ['max_k', 'max_ks', 'pos_limit_k', 'position_limit_k', 'limit_k', 'k_max', 'k_limit', 'limit_pos_k'],
+  DEF: ['max_def', 'max_defs', 'pos_limit_def', 'position_limit_def', 'limit_def', 'def_max', 'def_limit', 'limit_pos_def', 'max_dst', 'limit_dst', 'pos_limit_dst']
 };
+
+var POS_LIMIT_ALIASES = { qb: 'QB', rb: 'RB', wr: 'WR', te: 'TE', k: 'K', def: 'DEF', dst: 'DEF', d: 'DEF' };
+
+function posFromLimitKey(key) {
+  if (!key) return null;
+  var lk = String(key).toLowerCase();
+  var patterns = [
+    /(?:max|limit|cap)[_-]?(qb|rb|wr|te|k|def|dst|d)s?\b/,
+    /\b(qb|rb|wr|te|k|def|dst|d)s?[_-](?:max|limit|cap)\b/,
+    /(?:pos|position)[_-]?(?:limit|max)[_-]?(qb|rb|wr|te|k|def|dst|d)s?\b/,
+    /(?:pos|position)[_-]limit[_-](qb|rb|wr|te|k|def|dst|d)s?\b/
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = lk.match(patterns[i]);
+    if (m) return POS_LIMIT_ALIASES[m[1].replace(/s$/, '')] || m[1].replace(/s$/, '').toUpperCase();
+  }
+  return null;
+}
 
 function parsePosLimitValue(raw) {
   if (raw == null || raw === '') return null;
@@ -2149,7 +2184,6 @@ function parsePosLimitValue(raw) {
 function applySleeperLeagueConfig(league, draftData) {
   leaguePosLimits = {};
   sleeperRosterPositions = (league && league.roster_positions) ? league.roster_positions.slice() : [];
-  var posMap = { D: 'DEF', DST: 'DEF', DEF: 'DEF', QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', K: 'K' };
   var sources = [(league && league.settings) || {}];
   if (league && league.metadata) sources.push(league.metadata);
   if (draftData && draftData.settings) sources.push(draftData.settings);
@@ -2164,20 +2198,19 @@ function applySleeperLeagueConfig(league, draftData) {
     if (!s) return;
     if (s.position_limits && typeof s.position_limits === 'object') {
       Object.keys(s.position_limits).forEach(function(k) {
-        var pos = posMap[k.toUpperCase()] || k.toUpperCase();
+        var pos = POS_LIMIT_ALIASES[k.toLowerCase()] || k.toUpperCase();
         if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].indexOf(pos) >= 0) setLimit(pos, s.position_limits[k]);
       });
     }
+    Object.keys(s).forEach(function(k) {
+      var pos = posFromLimitKey(k);
+      if (pos && leaguePosLimits[pos] == null) setLimit(pos, s[k]);
+    });
     ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].forEach(function(pos) {
       if (leaguePosLimits[pos] != null) return;
       (POS_LIMIT_SETTING_KEYS[pos] || []).forEach(function(k) {
         if (leaguePosLimits[pos] != null) return;
         setLimit(pos, s[k]);
-      });
-      Object.keys(s).forEach(function(k) {
-        if (leaguePosLimits[pos] != null) return;
-        var lk = k.toLowerCase();
-        if (lk.indexOf('limit') >= 0 && lk.indexOf(pos.toLowerCase()) >= 0) setLimit(pos, s[k]);
       });
     });
   });
@@ -2233,13 +2266,15 @@ function showPosLimitWarn(pos) {
   if (rNote) rNote.textContent = '⚠️ ' + pos + ' max reached (' + getMyRosterCounts()[pos] + '/' + getPosLimit(pos) + ')';
 }
 
-function setSuggTab(tab) {
-  suggTab = tab === 'vorp' ? 'vorp' : 'fit';
-  var fitBtn = document.getElementById('suggTabFit');
-  var vorpBtn = document.getElementById('suggTabVorp');
-  if (fitBtn) fitBtn.classList.toggle('sugg-on', suggTab === 'fit');
-  if (vorpBtn) vorpBtn.classList.toggle('sugg-on', suggTab === 'vorp');
-  showPickSuggestions();
+function getBestFitScoredPlayers() {
+  var roster = myRosterSlots.filter(Boolean);
+  var rd = Math.ceil(currentPick / TEAMS);
+  var pool = players.filter(function(p) {
+    return !p.drafted && !p.mockDrafted && p.customScore > 0 && !isAtPosLimit(p.pos);
+  });
+  var scored = pool.map(function(p) { return scorePlayerForNeedFit(p, roster, rd); }).filter(Boolean);
+  scored.sort(function(a, b) { return b.score - a.score; });
+  return scored;
 }
 
 function scorePlayerForNeedFit(p, roster, rd) {
