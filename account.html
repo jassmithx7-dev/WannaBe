@@ -195,6 +195,21 @@
     .error-banner.show { display: block; }
     .empty-state { text-align: center; padding: 64px 20px; color: var(--muted); font-size: 14px; }
     .empty-icon  { font-size: 42px; margin-bottom: 12px; }
+
+    .checklist-banner {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px 22px; margin-bottom: 28px;
+    }
+    .checklist-banner h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .checklist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .check-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--muted); padding: 6px 8px;
+      border-radius: 8px; background: var(--surface2);
+    }
+    .check-item.done { color: var(--success); }
+    .check-item.pending { color: var(--warning); }
+    .check-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
   </style>
 </head>
 <body>
@@ -223,6 +238,11 @@
     <div class="page-header">
       <div class="page-title">My Leagues</div>
       <div class="page-sub">Select a league to open the draft board</div>
+    </div>
+
+    <div class="checklist-banner" id="preDraftChecklist">
+      <h3>Pre-draft checklist</h3>
+      <div class="checklist-grid" id="checklistGrid"></div>
     </div>
 
     <!-- Sleeper connect step (shown if not yet connected) -->
@@ -405,6 +425,7 @@
       }
       // Always load services section
       loadServices();
+      renderPreDraftChecklist();
       // Load draft history
       loadDraftHistory();
     }
@@ -422,6 +443,33 @@
           '<div class="skeleton sk-line" style="width:35%;margin-bottom:8px"></div>' +
           '<div class="skeleton sk-line" style="width:45%"></div>' +
         '</div>';
+      }).join('');
+    }
+
+    function renderPreDraftChecklist() {
+      var grid = document.getElementById('checklistGrid');
+      if (!grid) return;
+      var meta = (currentUser && currentUser.user_metadata) || {};
+      var leagueId = localStorage.getItem('ff26_leagueId') || '';
+      var draftId = localStorage.getItem('ff26_draftId') || '';
+      var myTeamIdx = parseInt(localStorage.getItem('ff26_myTeamIdx') || '-1', 10);
+      var apiKey = localStorage.getItem('ff26_apiKey') || '';
+      var posLimits = {};
+      try { posLimits = JSON.parse(localStorage.getItem('ff26_posLimits') || '{}') || {}; } catch (e) {}
+      var activeLeague = null;
+      try { activeLeague = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch (e) {}
+      var items = [
+        { label: 'Sleeper account linked', ok: !!meta.sleeper_username },
+        { label: 'League imported on draft board', ok: !!leagueId },
+        { label: 'My team selected', ok: myTeamIdx >= 0 || !!(activeLeague && activeLeague.roster_id) },
+        { label: 'Claude API key saved', ok: apiKey.indexOf('sk-') === 0 },
+        { label: 'Draft ID ready for live sync', ok: !!draftId },
+        { label: 'Position limits loaded', ok: Object.keys(posLimits).length > 0 }
+      ];
+      grid.innerHTML = items.map(function(item) {
+        return '<div class="check-item ' + (item.ok ? 'done' : 'pending') + '">' +
+          '<span class="check-icon">' + (item.ok ? '✓' : '○') + '</span>' +
+          '<span>' + item.label + '</span></div>';
       }).join('');
     }
 
@@ -471,6 +519,7 @@
           document.getElementById('connectBanner').style.display = 'none';
           showLeaguesSection();
           loadLeagues();
+          renderPreDraftChecklist();
         }, 800);
 
       } catch(e) {
@@ -653,6 +702,7 @@
       } catch(e) {
         claudeEl.textContent = 'Enter your API key below to enable AI advice.';
       }
+      renderPreDraftChecklist();
     }
 
     async function saveApiKey() {
@@ -685,6 +735,8 @@
         input.value = '';
         input.placeholder = '••••••••••••••••  (key saved)';
         document.getElementById('claudeStatus').innerHTML = '<span style="color:var(--success)">● Connected</span>';
+        localStorage.setItem('ff26_apiKey', key);
+        renderPreDraftChecklist();
       }
 
       btn.disabled = false; btn.textContent = 'Save';

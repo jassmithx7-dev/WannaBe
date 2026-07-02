@@ -125,7 +125,9 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 .pos-pill.def.active{background:#56d364}
 .pos-pill.k.active{background:#94a3b8}
 .pos-pill.bestfit.active{background:linear-gradient(135deg,#1f6feb,#388bfd);color:#fff}
-.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf):not(.def):not(.k):not(.bestfit).active{background:#e6edf3}
+.pos-pill.topvorp.active{background:linear-gradient(135deg,#0e2a1a,#2ea043);color:#fff}
+.pos-pill.aisuggest.active{background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff}
+.pos-pill:not(.qb):not(.rb):not(.wr):not(.te):not(.sf):not(.def):not(.k):not(.bestfit):not(.topvorp):not(.aisuggest).active{background:#e6edf3}
 #authModal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center}
 #authBox{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:32px;width:380px;max-width:95vw}
 .auth-input{width:100%;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:10px 14px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box}
@@ -223,6 +225,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
   <label>Sort:</label>
   <select id="sortSel" onchange="renderBA()">
     <option value="custom">Custom score</option>
+    <option value="vorp">VORP</option>
     <option value="sf">Superflex rank</option>
     <option value="pos">Position</option>
   </select>
@@ -296,6 +299,8 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         <div style="display:flex;gap:3px;flex-wrap:wrap">
           <button class="pos-pill active" onclick="setPosFilter('ALL',this)">ALL</button>
           <button class="pos-pill bestfit" onclick="setPosFilter('BESTFIT',this)">Best Fit</button>
+          <button class="pos-pill topvorp" onclick="setPosFilter('TOPVORP',this)">Top VORP</button>
+          <button class="pos-pill aisuggest" onclick="setPosFilter('AISUGGEST',this)" title="Claude-ranked picks for your roster">AI Pick</button>
           <button class="pos-pill qb" onclick="setPosFilter('QB',this)">QB</button>
           <button class="pos-pill rb" onclick="setPosFilter('RB',this)">RB</button>
           <button class="pos-pill wr" onclick="setPosFilter('WR',this)">WR</button>
@@ -304,8 +309,9 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
           <button class="pos-pill def" onclick="setPosFilter('DEF',this)">DEF</button>
           <button class="pos-pill k" onclick="setPosFilter('K',this)">K</button>
         </div>
+        <span id="aiSuggestStatus" style="display:none;font-size:10px;color:#7d8590;white-space:nowrap"></span>
         <select id="posFilt" onchange="renderBA()" style="display:none">
-          <option value="ALL">All</option><option value="BESTFIT">Best Fit</option><option value="QB">QB</option><option value="RB">RB</option>
+          <option value="ALL">All</option><option value="BESTFIT">Best Fit</option><option value="TOPVORP">Top VORP</option><option value="AISUGGEST">AI Pick</option><option value="QB">QB</option><option value="RB">RB</option>
           <option value="WR">WR</option><option value="TE">TE</option><option value="SFLX">Superflex</option>
           <option value="DEF">DEF</option><option value="K">K</option>
         </select>
@@ -320,7 +326,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </div>
       </div>
       <div id="compareBar" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid #21262d;background:#0e1f3d;flex-shrink:0;flex-wrap:wrap;font-size:10px;color:#7d8590">
-        <span>Click <strong style="color:#388bfd">⚖</strong> on player rows to compare up to 3 · then use <strong style="color:#388bfd">Compare</strong> in the top bar</span>
+        <span>Click <strong style="color:#388bfd">⚖</strong> to compare · <strong style="color:#388bfd">/</strong> search · <strong style="color:#388bfd">u</strong> undo · <strong style="color:#388bfd">Esc</strong> close</span>
       </div>
       <div class="ba-wrap">
         <div class="ba-table">
@@ -418,7 +424,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="draft_app.js?v=aipause2"></script>
+<script src="draft_app.js?v=sessiond1"></script>
 <script>
   // Auto-login: if a Supabase session exists (set from account page), dismiss auth modal silently
   if (supa) {

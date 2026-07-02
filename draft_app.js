@@ -688,6 +688,8 @@ let teamRosters=Array.from({length:TEAMS},()=>[]);
 let history=[];
 let compareRanks = []; // up to 3 player ranks for side-by-side compare
 let watchList = new Set();
+var aiSuggestedCache = { pick: 0, items: [] };
+var aiSuggestedLoading = false;
 var leaguePosLimits = {}; // e.g. { QB: 3, WR: 8 } from Sleeper settings
 var sleeperRosterPositions = [];
 
@@ -1110,6 +1112,7 @@ function draftPlayer(rank){
      if(!result.success&&document.getElementById('rNote'))document.getElementById('rNote').textContent='⚠️ '+result.message;}}
   pickLog=[...pickLog,{pick:currentPick,rd,teamIdx:ti,team:teamNames[ti]||"?",player:p.name,pos:p.pos,nfl:p.team,isKeeper:false,isTraded:isTradedPick(currentPick)}];
   showPickToast(currentPick, p);
+  invalidateAISuggestedCache();
   currentPick++;
   while(currentPick<=TOTAL&&isKeeperPick(currentPick)) currentPick++;
   renderAll();
@@ -1146,6 +1149,7 @@ function undoPick(){
   pickLog=last.pl;
   currentPick=last.cp;
   if(last.rosterSlots) myRosterSlots=[...last.rosterSlots];
+  invalidateAISuggestedCache();
   renderAll();
 }
 
@@ -1156,6 +1160,7 @@ function resetDraft(){
   pickLog=[];history=[];currentPick=1;
   compareRanks = [];
   _alertCooldowns = {};
+  invalidateAISuggestedCache();
   initPlayers();
   if(setup){buildPickOwners();buildKeeperPicks();}
   renderAll();
@@ -1618,6 +1623,27 @@ function renderBA(){
       '<div style="padding:24px;text-align:center;color:#484f58;font-size:12px">Select your team to see Best Fit rankings</div>';
     return;
   }
+  if (filt === 'AISUGGEST' && myTeamIdx < 0) {
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#484f58;font-size:12px">Select your team for AI Pick suggestions</div>';
+    return;
+  }
+  if (filt === 'AISUGGEST' && !apiKey) {
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#484f58;font-size:12px">Add your Claude API key to use AI Pick</div>';
+    return;
+  }
+  if (filt === 'AISUGGEST' && aiSuggestedLoading) {
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#7d8590;font-size:12px">🤖 Analyzing your roster…</div>';
+    return;
+  }
+  if (filt === 'AISUGGEST' && (aiSuggestedCache.pick !== currentPick || !aiSuggestedCache.items.length)) {
+    refreshAISuggestedBoard(false);
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#7d8590;font-size:12px">🤖 Analyzing your roster…</div>';
+    return;
+  }
 
   // Use players directly — they are already references so drafted flag is live
   let list = players.filter(function(p, idx) {
@@ -1632,7 +1658,7 @@ function renderBA(){
     return true;
   });
   if(filt==='SFLX') list=list.filter(p=>['QB','RB','WR','TE'].includes(p.pos));
-  else if(filt!=='ALL' && filt!=='BESTFIT') list=list.filter(p=>p.pos===filt);
+  else if(filt!=='ALL' && filt!=='BESTFIT' && filt!=='TOPVORP' && filt!=='AISUGGEST') list=list.filter(p=>p.pos===filt);
   if(q) list=list.filter(p=>p.name.toLowerCase().includes(q)||p.team.toLowerCase().includes(q));
   if(fit==="A") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return f&&(f.grade==="A"||f.grade==="A+");});
   if(fit==="B") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return !f||!f.grade.startsWith("C");});
@@ -1648,6 +1674,18 @@ function renderBA(){
       fitMap[item.p.rank] = { score: item.score, reason: item.reason, idx: i };
     });
     list = scored.map(function(item) { return item.p; });
+  } else if (filt === 'TOPVORP') {
+    list = list.filter(function(p) { return !isDrafted(p) && hasScore(p); });
+    list.sort(function(a, b) { return (b.vorp || 0) - (a.vorp || 0); });
+  } else if (filt === 'AISUGGEST') {
+    list = aiSuggestedCache.items.map(function(item) {
+      return players.find(function(p) { return p.rank === item.rank; });
+    }).filter(function(p) { return p && !isDrafted(p); });
+    aiSuggestedCache.items.forEach(function(item, i) {
+      if (list.some(function(p) { return p.rank === item.rank; })) {
+        fitMap[item.rank] = { score: 0, reason: item.reason, idx: i };
+      }
+    });
   } else {
   if(sort==="custom") list.sort((a,b)=>{
     if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
@@ -1661,12 +1699,23 @@ function renderBA(){
     if(hasScore(a)&&!hasScore(b)) return -1;
     return (a.sf||999)-(b.sf||999);
   });
+  else if(sort==="vorp") list.sort((a,b)=>{
+    if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
+    if(!hasScore(a)&&hasScore(b)) return 1;
+    if(hasScore(a)&&!hasScore(b)) return -1;
+    return (b.vorp||0)-(a.vorp||0);
+  });
   else list.sort((a,b)=>{
     if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
     if(hasScore(a)&&!hasScore(b)) return -1;
     return a.pos.localeCompare(b.pos)||a.customRank-b.customRank;
   });
+  }
+  if (filt === 'AISUGGEST' && !list.length) {
+    document.getElementById('baList').innerHTML =
+      '<div style="padding:24px;text-align:center;color:#484f58;font-size:12px">No AI picks matched — click ↻ Refresh to try again</div>';
+    return;
   }
   const qbGone=players.filter(p=>p.pos==="QB"&&p.drafted).length;
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
@@ -1760,7 +1809,7 @@ function renderBA(){
   }
 
   function listWithTierBreaks(playersList) {
-    var applyTiers = filt !== 'BESTFIT' && (sort === 'custom' || sort === 'sf' || sort === 'vorp');
+    var applyTiers = filt !== 'BESTFIT' && filt !== 'AISUGGEST' && (sort === 'custom' || sort === 'sf' || sort === 'vorp' || filt === 'TOPVORP');
     var tierNum = 1;
     var html = '';
     for (var i = 0; i < playersList.length; i++) {
@@ -3824,6 +3873,104 @@ function askAIAboutPlayer(rank) {
   askAICustom(prompt);
 }
 
+function parseAISuggestedLines(text) {
+  var items = [];
+  var seen = {};
+  text.split('\n').forEach(function(line) {
+    var m = line.match(/^\s*\d+[\.)]\s*(.+?)\s*[|—\-–:]\s*(.+)$/);
+    if (!m) m = line.match(/^\s*\d+[\.)]\s*(.+)$/);
+    if (!m) return;
+    var namePart = m[1].trim().replace(/\([^)]*\)/g, '').trim();
+    var reason = m[2] ? m[2].trim() : '';
+    var p = players.find(function(x) {
+      return !x.drafted && !x.mockDrafted && x.customScore > 0 &&
+        (x.name.toLowerCase() === namePart.toLowerCase() ||
+         x.name.toLowerCase().indexOf(namePart.toLowerCase()) >= 0 ||
+         namePart.toLowerCase().indexOf(x.name.toLowerCase()) >= 0);
+    });
+    if (p && !seen[p.rank]) {
+      seen[p.rank] = true;
+      items.push({ rank: p.rank, reason: reason || 'AI recommended' });
+    }
+  });
+  return items;
+}
+
+async function refreshAISuggestedBoard(force) {
+  if (!apiKey || myTeamIdx < 0) return;
+  if (aiSuggestedLoading) return;
+  if (!force && aiSuggestedCache.pick === currentPick && aiSuggestedCache.items.length) return;
+  aiSuggestedLoading = true;
+  if (document.getElementById('posFilt') && document.getElementById('posFilt').value === 'AISUGGEST') renderBA();
+  var rd = Math.ceil(currentPick / TEAMS);
+  var onClock = pickOwners ? pickOwners[currentPick - 1] : -1;
+  var isMyPick = myTeamIdx >= 0 && onClock === myTeamIdx;
+  var prompt = (isMyPick
+    ? 'It is my pick (# ' + currentPick + ', Round ' + rd + '). '
+    : 'Pick #' + currentPick + ' (Round ' + rd + ') — not my turn yet. ')
+    + 'List your top 5 recommended AVAILABLE players for my roster right now.\n'
+    + 'Reply ONLY in this format (one per line, use full player names from the board):\n'
+    + '1. Player Name | short reason\n2. Player Name | short reason';
+  var sys = [
+    'You are a fantasy football draft advisor.',
+    'Do not use markdown. Reply only with the numbered list requested.',
+    buildDraftContext()
+  ].join('\n');
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        system: sys,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0]) ? data.content[0].text : '';
+    var items = reply ? parseAISuggestedLines(reply) : [];
+    aiSuggestedCache = { pick: currentPick, items: items };
+  } catch (e) {
+    aiSuggestedCache = { pick: currentPick, items: [] };
+  } finally {
+    aiSuggestedLoading = false;
+    if (document.getElementById('posFilt') && document.getElementById('posFilt').value === 'AISUGGEST') renderBA();
+  }
+}
+
+function closeAllModals() {
+  ['sleeperModal', 'mockModal', 'tradesModal', 'compareModal', 'draftReportModal'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', function(e) {
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      var srch = document.getElementById('srch');
+      if (srch) { srch.focus(); srch.select(); }
+    } else if (e.key === 'u' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      undoPick();
+    } else if (e.key === 'Escape') {
+      closeAllModals();
+    }
+  });
+}
+
+function invalidateAISuggestedCache() {
+  aiSuggestedCache = { pick: 0, items: [] };
+}
+
 function checkProactiveAlerts(pickedTeamIdx) {
   if (aiAlertsPaused || !apiKey || myTeamIdx < 0) return;
   var alerts = [];
@@ -3926,7 +4073,17 @@ function setPosFilter(pos, btn) {
   if (pos === 'SFLX') document.getElementById('sortSel').value = 'sf';
   document.querySelectorAll('.pos-pill').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  renderBA();
+  var statusEl = document.getElementById('aiSuggestStatus');
+  if (statusEl) {
+    if (pos === 'AISUGGEST') {
+      statusEl.style.display = 'inline';
+      statusEl.innerHTML = '<button onclick="refreshAISuggestedBoard(true)" style="font-size:10px;background:transparent;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:1px 6px;cursor:pointer" title="Re-run AI analysis">↻ Refresh</button>';
+    } else {
+      statusEl.style.display = 'none';
+    }
+  }
+  if (pos === 'AISUGGEST') refreshAISuggestedBoard(false);
+  else renderBA();
 }
 
 // ── Init ──
@@ -3959,6 +4116,7 @@ function setPosFilter(pos, btn) {
     scheduleRestoreTopSectionHeight();
     if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
     initAIPanel();
+    initKeyboardShortcuts();
     var savedKey = localStorage.getItem('ff26_apiKey');
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
     // Restore myTeamIdx from localStorage if not loaded from Supabase
