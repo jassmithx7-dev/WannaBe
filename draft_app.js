@@ -229,173 +229,173 @@ async function checkSession() {
 }
 
 const BASE_PLAYERS=[
-  {rank:1,name:"Josh Allen",team:"BUF",pos:"QB",bye:"TBD",adp:1,sf:1,note:"Joe Brady HC \u2014 elite rushing QB, SF lock"},
-  {rank:2,name:"Lamar Jackson",team:"BAL",pos:"QB",bye:"TBD",adp:2,sf:2,note:"Jesse Minter HC \u2014 2x MVP, rushing floor unmatched"},
-  {rank:3,name:"Jayden Daniels",team:"WAS",pos:"QB",bye:"TBD",adp:4,sf:3,note:"Dan Quinn HC \u2014 elite rusher, Blough OC"},
-  {rank:4,name:"Drake Maye",team:"NE",pos:"QB",bye:"TBD",adp:6,sf:4,note:"Vrabel HC yr 2 \u2014 massive leap expected"},
-  {rank:5,name:"Jalen Hurts",team:"PHI",pos:"QB",bye:"TBD",adp:8,sf:5,note:"Sirianni HC \u2014 best OL, SF locked starter"},
-  {rank:6,name:"Joe Burrow",team:"CIN",pos:"QB",bye:"TBD",adp:9,sf:6,note:"Zac Taylor \u2014 top-5 QB when healthy"},
-  {rank:7,name:"Jaxson Dart",team:"NYG",pos:"QB",bye:"TBD",adp:18,sf:7,note:"John Harbaugh HC \u2014 high upside rookie"},
-  {rank:8,name:"Brock Purdy",team:"SF",pos:"QB",bye:"TBD",adp:22,sf:8,note:"Shanahan HC \u2014 Kubiak OC"},
-  {rank:9,name:"Trevor Lawrence",team:"JAX",pos:"QB",bye:"TBD",adp:25,sf:9,note:"Liam Coen HC \u2014 contract year motivation"},
-  {rank:10,name:"Bo Nix",team:"DEN",pos:"QB",bye:"TBD",adp:28,sf:10,note:"Payton HC yr 3 \u2014 elite pass protection"},
-  {rank:11,name:"Caleb Williams",team:"CHI",pos:"QB",bye:"TBD",adp:30,sf:11,note:"Ben Johnson HC yr 2 \u2014 massive leap"},
-  {rank:12,name:"Patrick Mahomes",team:"KC",pos:"QB",bye:"TBD",adp:32,sf:12,note:"Reid/Bieniemy \u2014 GOAT floor"},
-  {rank:13,name:"Dak Prescott",team:"DAL",pos:"QB",bye:"TBD",adp:35,sf:13,note:"Schottenheimer \u2014 pass-heavy, comeback yr"},
-  {rank:14,name:"Kyler Murray",team:"ARI",pos:"QB",bye:"TBD",adp:40,sf:14,note:"Petzing OC \u2014 rushing upside"},
-  {rank:15,name:"Jordan Love",team:"GB",pos:"QB",bye:"TBD",adp:45,sf:15,note:"LaFleur \u2014 bounce-back"},
-  {rank:16,name:"Justin Herbert",team:"LAC",pos:"QB",bye:"TBD",adp:48,sf:16,note:"Harbaugh yr 2 \u2014 McDaniel OC"},
-  {rank:17,name:"Baker Mayfield",team:"TB",pos:"QB",bye:"TBD",adp:55,sf:17,note:"Bowles/Robinson \u2014 proven system"},
-  {rank:18,name:"Bijan Robinson",team:"ATL",pos:"RB",bye:"TBD",adp:3,sf:20,note:"Stefanski HC \u2014 RB1 consensus"},
-  {rank:19,name:"Jahmyr Gibbs",team:"DET",pos:"RB",bye:"TBD",adp:5,sf:21,note:"Campbell \u2014 Drew Petzing OC"},
-  {rank:20,name:"Christian McCaffrey",team:"SF",pos:"RB",bye:"TBD",adp:6,sf:22,note:"Shanahan zone \u2014 health key"},
-  {rank:21,name:"Jonathan Taylor",team:"IND",pos:"RB",bye:"TBD",adp:8,sf:23,note:"Steichen \u2014 Quenton Nelson LG"},
-  {rank:22,name:"De’Von Achane",team:"MIA",pos:"RB",bye:"TBD",adp:10,sf:24,note:"Hafley HC \u2014 explosive playmaker"},
-  {rank:23,name:"James Cook",team:"BUF",pos:"RB",bye:"TBD",adp:12,sf:25,note:"Joe Brady HC \u2014 elite OL"},
-  {rank:24,name:"Ashton Jeanty",team:"LV",pos:"RB",bye:"TBD",adp:13,sf:26,note:"Kubiak HC \u2014 run-first scheme"},
-  {rank:25,name:"Saquon Barkley",team:"PHI",pos:"RB",bye:"TBD",adp:15,sf:27,note:"Sirianni \u2014 best OL, elite"},
-  {rank:26,name:"Chase Brown",team:"CIN",pos:"RB",bye:"TBD",adp:20,sf:30,note:"Burrow health key"},
-  {rank:27,name:"Kenneth Walker III",team:"SEA",pos:"RB",bye:"TBD",adp:22,sf:31,note:"Macdonald — lead back"},
-  {rank:28,name:"Derrick Henry",team:"BAL",pos:"RB",bye:"TBD",adp:24,sf:32,note:"Minter HC \u2014 power run"},
-  {rank:29,name:"Breece Hall",team:"NYJ",pos:"RB",bye:"TBD",adp:26,sf:33,note:"Glenn yr 2 \u2014 Reich OC"},
-  {rank:30,name:"Travis Etienne",team:"NO",pos:"RB",bye:"TBD",adp:28,sf:34,note:"Moore HC \u2014 Nussmeier OC"},
-  {rank:31,name:"Omarion Hampton",team:"LAC",pos:"RB",bye:"TBD",adp:30,sf:35,note:"Harbaugh \u2014 power run"},
-  {rank:32,name:"Javonte Williams",team:"DAL",pos:"RB",bye:"TBD",adp:32,sf:36,note:"Schottenheimer \u2014 Adams OC"},
-  {rank:33,name:"Quinshon Judkins",team:"CLE",pos:"RB",bye:"TBD",adp:35,sf:37,note:"Monken HC \u2014 run-focused"},
-  {rank:34,name:"Kyren Williams",team:"LAR",pos:"RB",bye:"TBD",adp:38,sf:38,note:"McVay \u2014 Scheelhaase OC"},
-  {rank:35,name:"Cam Skattebo",team:"NYG",pos:"RB",bye:"TBD",adp:40,sf:39,note:"J. Harbaugh HC \u2014 Nagy OC"},
-  {rank:36,name:"Bucky Irving",team:"TB",pos:"RB",bye:"TBD",adp:42,sf:40,note:"Bowles \u2014 Robinson OC"},
-  {rank:37,name:"Chuba Hubbard",team:"CAR",pos:"RB",bye:"TBD",adp:45,sf:41,note:"Canales \u2014 Idzik OC"},
-  {rank:38,name:"Ja’Marr Chase",team:"CIN",pos:"WR",bye:"TBD",adp:2,sf:19,note:"Burrow connection \u2014 elite route runner"},
-  {rank:39,name:"Puka Nacua",team:"LAR",pos:"WR",bye:"TBD",adp:7,sf:28,note:"McVay \u2014 Scheelhaase OC"},
-  {rank:40,name:"Jaxon Smith-Njigba",team:"SEA",pos:"WR",bye:"TBD",adp:9,sf:29,note:"Macdonald \u2014 Grubb OC"},
-  {rank:41,name:"Amon-Ra St. Brown",team:"DET",pos:"WR",bye:"TBD",adp:11,sf:42,note:"Campbell \u2014 Petzing OC"},
-  {rank:42,name:"CeeDee Lamb",team:"DAL",pos:"WR",bye:"TBD",adp:14,sf:43,note:"Schottenheimer \u2014 pass-heavy"},
-  {rank:43,name:"Justin Jefferson",team:"MIN",pos:"WR",bye:"TBD",adp:16,sf:44,note:"O’Connell \u2014 Murray QB"},
-  {rank:44,name:"Drake London",team:"ATL",pos:"WR",bye:"TBD",adp:18,sf:45,note:"Stefanski \u2014 Rees OC"},
-  {rank:45,name:"Malik Nabers",team:"NYG",pos:"WR",bye:"TBD",adp:19,sf:46,note:"J. Harbaugh \u2014 Dart QB"},
-  {rank:46,name:"Rashee Rice",team:"KC",pos:"WR",bye:"TBD",adp:21,sf:47,note:"Reid/Bieniemy \u2014 Mahomes"},
-  {rank:47,name:"Chris Olave",team:"NO",pos:"WR",bye:"TBD",adp:23,sf:48,note:"Moore HC \u2014 Nussmeier OC"},
-  {rank:48,name:"George Pickens",team:"DAL",pos:"WR",bye:"TBD",adp:25,sf:49,note:"Schottenheimer \u2014 new team"},
-  {rank:49,name:"A.J. Brown",team:"NE",pos:"WR",bye:"TBD",adp:27,sf:50,note:"Vrabel \u2014 new team"},
-  {rank:50,name:"Nico Collins",team:"HOU",pos:"WR",bye:"TBD",adp:29,sf:51,note:"Ryans \u2014 elite target share"},
-  {rank:51,name:"Garrett Wilson",team:"NYJ",pos:"WR",bye:"TBD",adp:31,sf:52,note:"Glenn \u2014 Reich OC"},
-  {rank:52,name:"DeVonta Smith",team:"PHI",pos:"WR",bye:"TBD",adp:33,sf:53,note:"Sirianni \u2014 best OL"},
-  {rank:53,name:"Jaylen Waddle",team:"DEN",pos:"WR",bye:"TBD",adp:35,sf:54,note:"Payton \u2014 elite OL"},
-  {rank:54,name:"Rome Odunze",team:"CHI",pos:"WR",bye:"TBD",adp:37,sf:55,note:"Ben Johnson \u2014 Taylor OC"},
-  {rank:55,name:"Zay Flowers",team:"BAL",pos:"WR",bye:"TBD",adp:39,sf:56,note:"Minter HC \u2014 Jackson QB"},
-  {rank:56,name:"Davante Adams",team:"LAR",pos:"WR",bye:"TBD",adp:41,sf:57,note:"McVay \u2014 Scheelhaase OC"},
-  {rank:57,name:"Brock Bowers",team:"LV",pos:"TE",bye:"TBD",adp:10,sf:58,note:"Kubiak HC \u2014 elite TE talent"},
-  {rank:58,name:"Harold Fannin Jr.",team:"CLE",pos:"TE",bye:"TBD",adp:22,sf:59,note:"Monken HC \u2014 breakout"},
-  {rank:59,name:"Tyler Warren",team:"IND",pos:"TE",bye:"TBD",adp:25,sf:60,note:"Steichen \u2014 Nelson OL"},
-  {rank:60,name:"Sam LaPorta",team:"DET",pos:"TE",bye:"TBD",adp:28,sf:61,note:"Campbell \u2014 Petzing OC"},
-  {rank:61,name:"Trey McBride",team:"ARI",pos:"TE",bye:"TBD",adp:30,sf:62,note:"M. LaFleur HC \u2014 Hackett OC"},
-  {rank:62,name:"Travis Kelce",team:"KC",pos:"TE",bye:"TBD",adp:33,sf:63,note:"Reid/Bieniemy \u2014 age concern"},
-  {rank:63,name:"Isaiah Likely",team:"BAL",pos:"TE",bye:"TBD",adp:36,sf:64,note:"Minter HC \u2014 new role"},
-  {rank:64,name:"Jake Ferguson",team:"DAL",pos:"TE",bye:"TBD",adp:38,sf:65,note:"Schottenheimer \u2014 Adams OC"},
-  {rank:65,name:"D’Andre Swift",team:"CHI",pos:"RB",bye:"TBD",adp:55,sf:70,note:"Johnson yr 2"},
-  {rank:66,name:"Aaron Jones",team:"MIN",pos:"RB",bye:"TBD",adp:58,sf:72,note:"O'Connell — vet"},
-  {rank:67,name:"Tony Pollard",team:"TEN",pos:"RB",bye:"TBD",adp:60,sf:74,note:"Callahan HC"},
-  {rank:68,name:"Rachaad White",team:"TB",pos:"RB",bye:"TBD",adp:62,sf:76,note:"Bowles — pass catcher"},
-  {rank:69,name:"Jaleel McLaughlin",team:"DEN",pos:"RB",bye:"TBD",adp:64,sf:78,note:"Payton — committee"},
-  {rank:70,name:"Jerome Ford",team:"CLE",pos:"RB",bye:"TBD",adp:66,sf:80,note:"Monken HC"},
-  {rank:71,name:"Najee Harris",team:"PIT",pos:"RB",bye:"TBD",adp:68,sf:82,note:"McCarthy — workhorse"},
-  {rank:72,name:"Tyjae Spears",team:"TEN",pos:"RB",bye:"TBD",adp:70,sf:84,note:"Callahan — speed"},
-  {rank:73,name:"Jaylen Wright",team:"MIA",pos:"RB",bye:"TBD",adp:72,sf:86,note:"Hafley — explosive"},
-  {rank:74,name:"Isaac Guerendo",team:"SF",pos:"RB",bye:"TBD",adp:74,sf:88,note:"Shanahan zone"},
-  {rank:75,name:"Will Levis",team:"TEN",pos:"QB",bye:"TBD",adp:76,sf:89,note:"Callahan — backup"},
-  {rank:76,name:"Gus Edwards",team:"NE",pos:"RB",bye:"TBD",adp:78,sf:90,note:"Vrabel — power"},
-  {rank:77,name:"MarShawn Lloyd",team:"GB",pos:"RB",bye:"TBD",adp:80,sf:91,note:"LaFleur — rotational"},
-  {rank:78,name:"Blake Corum",team:"LAR",pos:"RB",bye:"TBD",adp:82,sf:92,note:"McVay — committee"},
-  {rank:79,name:"Ray Davis",team:"BUF",pos:"RB",bye:"TBD",adp:84,sf:93,note:"Brady — depth"},
-  {rank:80,name:"Kimani Vidal",team:"LAC",pos:"RB",bye:"TBD",adp:86,sf:94,note:"Harbaugh — committee"},
-  {rank:81,name:"Samaje Perine",team:"DEN",pos:"RB",bye:"TBD",adp:88,sf:95,note:"Payton — PPR back"},
-  {rank:82,name:"Hassan Haskins",team:"LAR",pos:"RB",bye:"TBD",adp:90,sf:96,note:"McVay — power"},
-  {rank:83,name:"Clyde Edwards-Helaire",team:"KC",pos:"RB",bye:"TBD",adp:92,sf:97,note:"Reid — depth"},
-  {rank:84,name:"Elijah Mitchell",team:"SF",pos:"RB",bye:"TBD",adp:94,sf:98,note:"Shanahan — committee"},
-  {rank:85,name:"Diontae Johnson",team:"BAL",pos:"WR",bye:"TBD",adp:60,sf:75,note:"Minter HC"},
-  {rank:86,name:"Brandon Aiyuk",team:"SF",pos:"WR",bye:"TBD",adp:62,sf:77,note:"Shanahan"},
-  {rank:87,name:"Stefon Diggs",team:"HOU",pos:"WR",bye:"TBD",adp:64,sf:79,note:"Ryans"},
-  {rank:88,name:"Tyler Lockett",team:"SEA",pos:"WR",bye:"TBD",adp:66,sf:81,note:"Macdonald"},
-  {rank:89,name:"Courtland Sutton",team:"DEN",pos:"WR",bye:"TBD",adp:68,sf:83,note:"Payton"},
-  {rank:90,name:"Christian Kirk",team:"JAX",pos:"WR",bye:"TBD",adp:70,sf:85,note:"Coen"},
-  {rank:91,name:"Curtis Samuel",team:"BUF",pos:"WR",bye:"TBD",adp:72,sf:87,note:"Brady"},
-  {rank:92,name:"Michael Pittman Jr.",team:"IND",pos:"WR",bye:"TBD",adp:74,sf:89,note:"Steichen"},
-  {rank:93,name:"Quentin Johnston",team:"LAC",pos:"WR",bye:"TBD",adp:76,sf:91,note:"Harbaugh"},
-  {rank:94,name:"Wan’Dale Robinson",team:"NYG",pos:"WR",bye:"TBD",adp:78,sf:93,note:"J.Harbaugh"},
-  {rank:95,name:"Kadarius Toney",team:"KC",pos:"WR",bye:"TBD",adp:80,sf:95,note:"Reid"},
-  {rank:96,name:"Elijah Moore",team:"CLE",pos:"WR",bye:"TBD",adp:82,sf:97,note:"Monken"},
-  {rank:97,name:"K.J. Hamler",team:"PIT",pos:"WR",bye:"TBD",adp:84,sf:99,note:"McCarthy"},
-  {rank:98,name:"Parris Campbell",team:"NYG",pos:"WR",bye:"TBD",adp:86,sf:101,note:"J.Harbaugh"},
-  {rank:99,name:"Marvin Mims Jr.",team:"DEN",pos:"WR",bye:"TBD",adp:88,sf:103,note:"Payton"},
-  {rank:100,name:"Jalen Reagor",team:"NE",pos:"WR",bye:"TBD",adp:90,sf:105,note:"Vrabel"},
-  {rank:101,name:"Dontayvion Wicks",team:"GB",pos:"WR",bye:"TBD",adp:92,sf:107,note:"LaFleur"},
-  {rank:102,name:"Josh Downs",team:"IND",pos:"WR",bye:"TBD",adp:94,sf:109,note:"Steichen"},
-  {rank:103,name:"Rashid Shaheed",team:"NO",pos:"WR",bye:"TBD",adp:96,sf:111,note:"Moore HC"},
-  {rank:104,name:"Cedric Tillman",team:"CLE",pos:"WR",bye:"TBD",adp:98,sf:113,note:"Monken"},
-  {rank:105,name:"Terrace Marshall Jr.",team:"BUF",pos:"WR",bye:"TBD",adp:100,sf:115,note:"Brady"},
-  {rank:106,name:"Alec Pierce",team:"IND",pos:"WR",bye:"TBD",adp:102,sf:117,note:"Steichen"},
-  {rank:107,name:"Xavier Hutchinson",team:"HOU",pos:"WR",bye:"TBD",adp:104,sf:119,note:"Ryans"},
-  {rank:108,name:"Demario Douglas",team:"NE",pos:"WR",bye:"TBD",adp:106,sf:121,note:"Vrabel"},
-  {rank:109,name:"Jaleel Scott",team:"BAL",pos:"WR",bye:"TBD",adp:108,sf:123,note:"Minter"},
-  {rank:110,name:"Darius Slayton",team:"NYG",pos:"WR",bye:"TBD",adp:110,sf:125,note:"J.Harbaugh"},
-  {rank:111,name:"Van Jefferson",team:"ATL",pos:"WR",bye:"TBD",adp:112,sf:127,note:"Stefanski"},
-  {rank:112,name:"Tre Tucker",team:"LV",pos:"WR",bye:"TBD",adp:114,sf:129,note:"Carroll"},
-  {rank:113,name:"Jaelon Darden",team:"TB",pos:"WR",bye:"TBD",adp:116,sf:131,note:"Bowles"},
-  {rank:114,name:"Bo Melton",team:"GB",pos:"WR",bye:"TBD",adp:118,sf:133,note:"LaFleur"},
-  {rank:115,name:"Tutu Atwell",team:"LAR",pos:"WR",bye:"TBD",adp:120,sf:135,note:"McVay"},
-  {rank:116,name:"Tyquan Thornton",team:"NE",pos:"WR",bye:"TBD",adp:122,sf:137,note:"Vrabel"},
-  {rank:117,name:"Jonnu Smith",team:"MIA",pos:"TE",bye:"TBD",adp:55,sf:80,note:"Hafley HC"},
-  {rank:118,name:"T.J. Hockenson",team:"MIN",pos:"TE",bye:"TBD",adp:60,sf:82,note:"O'Connell"},
-  {rank:119,name:"Cole Kmet",team:"CHI",pos:"TE",bye:"TBD",adp:65,sf:84,note:"B.Johnson"},
-  {rank:120,name:"Tucker Kraft",team:"GB",pos:"TE",bye:"TBD",adp:70,sf:86,note:"LaFleur"},
-  {rank:121,name:"David Njoku",team:"CLE",pos:"TE",bye:"TBD",adp:75,sf:88,note:"Monken"},
-  {rank:122,name:"Taysom Hill",team:"NO",pos:"TE",bye:"TBD",adp:80,sf:90,note:"Moore HC"},
-  {rank:123,name:"Cade Otton",team:"TB",pos:"TE",bye:"TBD",adp:85,sf:92,note:"Bowles"},
-  {rank:124,name:"Juwan Johnson",team:"NO",pos:"TE",bye:"TBD",adp:90,sf:94,note:"Moore HC"},
-  {rank:125,name:"Dalton Kincaid",team:"BUF",pos:"TE",bye:"TBD",adp:95,sf:96,note:"Brady"},
-  {rank:126,name:"Hunter Henry",team:"NE",pos:"TE",bye:"TBD",adp:100,sf:98,note:"Vrabel"},
-  {rank:127,name:"Gerald Everett",team:"LAC",pos:"TE",bye:"TBD",adp:105,sf:100,note:"Harbaugh"},
-  {rank:128,name:"Kyle Pitts",team:"ATL",pos:"TE",bye:"TBD",adp:110,sf:102,note:"Stefanski"},
-  {rank:129,name:"Mo Alie-Cox",team:"IND",pos:"TE",bye:"TBD",adp:115,sf:104,note:"Steichen"},
-  {rank:130,name:"Adam Trautman",team:"DEN",pos:"TE",bye:"TBD",adp:120,sf:106,note:"Payton"},
-  {rank:131,name:"Chigoziem Okonkwo",team:"TEN",pos:"TE",bye:"TBD",adp:125,sf:108,note:"Callahan"},
-  {rank:132,name:"Noah Fant",team:"SEA",pos:"TE",bye:"TBD",adp:130,sf:110,note:"Macdonald"},
-  {rank:133,name:"Justin Tucker",team:"BAL",pos:"K",bye:"TBD",adp:140,sf:200,note:"Elite — consistent"},
-  {rank:134,name:"Harrison Butker",team:"KC",pos:"K",bye:"TBD",adp:145,sf:201,note:"Most reliable"},
-  {rank:135,name:"Evan McPherson",team:"CIN",pos:"K",bye:"TBD",adp:150,sf:202,note:"Big leg"},
-  {rank:136,name:"Tyler Bass",team:"BUF",pos:"K",bye:"TBD",adp:155,sf:203,note:"Brady HC"},
-  {rank:137,name:"Brandon Aubrey",team:"DAL",pos:"K",bye:"TBD",adp:160,sf:204,note:"Schottenheimer"},
-  {rank:138,name:"Cameron Dicker",team:"LAC",pos:"K",bye:"TBD",adp:165,sf:205,note:"Harbaugh"},
-  {rank:139,name:"Jake Moody",team:"SF",pos:"K",bye:"TBD",adp:170,sf:206,note:"Shanahan"},
-  {rank:140,name:"Cairo Santos",team:"CHI",pos:"K",bye:"TBD",adp:175,sf:207,note:"B.Johnson"},
-  {rank:141,name:"Greg Joseph",team:"MIN",pos:"K",bye:"TBD",adp:180,sf:208,note:"O'Connell"},
-  {rank:142,name:"Chris Boswell",team:"PIT",pos:"K",bye:"TBD",adp:185,sf:209,note:"McCarthy"},
-  {rank:143,name:"Jake Elliott",team:"PHI",pos:"K",bye:"TBD",adp:190,sf:210,note:"Sirianni"},
-  {rank:144,name:"Matt Gay",team:"IND",pos:"K",bye:"TBD",adp:195,sf:211,note:"Steichen"},
-  {rank:145,name:"Joey Slye",team:"WAS",pos:"K",bye:"TBD",adp:200,sf:212,note:"Quinn"},
-  {rank:146,name:"Graham Gano",team:"NYG",pos:"K",bye:"TBD",adp:205,sf:213,note:"J.Harbaugh"},
-  {rank:147,name:"San Francisco",team:"SF",pos:"DEF",bye:"TBD",adp:150,sf:215,note:"Shanahan — elite"},
-  {rank:148,name:"Dallas",team:"DAL",pos:"DEF",bye:"TBD",adp:155,sf:216,note:"Schottenheimer"},
-  {rank:149,name:"Philadelphia",team:"PHI",pos:"DEF",bye:"TBD",adp:160,sf:217,note:"Sirianni"},
-  {rank:150,name:"Pittsburgh",team:"PIT",pos:"DEF",bye:"TBD",adp:165,sf:218,note:"McCarthy"},
-  {rank:151,name:"Baltimore",team:"BAL",pos:"DEF",bye:"TBD",adp:170,sf:219,note:"Minter HC"},
-  {rank:152,name:"Kansas City",team:"KC",pos:"DEF",bye:"TBD",adp:175,sf:220,note:"Reid"},
-  {rank:153,name:"New England",team:"NE",pos:"DEF",bye:"TBD",adp:180,sf:221,note:"Vrabel"},
-  {rank:154,name:"Cleveland",team:"CLE",pos:"DEF",bye:"TBD",adp:185,sf:222,note:"Monken"},
-  {rank:155,name:"Buffalo",team:"BUF",pos:"DEF",bye:"TBD",adp:190,sf:223,note:"Brady"},
-  {rank:156,name:"Minnesota",team:"MIN",pos:"DEF",bye:"TBD",adp:195,sf:224,note:"O'Connell"},
-  {rank:157,name:"Green Bay",team:"GB",pos:"DEF",bye:"TBD",adp:200,sf:225,note:"LaFleur"},
-  {rank:158,name:"Detroit",team:"DET",pos:"DEF",bye:"TBD",adp:205,sf:226,note:"Campbell"},
-  {rank:159,name:"Los Angeles Rams",team:"LAR",pos:"DEF",bye:"TBD",adp:210,sf:227,note:"McVay"},
-  {rank:160,name:"Denver",team:"DEN",pos:"DEF",bye:"TBD",adp:215,sf:228,note:"Payton"},
-  {rank:161,name:"Sam Darnold",team:"SEA",pos:"QB",bye:"TBD",adp:65,sf:40,note:"Macdonald HC"},
-  {rank:162,name:"Geno Smith",team:"LV",pos:"QB",bye:"TBD",adp:70,sf:41,note:"Carroll"},
-  {rank:163,name:"Daniel Jones",team:"NYJ",pos:"QB",bye:"TBD",adp:75,sf:42,note:"Glenn HC"},
-  {rank:164,name:"Deshaun Watson",team:"CLE",pos:"QB",bye:"TBD",adp:80,sf:43,note:"Monken HC"},
-  {rank:165,name:"Tua Tagovailoa",team:"MIA",pos:"QB",bye:"TBD",adp:85,sf:44,note:"Hafley HC"},
-  {rank:166,name:"Aaron Rodgers",team:"NYJ",pos:"QB",bye:"TBD",adp:90,sf:45,note:"Glenn HC"},
-  {rank:167,name:"Russell Wilson",team:"PIT",pos:"QB",bye:"TBD",adp:95,sf:46,note:"McCarthy HC"}
+  {rank:1,name:"Josh Allen",team:"BUF",pos:"QB",bye:"7",adp:1,sf:1,note:"Joe Brady HC \u2014 elite rushing QB, SF lock"},
+  {rank:2,name:"Lamar Jackson",team:"BAL",pos:"QB",bye:"6",adp:2,sf:2,note:"Jesse Minter HC \u2014 2x MVP, rushing floor unmatched"},
+  {rank:3,name:"Jayden Daniels",team:"WAS",pos:"QB",bye:"11",adp:4,sf:3,note:"Dan Quinn HC \u2014 elite rusher, Blough OC"},
+  {rank:4,name:"Drake Maye",team:"NE",pos:"QB",bye:"6",adp:6,sf:4,note:"Vrabel HC yr 2 \u2014 massive leap expected"},
+  {rank:5,name:"Jalen Hurts",team:"PHI",pos:"QB",bye:"7",adp:8,sf:5,note:"Sirianni HC \u2014 best OL, SF locked starter"},
+  {rank:6,name:"Joe Burrow",team:"CIN",pos:"QB",bye:"9",adp:9,sf:6,note:"Zac Taylor \u2014 top-5 QB when healthy"},
+  {rank:7,name:"Jaxson Dart",team:"NYG",pos:"QB",bye:"9",adp:18,sf:7,note:"John Harbaugh HC \u2014 high upside rookie"},
+  {rank:8,name:"Brock Purdy",team:"SF",pos:"QB",bye:"11",adp:22,sf:8,note:"Shanahan HC \u2014 Kubiak OC"},
+  {rank:9,name:"Trevor Lawrence",team:"JAX",pos:"QB",bye:"12",adp:25,sf:9,note:"Liam Coen HC \u2014 contract year motivation"},
+  {rank:10,name:"Bo Nix",team:"DEN",pos:"QB",bye:"6",adp:28,sf:10,note:"Payton HC yr 3 \u2014 elite pass protection"},
+  {rank:11,name:"Caleb Williams",team:"CHI",pos:"QB",bye:"5",adp:30,sf:11,note:"Ben Johnson HC yr 2 \u2014 massive leap"},
+  {rank:12,name:"Patrick Mahomes",team:"KC",pos:"QB",bye:"10",adp:32,sf:12,note:"Reid/Bieniemy \u2014 GOAT floor"},
+  {rank:13,name:"Dak Prescott",team:"DAL",pos:"QB",bye:"7",adp:35,sf:13,note:"Schottenheimer \u2014 pass-heavy, comeback yr"},
+  {rank:14,name:"Kyler Murray",team:"ARI",pos:"QB",bye:"12",adp:40,sf:14,note:"Petzing OC \u2014 rushing upside"},
+  {rank:15,name:"Jordan Love",team:"GB",pos:"QB",bye:"10",adp:45,sf:15,note:"LaFleur \u2014 bounce-back"},
+  {rank:16,name:"Justin Herbert",team:"LAC",pos:"QB",bye:"9",adp:48,sf:16,note:"Harbaugh yr 2 \u2014 McDaniel OC"},
+  {rank:17,name:"Baker Mayfield",team:"TB",pos:"QB",bye:"10",adp:55,sf:17,note:"Bowles/Robinson \u2014 proven system"},
+  {rank:18,name:"Bijan Robinson",team:"ATL",pos:"RB",bye:"6",adp:3,sf:20,note:"Stefanski HC \u2014 RB1 consensus"},
+  {rank:19,name:"Jahmyr Gibbs",team:"DET",pos:"RB",bye:"11",adp:5,sf:21,note:"Campbell \u2014 Drew Petzing OC"},
+  {rank:20,name:"Christian McCaffrey",team:"SF",pos:"RB",bye:"11",adp:6,sf:22,note:"Shanahan zone \u2014 health key"},
+  {rank:21,name:"Jonathan Taylor",team:"IND",pos:"RB",bye:"9",adp:8,sf:23,note:"Steichen \u2014 Quenton Nelson LG"},
+  {rank:22,name:"De’Von Achane",team:"MIA",pos:"RB",bye:"11",adp:10,sf:24,note:"Hafley HC \u2014 explosive playmaker"},
+  {rank:23,name:"James Cook",team:"BUF",pos:"RB",bye:"7",adp:12,sf:25,note:"Joe Brady HC \u2014 elite OL"},
+  {rank:24,name:"Ashton Jeanty",team:"LV",pos:"RB",bye:"10",adp:13,sf:26,note:"Kubiak HC \u2014 run-first scheme"},
+  {rank:25,name:"Saquon Barkley",team:"PHI",pos:"RB",bye:"7",adp:15,sf:27,note:"Sirianni \u2014 best OL, elite"},
+  {rank:26,name:"Chase Brown",team:"CIN",pos:"RB",bye:"9",adp:20,sf:30,note:"Burrow health key"},
+  {rank:27,name:"Kenneth Walker III",team:"SEA",pos:"RB",bye:"11",adp:22,sf:31,note:"Macdonald — lead back"},
+  {rank:28,name:"Derrick Henry",team:"BAL",pos:"RB",bye:"6",adp:24,sf:32,note:"Minter HC \u2014 power run"},
+  {rank:29,name:"Breece Hall",team:"NYJ",pos:"RB",bye:"10",adp:26,sf:33,note:"Glenn yr 2 \u2014 Reich OC"},
+  {rank:30,name:"Travis Etienne",team:"NO",pos:"RB",bye:"10",adp:28,sf:34,note:"Moore HC \u2014 Nussmeier OC"},
+  {rank:31,name:"Omarion Hampton",team:"LAC",pos:"RB",bye:"9",adp:30,sf:35,note:"Harbaugh \u2014 power run"},
+  {rank:32,name:"Javonte Williams",team:"DAL",pos:"RB",bye:"7",adp:32,sf:36,note:"Schottenheimer \u2014 Adams OC"},
+  {rank:33,name:"Quinshon Judkins",team:"CLE",pos:"RB",bye:"6",adp:35,sf:37,note:"Monken HC \u2014 run-focused"},
+  {rank:34,name:"Kyren Williams",team:"LAR",pos:"RB",bye:"5",adp:38,sf:38,note:"McVay \u2014 Scheelhaase OC"},
+  {rank:35,name:"Cam Skattebo",team:"NYG",pos:"RB",bye:"9",adp:40,sf:39,note:"J. Harbaugh HC \u2014 Nagy OC"},
+  {rank:36,name:"Bucky Irving",team:"TB",pos:"RB",bye:"10",adp:42,sf:40,note:"Bowles \u2014 Robinson OC"},
+  {rank:37,name:"Chuba Hubbard",team:"CAR",pos:"RB",bye:"7",adp:45,sf:41,note:"Canales \u2014 Idzik OC"},
+  {rank:38,name:"Ja’Marr Chase",team:"CIN",pos:"WR",bye:"9",adp:2,sf:19,note:"Burrow connection \u2014 elite route runner"},
+  {rank:39,name:"Puka Nacua",team:"LAR",pos:"WR",bye:"5",adp:7,sf:28,note:"McVay \u2014 Scheelhaase OC"},
+  {rank:40,name:"Jaxon Smith-Njigba",team:"SEA",pos:"WR",bye:"11",adp:9,sf:29,note:"Macdonald \u2014 Grubb OC"},
+  {rank:41,name:"Amon-Ra St. Brown",team:"DET",pos:"WR",bye:"11",adp:11,sf:42,note:"Campbell \u2014 Petzing OC"},
+  {rank:42,name:"CeeDee Lamb",team:"DAL",pos:"WR",bye:"7",adp:14,sf:43,note:"Schottenheimer \u2014 pass-heavy"},
+  {rank:43,name:"Justin Jefferson",team:"MIN",pos:"WR",bye:"11",adp:16,sf:44,note:"O’Connell \u2014 Murray QB"},
+  {rank:44,name:"Drake London",team:"ATL",pos:"WR",bye:"6",adp:18,sf:45,note:"Stefanski \u2014 Rees OC"},
+  {rank:45,name:"Malik Nabers",team:"NYG",pos:"WR",bye:"9",adp:19,sf:46,note:"J. Harbaugh \u2014 Dart QB"},
+  {rank:46,name:"Rashee Rice",team:"KC",pos:"WR",bye:"10",adp:21,sf:47,note:"Reid/Bieniemy \u2014 Mahomes"},
+  {rank:47,name:"Chris Olave",team:"NO",pos:"WR",bye:"10",adp:23,sf:48,note:"Moore HC \u2014 Nussmeier OC"},
+  {rank:48,name:"George Pickens",team:"DAL",pos:"WR",bye:"7",adp:25,sf:49,note:"Schottenheimer \u2014 new team"},
+  {rank:49,name:"A.J. Brown",team:"NE",pos:"WR",bye:"6",adp:27,sf:50,note:"Vrabel \u2014 new team"},
+  {rank:50,name:"Nico Collins",team:"HOU",pos:"WR",bye:"6",adp:29,sf:51,note:"Ryans \u2014 elite target share"},
+  {rank:51,name:"Garrett Wilson",team:"NYJ",pos:"WR",bye:"10",adp:31,sf:52,note:"Glenn \u2014 Reich OC"},
+  {rank:52,name:"DeVonta Smith",team:"PHI",pos:"WR",bye:"7",adp:33,sf:53,note:"Sirianni \u2014 best OL"},
+  {rank:53,name:"Jaylen Waddle",team:"DEN",pos:"WR",bye:"6",adp:35,sf:54,note:"Payton \u2014 elite OL"},
+  {rank:54,name:"Rome Odunze",team:"CHI",pos:"WR",bye:"5",adp:37,sf:55,note:"Ben Johnson \u2014 Taylor OC"},
+  {rank:55,name:"Zay Flowers",team:"BAL",pos:"WR",bye:"6",adp:39,sf:56,note:"Minter HC \u2014 Jackson QB"},
+  {rank:56,name:"Davante Adams",team:"LAR",pos:"WR",bye:"5",adp:41,sf:57,note:"McVay \u2014 Scheelhaase OC"},
+  {rank:57,name:"Brock Bowers",team:"LV",pos:"TE",bye:"10",adp:10,sf:58,note:"Kubiak HC \u2014 elite TE talent"},
+  {rank:58,name:"Harold Fannin Jr.",team:"CLE",pos:"TE",bye:"6",adp:22,sf:59,note:"Monken HC \u2014 breakout"},
+  {rank:59,name:"Tyler Warren",team:"IND",pos:"TE",bye:"9",adp:25,sf:60,note:"Steichen \u2014 Nelson OL"},
+  {rank:60,name:"Sam LaPorta",team:"DET",pos:"TE",bye:"11",adp:28,sf:61,note:"Campbell \u2014 Petzing OC"},
+  {rank:61,name:"Trey McBride",team:"ARI",pos:"TE",bye:"12",adp:30,sf:62,note:"M. LaFleur HC \u2014 Hackett OC"},
+  {rank:62,name:"Travis Kelce",team:"KC",pos:"TE",bye:"10",adp:33,sf:63,note:"Reid/Bieniemy \u2014 age concern"},
+  {rank:63,name:"Isaiah Likely",team:"BAL",pos:"TE",bye:"6",adp:36,sf:64,note:"Minter HC \u2014 new role"},
+  {rank:64,name:"Jake Ferguson",team:"DAL",pos:"TE",bye:"7",adp:38,sf:65,note:"Schottenheimer \u2014 Adams OC"},
+  {rank:65,name:"D’Andre Swift",team:"CHI",pos:"RB",bye:"5",adp:55,sf:70,note:"Johnson yr 2"},
+  {rank:66,name:"Aaron Jones",team:"MIN",pos:"RB",bye:"11",adp:58,sf:72,note:"O'Connell — vet"},
+  {rank:67,name:"Tony Pollard",team:"TEN",pos:"RB",bye:"12",adp:60,sf:74,note:"Callahan HC"},
+  {rank:68,name:"Rachaad White",team:"TB",pos:"RB",bye:"10",adp:62,sf:76,note:"Bowles — pass catcher"},
+  {rank:69,name:"Jaleel McLaughlin",team:"DEN",pos:"RB",bye:"6",adp:64,sf:78,note:"Payton — committee"},
+  {rank:70,name:"Jerome Ford",team:"CLE",pos:"RB",bye:"6",adp:66,sf:80,note:"Monken HC"},
+  {rank:71,name:"Najee Harris",team:"PIT",pos:"RB",bye:"12",adp:68,sf:82,note:"McCarthy — workhorse"},
+  {rank:72,name:"Tyjae Spears",team:"TEN",pos:"RB",bye:"12",adp:70,sf:84,note:"Callahan — speed"},
+  {rank:73,name:"Jaylen Wright",team:"MIA",pos:"RB",bye:"11",adp:72,sf:86,note:"Hafley — explosive"},
+  {rank:74,name:"Isaac Guerendo",team:"SF",pos:"RB",bye:"11",adp:74,sf:88,note:"Shanahan zone"},
+  {rank:75,name:"Will Levis",team:"TEN",pos:"QB",bye:"12",adp:76,sf:89,note:"Callahan — backup"},
+  {rank:76,name:"Gus Edwards",team:"NE",pos:"RB",bye:"6",adp:78,sf:90,note:"Vrabel — power"},
+  {rank:77,name:"MarShawn Lloyd",team:"GB",pos:"RB",bye:"10",adp:80,sf:91,note:"LaFleur — rotational"},
+  {rank:78,name:"Blake Corum",team:"LAR",pos:"RB",bye:"5",adp:82,sf:92,note:"McVay — committee"},
+  {rank:79,name:"Ray Davis",team:"BUF",pos:"RB",bye:"7",adp:84,sf:93,note:"Brady — depth"},
+  {rank:80,name:"Kimani Vidal",team:"LAC",pos:"RB",bye:"9",adp:86,sf:94,note:"Harbaugh — committee"},
+  {rank:81,name:"Samaje Perine",team:"DEN",pos:"RB",bye:"6",adp:88,sf:95,note:"Payton — PPR back"},
+  {rank:82,name:"Hassan Haskins",team:"LAR",pos:"RB",bye:"5",adp:90,sf:96,note:"McVay — power"},
+  {rank:83,name:"Clyde Edwards-Helaire",team:"KC",pos:"RB",bye:"10",adp:92,sf:97,note:"Reid — depth"},
+  {rank:84,name:"Elijah Mitchell",team:"SF",pos:"RB",bye:"11",adp:94,sf:98,note:"Shanahan — committee"},
+  {rank:85,name:"Diontae Johnson",team:"BAL",pos:"WR",bye:"6",adp:60,sf:75,note:"Minter HC"},
+  {rank:86,name:"Brandon Aiyuk",team:"SF",pos:"WR",bye:"11",adp:62,sf:77,note:"Shanahan"},
+  {rank:87,name:"Stefon Diggs",team:"HOU",pos:"WR",bye:"6",adp:64,sf:79,note:"Ryans"},
+  {rank:88,name:"Tyler Lockett",team:"SEA",pos:"WR",bye:"11",adp:66,sf:81,note:"Macdonald"},
+  {rank:89,name:"Courtland Sutton",team:"DEN",pos:"WR",bye:"6",adp:68,sf:83,note:"Payton"},
+  {rank:90,name:"Christian Kirk",team:"JAX",pos:"WR",bye:"12",adp:70,sf:85,note:"Coen"},
+  {rank:91,name:"Curtis Samuel",team:"BUF",pos:"WR",bye:"7",adp:72,sf:87,note:"Brady"},
+  {rank:92,name:"Michael Pittman Jr.",team:"IND",pos:"WR",bye:"9",adp:74,sf:89,note:"Steichen"},
+  {rank:93,name:"Quentin Johnston",team:"LAC",pos:"WR",bye:"9",adp:76,sf:91,note:"Harbaugh"},
+  {rank:94,name:"Wan’Dale Robinson",team:"NYG",pos:"WR",bye:"9",adp:78,sf:93,note:"J.Harbaugh"},
+  {rank:95,name:"Kadarius Toney",team:"KC",pos:"WR",bye:"10",adp:80,sf:95,note:"Reid"},
+  {rank:96,name:"Elijah Moore",team:"CLE",pos:"WR",bye:"6",adp:82,sf:97,note:"Monken"},
+  {rank:97,name:"K.J. Hamler",team:"PIT",pos:"WR",bye:"12",adp:84,sf:99,note:"McCarthy"},
+  {rank:98,name:"Parris Campbell",team:"NYG",pos:"WR",bye:"9",adp:86,sf:101,note:"J.Harbaugh"},
+  {rank:99,name:"Marvin Mims Jr.",team:"DEN",pos:"WR",bye:"6",adp:88,sf:103,note:"Payton"},
+  {rank:100,name:"Jalen Reagor",team:"NE",pos:"WR",bye:"6",adp:90,sf:105,note:"Vrabel"},
+  {rank:101,name:"Dontayvion Wicks",team:"GB",pos:"WR",bye:"10",adp:92,sf:107,note:"LaFleur"},
+  {rank:102,name:"Josh Downs",team:"IND",pos:"WR",bye:"9",adp:94,sf:109,note:"Steichen"},
+  {rank:103,name:"Rashid Shaheed",team:"NO",pos:"WR",bye:"10",adp:96,sf:111,note:"Moore HC"},
+  {rank:104,name:"Cedric Tillman",team:"CLE",pos:"WR",bye:"6",adp:98,sf:113,note:"Monken"},
+  {rank:105,name:"Terrace Marshall Jr.",team:"BUF",pos:"WR",bye:"7",adp:100,sf:115,note:"Brady"},
+  {rank:106,name:"Alec Pierce",team:"IND",pos:"WR",bye:"9",adp:102,sf:117,note:"Steichen"},
+  {rank:107,name:"Xavier Hutchinson",team:"HOU",pos:"WR",bye:"6",adp:104,sf:119,note:"Ryans"},
+  {rank:108,name:"Demario Douglas",team:"NE",pos:"WR",bye:"6",adp:106,sf:121,note:"Vrabel"},
+  {rank:109,name:"Jaleel Scott",team:"BAL",pos:"WR",bye:"6",adp:108,sf:123,note:"Minter"},
+  {rank:110,name:"Darius Slayton",team:"NYG",pos:"WR",bye:"9",adp:110,sf:125,note:"J.Harbaugh"},
+  {rank:111,name:"Van Jefferson",team:"ATL",pos:"WR",bye:"6",adp:112,sf:127,note:"Stefanski"},
+  {rank:112,name:"Tre Tucker",team:"LV",pos:"WR",bye:"10",adp:114,sf:129,note:"Carroll"},
+  {rank:113,name:"Jaelon Darden",team:"TB",pos:"WR",bye:"10",adp:116,sf:131,note:"Bowles"},
+  {rank:114,name:"Bo Melton",team:"GB",pos:"WR",bye:"10",adp:118,sf:133,note:"LaFleur"},
+  {rank:115,name:"Tutu Atwell",team:"LAR",pos:"WR",bye:"5",adp:120,sf:135,note:"McVay"},
+  {rank:116,name:"Tyquan Thornton",team:"NE",pos:"WR",bye:"6",adp:122,sf:137,note:"Vrabel"},
+  {rank:117,name:"Jonnu Smith",team:"MIA",pos:"TE",bye:"11",adp:55,sf:80,note:"Hafley HC"},
+  {rank:118,name:"T.J. Hockenson",team:"MIN",pos:"TE",bye:"11",adp:60,sf:82,note:"O'Connell"},
+  {rank:119,name:"Cole Kmet",team:"CHI",pos:"TE",bye:"5",adp:65,sf:84,note:"B.Johnson"},
+  {rank:120,name:"Tucker Kraft",team:"GB",pos:"TE",bye:"10",adp:70,sf:86,note:"LaFleur"},
+  {rank:121,name:"David Njoku",team:"CLE",pos:"TE",bye:"6",adp:75,sf:88,note:"Monken"},
+  {rank:122,name:"Taysom Hill",team:"NO",pos:"TE",bye:"10",adp:80,sf:90,note:"Moore HC"},
+  {rank:123,name:"Cade Otton",team:"TB",pos:"TE",bye:"10",adp:85,sf:92,note:"Bowles"},
+  {rank:124,name:"Juwan Johnson",team:"NO",pos:"TE",bye:"10",adp:90,sf:94,note:"Moore HC"},
+  {rank:125,name:"Dalton Kincaid",team:"BUF",pos:"TE",bye:"7",adp:95,sf:96,note:"Brady"},
+  {rank:126,name:"Hunter Henry",team:"NE",pos:"TE",bye:"6",adp:100,sf:98,note:"Vrabel"},
+  {rank:127,name:"Gerald Everett",team:"LAC",pos:"TE",bye:"9",adp:105,sf:100,note:"Harbaugh"},
+  {rank:128,name:"Kyle Pitts",team:"ATL",pos:"TE",bye:"6",adp:110,sf:102,note:"Stefanski"},
+  {rank:129,name:"Mo Alie-Cox",team:"IND",pos:"TE",bye:"9",adp:115,sf:104,note:"Steichen"},
+  {rank:130,name:"Adam Trautman",team:"DEN",pos:"TE",bye:"6",adp:120,sf:106,note:"Payton"},
+  {rank:131,name:"Chigoziem Okonkwo",team:"TEN",pos:"TE",bye:"12",adp:125,sf:108,note:"Callahan"},
+  {rank:132,name:"Noah Fant",team:"SEA",pos:"TE",bye:"11",adp:130,sf:110,note:"Macdonald"},
+  {rank:133,name:"Justin Tucker",team:"BAL",pos:"K",bye:"6",adp:140,sf:200,note:"Elite — consistent"},
+  {rank:134,name:"Harrison Butker",team:"KC",pos:"K",bye:"10",adp:145,sf:201,note:"Most reliable"},
+  {rank:135,name:"Evan McPherson",team:"CIN",pos:"K",bye:"9",adp:150,sf:202,note:"Big leg"},
+  {rank:136,name:"Tyler Bass",team:"BUF",pos:"K",bye:"7",adp:155,sf:203,note:"Brady HC"},
+  {rank:137,name:"Brandon Aubrey",team:"DAL",pos:"K",bye:"7",adp:160,sf:204,note:"Schottenheimer"},
+  {rank:138,name:"Cameron Dicker",team:"LAC",pos:"K",bye:"9",adp:165,sf:205,note:"Harbaugh"},
+  {rank:139,name:"Jake Moody",team:"SF",pos:"K",bye:"11",adp:170,sf:206,note:"Shanahan"},
+  {rank:140,name:"Cairo Santos",team:"CHI",pos:"K",bye:"5",adp:175,sf:207,note:"B.Johnson"},
+  {rank:141,name:"Greg Joseph",team:"MIN",pos:"K",bye:"11",adp:180,sf:208,note:"O'Connell"},
+  {rank:142,name:"Chris Boswell",team:"PIT",pos:"K",bye:"12",adp:185,sf:209,note:"McCarthy"},
+  {rank:143,name:"Jake Elliott",team:"PHI",pos:"K",bye:"7",adp:190,sf:210,note:"Sirianni"},
+  {rank:144,name:"Matt Gay",team:"IND",pos:"K",bye:"9",adp:195,sf:211,note:"Steichen"},
+  {rank:145,name:"Joey Slye",team:"WAS",pos:"K",bye:"11",adp:200,sf:212,note:"Quinn"},
+  {rank:146,name:"Graham Gano",team:"NYG",pos:"K",bye:"9",adp:205,sf:213,note:"J.Harbaugh"},
+  {rank:147,name:"San Francisco",team:"SF",pos:"DEF",bye:"11",adp:150,sf:215,note:"Shanahan — elite"},
+  {rank:148,name:"Dallas",team:"DAL",pos:"DEF",bye:"7",adp:155,sf:216,note:"Schottenheimer"},
+  {rank:149,name:"Philadelphia",team:"PHI",pos:"DEF",bye:"7",adp:160,sf:217,note:"Sirianni"},
+  {rank:150,name:"Pittsburgh",team:"PIT",pos:"DEF",bye:"12",adp:165,sf:218,note:"McCarthy"},
+  {rank:151,name:"Baltimore",team:"BAL",pos:"DEF",bye:"6",adp:170,sf:219,note:"Minter HC"},
+  {rank:152,name:"Kansas City",team:"KC",pos:"DEF",bye:"10",adp:175,sf:220,note:"Reid"},
+  {rank:153,name:"New England",team:"NE",pos:"DEF",bye:"6",adp:180,sf:221,note:"Vrabel"},
+  {rank:154,name:"Cleveland",team:"CLE",pos:"DEF",bye:"6",adp:185,sf:222,note:"Monken"},
+  {rank:155,name:"Buffalo",team:"BUF",pos:"DEF",bye:"7",adp:190,sf:223,note:"Brady"},
+  {rank:156,name:"Minnesota",team:"MIN",pos:"DEF",bye:"11",adp:195,sf:224,note:"O'Connell"},
+  {rank:157,name:"Green Bay",team:"GB",pos:"DEF",bye:"10",adp:200,sf:225,note:"LaFleur"},
+  {rank:158,name:"Detroit",team:"DET",pos:"DEF",bye:"11",adp:205,sf:226,note:"Campbell"},
+  {rank:159,name:"Los Angeles Rams",team:"LAR",pos:"DEF",bye:"5",adp:210,sf:227,note:"McVay"},
+  {rank:160,name:"Denver",team:"DEN",pos:"DEF",bye:"6",adp:215,sf:228,note:"Payton"},
+  {rank:161,name:"Sam Darnold",team:"SEA",pos:"QB",bye:"11",adp:65,sf:40,note:"Macdonald HC"},
+  {rank:162,name:"Geno Smith",team:"LV",pos:"QB",bye:"10",adp:70,sf:41,note:"Carroll"},
+  {rank:163,name:"Daniel Jones",team:"NYJ",pos:"QB",bye:"10",adp:75,sf:42,note:"Glenn HC"},
+  {rank:164,name:"Deshaun Watson",team:"CLE",pos:"QB",bye:"6",adp:80,sf:43,note:"Monken HC"},
+  {rank:165,name:"Tua Tagovailoa",team:"MIA",pos:"QB",bye:"11",adp:85,sf:44,note:"Hafley HC"},
+  {rank:166,name:"Aaron Rodgers",team:"NYJ",pos:"QB",bye:"10",adp:90,sf:45,note:"Glenn HC"},
+  {rank:167,name:"Russell Wilson",team:"PIT",pos:"QB",bye:"12",adp:95,sf:46,note:"McCarthy HC"}
 ];;
 
 // 2026 NFL bye weeks — sourced from official schedule release
@@ -697,6 +697,7 @@ let apiKeyInput = '';
 let editingKey = false;
 let aiHistory = [];
 let aiLoading = false;
+let aiAlertsPaused = localStorage.getItem('ff26_aiAlertsPaused') === '1';
 let lastAiMessage = '';
 var aiConversation = [];
 const aiChips = ['Who should I draft?','Am I QB heavy?','What position do I need?','Top VORP gaps?','Is my team balanced?','Bye week concerns?'];
@@ -1154,6 +1155,7 @@ function resetDraft(){
   myRosterSlots=Array(18).fill(null);
   pickLog=[];history=[];currentPick=1;
   compareRanks = [];
+  _alertCooldowns = {};
   initPlayers();
   if(setup){buildPickOwners();buildKeeperPicks();}
   renderAll();
@@ -1343,6 +1345,62 @@ function showPickToast(pickNum, p) {
       if (_pickToastEl) { _pickToastEl.remove(); _pickToastEl = null; }
     }, 300);
   }, 2000);
+}
+
+var _aiAlertEl = null;
+var _aiAlertTimer = null;
+var _aiAlertFadeTimer = null;
+var _alertCooldowns = {};
+
+function showAIAlertPopup(text) {
+  if (!text || aiAlertsPaused) return;
+  if (_aiAlertTimer) clearTimeout(_aiAlertTimer);
+  if (_aiAlertFadeTimer) clearTimeout(_aiAlertFadeTimer);
+  if (_aiAlertEl) _aiAlertEl.remove();
+  var safe = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  _aiAlertEl = document.createElement('div');
+  _aiAlertEl.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:9998;max-width:320px;background:rgba(45,32,8,.95);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.4);transition:opacity .4s ease;opacity:1';
+  _aiAlertEl.innerHTML =
+    '<div style="font-size:10px;font-weight:700;color:#fbbf24;margin-bottom:4px;letter-spacing:.04em">🤖 AI ALERT</div>' +
+    '<div style="font-size:11px;color:#fde68a;line-height:1.45">' + safe + '</div>';
+  document.body.appendChild(_aiAlertEl);
+  _aiAlertTimer = setTimeout(function() {
+    if (!_aiAlertEl) return;
+    _aiAlertEl.style.opacity = '0';
+    _aiAlertFadeTimer = setTimeout(function() {
+      if (_aiAlertEl) { _aiAlertEl.remove(); _aiAlertEl = null; }
+    }, 400);
+  }, 10000);
+}
+
+function toggleAIAlertsPause() {
+  aiAlertsPaused = !aiAlertsPaused;
+  localStorage.setItem('ff26_aiAlertsPaused', aiAlertsPaused ? '1' : '0');
+  updateAIPauseBtn();
+  if (aiAlertsPaused && _aiAlertEl) {
+    if (_aiAlertTimer) clearTimeout(_aiAlertTimer);
+    if (_aiAlertFadeTimer) clearTimeout(_aiAlertFadeTimer);
+    _aiAlertEl.remove();
+    _aiAlertEl = null;
+  }
+}
+
+function updateAIPauseBtn() {
+  var btn = document.getElementById('aiPauseBtn');
+  if (!btn) return;
+  if (aiAlertsPaused) {
+    btn.textContent = '▶ AI Alerts';
+    btn.style.background = '#21262d';
+    btn.style.borderColor = '#30363d';
+    btn.style.color = '#7d8590';
+    btn.title = 'AI proactive alerts paused — click to resume';
+  } else {
+    btn.textContent = '⏸ AI Alerts';
+    btn.style.background = '#2d2008';
+    btn.style.borderColor = '#9e6a03';
+    btn.style.color = '#fbbf24';
+    btn.title = 'Pause proactive AI alerts and auto-pick prompts';
+  }
 }
 
 function toggleWatch(rank) {
@@ -2099,7 +2157,7 @@ const PLAYER_INTEL = {
   'Ashton Jeanty': {ol_grade:'C',ol_rank:29,ol_label:'RB',sos:31,sos_label:'rSoS',pass_pct:45,tendency:'Run-Heavy',aggression:'Low',usage:'Carry 72% · Tgt 8%',hc:'Carroll',oc:'Turner'},
   'Saquon Barkley': {ol_grade:'A+',ol_rank:1,ol_label:'RB',sos:12,sos_label:'rSoS',pass_pct:55,tendency:'Balanced',aggression:'Med',usage:'Carry 70% · Tgt 14%',hc:'Sirianni',oc:'Patullo'},
   'Chase Brown': {ol_grade:'C',ol_rank:21,ol_label:'RB',sos:16,sos_label:'rSoS',pass_pct:62,tendency:'Pass-Heavy',aggression:'Low',usage:'Carry 62% · Tgt 12%',hc:'Taylor',oc:'Pitcher'},
-  'Kenneth Walker III': {ol_grade:'B',ol_rank:13,ol_label:'RB',sos:18,sos_label:'rSoS',pass_pct:60,tendency:'Pass-Heavy',aggression:'Med',usage:'Carry 64% · Tgt 11%',hc:'Reid',oc:'Reid'},
+  'Kenneth Walker III': {ol_grade:'C+',ol_rank:19,ol_label:'RB',sos:22,sos_label:'rSoS',pass_pct:52,tendency:'Balanced',aggression:'Med',usage:'Carry 68% · Tgt 10%',hc:'Macdonald',oc:'Turner'},
   'Derrick Henry': {ol_grade:'B+',ol_rank:4,ol_label:'RB',sos:9,sos_label:'rSoS',pass_pct:58,tendency:'Pass-First',aggression:'High',usage:'Carry 70% · Tgt 7%',hc:'Minter',oc:'Doyle'},
   'Breece Hall': {ol_grade:'C',ol_rank:24,ol_label:'RB',sos:17,sos_label:'rSoS',pass_pct:58,tendency:'Pass-First',aggression:'Med',usage:'Carry 60% · Tgt 16%',hc:'Glenn',oc:'Engstrand'},
   'Travis Etienne': {ol_grade:'C+',ol_rank:25,ol_label:'RB',sos:26,sos_label:'rSoS',pass_pct:56,tendency:'Balanced',aggression:'Med',usage:'Carry 58% · Tgt 18%',hc:'Moore',oc:'Nussmeier'},
@@ -3058,11 +3116,11 @@ async function syncSleeperDraft(silent) {
 
     // Detect: clock just advanced to my pick — fire AI alert
     const nowClockTi = clockTeamIdx();
-    if (myTeamIdx >= 0 && nowClockTi === myTeamIdx && _prePickClockTi !== myTeamIdx && picks.length > 0) {
+    if (!aiAlertsPaused && myTeamIdx >= 0 && nowClockTi === myTeamIdx && _prePickClockTi !== myTeamIdx && picks.length > 0) {
       const rd = Math.ceil(currentPick / TEAMS);
-      addChatMessage('alert', '🏈 It\'s your pick! Pick #' + currentPick + ' · Round ' + rd + '\nChecking AI recommendations…');
+      showAIAlertPopup('It\'s your pick! Pick #' + currentPick + ' · Round ' + rd);
       switchRP('ai');
-      setTimeout(function() { if (apiKey) askAI('quick'); }, 400);
+      setTimeout(function() { if (apiKey && !aiAlertsPaused) askAI('quick'); }, 400);
     }
 
   } catch(e) {
@@ -3737,19 +3795,25 @@ function askAIAboutPlayer(rank) {
 }
 
 function checkProactiveAlerts(pickedTeamIdx) {
-  if (!apiKey || myTeamIdx < 0) return;
+  if (aiAlertsPaused || !apiKey || myTeamIdx < 0) return;
   var alerts = [];
   var recentN    = Math.min(5, pickLog.length);
   var recentPicks = pickLog.slice(-recentN);
+  var now = Date.now();
+  var cooldownMs = 90000;
 
-  // QB run: 3+ QBs in last 5 picks and I have none
+  function note(key, msg) {
+    if (_alertCooldowns[key] && now - _alertCooldowns[key] < cooldownMs) return;
+    _alertCooldowns[key] = now;
+    alerts.push(msg);
+  }
+
   var recentQBs = recentPicks.filter(function(l) { return l.pos === 'QB'; }).length;
   var myQBs     = (teamRosters[myTeamIdx] || []).filter(function(p) { return p.pos === 'QB'; }).length;
   if (recentQBs >= 3 && myQBs === 0) {
-    alerts.push('QB run in progress — ' + recentQBs + ' QBs taken in last ' + recentN + ' picks. You have none. Consider going QB early.');
+    note('qb_run', 'QB run in progress — ' + recentQBs + ' QBs taken in last ' + recentN + ' picks. You have none. Consider going QB early.');
   }
 
-  // Bye week stack: 3+ starters on same week
   var myRoster = teamRosters[myTeamIdx] || [];
   var byeCount = {};
   myRoster.forEach(function(p) {
@@ -3759,28 +3823,20 @@ function checkProactiveAlerts(pickedTeamIdx) {
   });
   Object.keys(byeCount).forEach(function(wk) {
     if (byeCount[wk] >= 3) {
-      alerts.push('Bye week alert — ' + byeCount[wk] + ' of your starters are on Week ' + wk + ' bye. Avoid adding more.');
+      note('bye_' + wk, 'Bye week alert — ' + byeCount[wk] + ' of your starters are on Week ' + wk + ' bye. Avoid adding more.');
     }
   });
 
-  // Elite TE scarcity: late rounds and I have none
   var topTEs = players.filter(function(p) {
     return !p.drafted && !p.mockDrafted && p.pos === 'TE' && (p.tier || 99) <= 2;
   }).length;
   var myTEs = myRoster.filter(function(p) { return p.pos === 'TE'; }).length;
   if (topTEs <= 3 && myTEs === 0 && Math.ceil(currentPick / TEAMS) >= 5) {
-    alerts.push('Elite TE shortage — only ' + topTEs + ' Tier 1-2 TEs left undrafted. Prioritize one soon.');
+    note('te_scarcity', 'Elite TE shortage — only ' + topTEs + ' Tier 1-2 TEs left undrafted. Prioritize one soon.');
   }
 
   if (alerts.length === 0) return;
-  alerts.forEach(function(a) { addChatMessage('alert', a); });
-
-  // Highlight the AI tab indicator if not currently active
-  var rpAI = document.getElementById('rp-ai');
-  if (rpAI && rpAI.style.display === 'none') {
-    var tabBtn = document.getElementById('rpt-ai');
-    if (tabBtn) tabBtn.style.color = '#fbbf24';
-  }
+  showAIAlertPopup(alerts.join('\n'));
 }
 
 function saveApiKey() {
@@ -3868,6 +3924,7 @@ function setPosFilter(pos, btn) {
       if (savedWatch) JSON.parse(savedWatch).forEach(function(r) { watchList.add(r); });
     } catch (e) {}
     updatePosLimitsTag();
+    updateAIPauseBtn();
     renderAll();
     scheduleRestoreTopSectionHeight();
     if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
@@ -4284,7 +4341,7 @@ function executeMockPick(p){
   if(!teamRosters[ti])teamRosters[ti]=[];
   teamRosters[ti].push(entry);
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
-  showPickToast(pick, p);
+  if (isMe) showPickToast(pick, p);
   currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);if(compareRanks.length)clearCompare();}
   else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
