@@ -210,6 +210,77 @@
     .check-item.done { color: var(--success); }
     .check-item.pending { color: var(--warning); }
     .check-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+
+    .setup-section { margin-bottom: 28px; }
+    .setup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .setup-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .setup-card.sleeper { border-color: rgba(63,185,80,.25); }
+    .setup-card.trades { border-color: rgba(139,92,246,.25); }
+    .setup-card-hdr { display: flex; align-items: flex-start; gap: 12px; }
+    .setup-icon {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .setup-icon.green { background: rgba(63,185,80,.12); }
+    .setup-icon.purple { background: rgba(139,92,246,.12); }
+    .setup-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+    .setup-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .setup-status { font-size: 12px; color: var(--muted); padding: 8px 10px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+    .setup-status.ok { color: var(--success); border-color: rgba(63,185,80,.25); background: rgba(63,185,80,.06); }
+    .setup-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .setup-field input {
+      width: 100%; padding: 9px 11px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 12px; outline: none;
+    }
+    .setup-field input:focus { border-color: var(--accent); }
+    .setup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-setup {
+      padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: none; transition: opacity .13s;
+    }
+    .btn-setup:hover { opacity: .88; }
+    .btn-setup.green { background: #166534; color: #4ade80; }
+    .btn-setup.blue { background: var(--accent); color: #fff; }
+    .btn-setup.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-setup.purple { background: #4a1d96; color: #c084fc; }
+    .trade-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .trade-row {
+      font-size: 12px; padding: 8px 10px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; line-height: 1.45;
+    }
+    .trade-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 8px 0; }
+
+    /* League tabs */
+    .league-tabs-wrap { margin-bottom: 24px; }
+    .league-tabs-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .league-tabs {
+      display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0;
+    }
+    .league-tab {
+      padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: border-color .12s, color .12s, background .12s;
+      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .league-tab:hover { border-color: rgba(59,130,246,.35); color: var(--text); }
+    .league-tab.active {
+      background: rgba(59,130,246,.14); border-color: rgba(59,130,246,.45); color: var(--accent);
+    }
+    .tab-live { color: var(--success); font-size: 10px; }
+    .league-hero {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 18px 22px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .lh-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .lh-meta { font-size: 12px; color: var(--muted); }
+    #leagueTabPanel { display: none; }
+    #leagueTabPanel.visible { display: block; }
   </style>
 </head>
 <body>
@@ -237,12 +308,7 @@
   <main class="main">
     <div class="page-header">
       <div class="page-title">My Leagues</div>
-      <div class="page-sub">Select a league to open the draft board</div>
-    </div>
-
-    <div class="checklist-banner" id="preDraftChecklist">
-      <h3>Pre-draft checklist</h3>
-      <div class="checklist-grid" id="checklistGrid"></div>
+      <div class="page-sub">Your 2026 Sleeper leagues — each tab keeps its own setup, trades, and draft history</div>
     </div>
 
     <!-- Sleeper connect step (shown if not yet connected) -->
@@ -259,46 +325,60 @@
 
     <div class="error-banner" id="errorBanner"></div>
 
-    <div class="stats-row" id="statsRow" style="display:none">
-      <div class="stat-card"><div class="stat-val" id="statLeagues">0</div><div class="stat-lbl">Leagues</div></div>
-      <div class="stat-card"><div class="stat-val" id="statActive">—</div><div class="stat-lbl">Active League</div></div>
-      <div class="stat-card"><div class="stat-val" id="statFormat">—</div><div class="stat-lbl">Format</div></div>
-    </div>
-
-    <div class="section-hdr" id="leaguesSectionHdr" style="display:none">
-      <div class="section-title">2026 Leagues</div>
-      <button class="btn-ghost" onclick="loadLeagues()">↻ Refresh</button>
-    </div>
-    <div class="leagues-grid" id="leaguesGrid"></div>
-
-    <!-- Connected Services -->
-    <div id="servicesSection" style="margin-top:40px;display:none">
-      <div class="section-hdr">
-        <div class="section-title">Connected Services</div>
+    <div class="league-tabs-wrap" id="leagueTabsWrap" style="display:none">
+      <div class="league-tabs-row">
+        <div class="league-tabs" id="leagueTabsBar"></div>
+        <button class="btn-ghost" onclick="loadLeagues()">↻ Refresh</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-        <!-- Sleeper status -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:14px">
-          <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💤</div>
-          <div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Sleeper</div>
-            <div id="sleeperServiceStatus" style="font-size:12px;color:var(--muted)">Checking…</div>
+      <div id="leagueTabPanel">
+        <div id="leagueHero"></div>
+
+    <div class="checklist-banner" id="preDraftChecklist">
+      <h3>Pre-draft checklist</h3>
+      <div class="checklist-grid" id="checklistGrid"></div>
+    </div>
+
+    <div class="setup-section" id="league-setup" style="display:none">
+      <div class="section-hdr">
+        <div class="section-title">League Setup</div>
+      </div>
+      <div class="setup-grid">
+        <div class="setup-card sleeper">
+          <div class="setup-card-hdr">
+            <div class="setup-icon green">🔗</div>
+            <div>
+              <div class="setup-title">Sleeper League</div>
+              <div class="setup-desc">Import teams, draft slot, keepers, and pick trades before draft day.</div>
+            </div>
+          </div>
+          <div class="setup-status" id="sleeperSetupStatus">No league imported yet</div>
+          <div class="setup-field">
+            <label>League ID</label>
+            <input id="acctLeagueId" type="text" placeholder="e.g. 1312084987100557312" autocomplete="off">
+          </div>
+          <div class="setup-field">
+            <label>Draft ID <span style="color:#4b5563">(auto-filled on import)</span></label>
+            <input id="acctDraftId" type="text" placeholder="Filled after league import" autocomplete="off">
+          </div>
+          <div class="setup-actions">
+            <button class="btn-setup green" onclick="accountImportLeague()">📥 Import League</button>
+            <button class="btn-setup blue" onclick="accountOpenSetup('sleeper')">⚙️ Full Setup</button>
           </div>
         </div>
-        <!-- Claude AI -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:14px">
-          <div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
-          <div style="flex:1;min-width:0;overflow:hidden">
-            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Claude AI</div>
-            <div id="claudeStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px">Not connected</div>
-            <div class="connect-row" style="max-width:100%">
-              <input type="password" id="apiKeyInput" class="connect-input" placeholder="sk-ant-api03-…" autocomplete="off"
-                style="font-family:monospace;font-size:12px"
-                onkeydown="if(event.key==='Enter') saveApiKey()">
-              <button class="btn-connect" id="saveKeyBtn" onclick="saveApiKey()" style="padding:10px 16px;white-space:nowrap">Save</button>
+        <div class="setup-card trades">
+          <div class="setup-card-hdr">
+            <div class="setup-icon purple">🔄</div>
+            <div>
+              <div class="setup-title">Pick Trades</div>
+              <div class="setup-desc">Round picks traded between teams — applied to your draft board order.</div>
             </div>
-            <div class="connect-msg" id="apiKeyMsg" style="margin-top:6px"></div>
-            <a href="https://console.anthropic.com" target="_blank" style="font-size:11px;color:var(--accent);display:block;margin-top:6px">Get API key →</a>
+          </div>
+          <div id="acctTradesList" class="trade-list">
+            <div class="trade-empty">Import your league to load pick trades from Sleeper.</div>
+          </div>
+          <div class="setup-actions">
+            <button class="btn-setup purple" onclick="accountOpenSetup('trades')">View on Draft Board</button>
+            <button class="btn-setup ghost" onclick="accountOpenSetup('sleeper')">Add / Edit Trades</button>
           </div>
         </div>
       </div>
@@ -349,6 +429,34 @@
       <div id="scoutingList"></div>
     </div>
 
+      </div>
+    </div>
+
+    <!-- Connected Services -->
+    <div id="servicesSection" style="margin-top:40px;display:none">
+      <div class="section-hdr">
+        <div class="section-title">Connected Services</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <!-- Claude AI -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:flex-start;gap:14px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
+          <div style="flex:1;min-width:0;overflow:hidden">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">Claude AI</div>
+            <div id="claudeStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px">Not connected</div>
+            <div class="connect-row" style="max-width:100%">
+              <input type="password" id="apiKeyInput" class="connect-input" placeholder="sk-ant-api03-…" autocomplete="off"
+                style="font-family:monospace;font-size:12px"
+                onkeydown="if(event.key==='Enter') saveApiKey()">
+              <button class="btn-connect" id="saveKeyBtn" onclick="saveApiKey()" style="padding:10px 16px;white-space:nowrap">Save</button>
+            </div>
+            <div class="connect-msg" id="apiKeyMsg" style="margin-top:6px"></div>
+            <a href="https://console.anthropic.com" target="_blank" style="font-size:11px;color:var(--accent);display:block;margin-top:6px">Get API key →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Confirm Modal -->
     <div id="deleteConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center;padding:16px">
       <div style="background:#0d1117;border:1px solid #30363d;border-radius:14px;width:400px;max-width:96vw;padding:28px 28px 24px">
@@ -377,11 +485,31 @@
     </div>
   </main>
 
+  <script src="league_store.js?v=1"></script>
   <script>
     var SUPA_URL = 'https://cbjzvazwkkpjwobiqxsf.supabase.co';
     var SUPA_KEY = 'sb_publishable_Wy-lbd-fC5ujiMI0m6SGpw_oEXnpTaj';
     var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
     var currentUser = null;
+    var _leaguesCache = [];
+    var _activeTabLeagueId = null;
+
+    function getActiveLeagueId() {
+      return _activeTabLeagueId || LeagueStore.getActiveId() || localStorage.getItem('ff26_leagueId') || '';
+    }
+
+    function syncLegacyLeagueKeys(leagueId, profile) {
+      if (!leagueId) return;
+      localStorage.setItem('ff26_leagueId', leagueId);
+      if (profile) {
+        if (profile.leagueName) localStorage.setItem('ff26_leagueName', profile.leagueName);
+        if (profile.draftId) localStorage.setItem('ff26_draftId', profile.draftId);
+        if (profile.myTeamIdx != null && profile.myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(profile.myTeamIdx));
+        if (profile.trades) localStorage.setItem('ff26_trades', JSON.stringify(profile.trades));
+        if (profile.teamNames) localStorage.setItem('ff26_teamNames', JSON.stringify(profile.teamNames));
+        if (profile.posLimits) localStorage.setItem('ff26_posLimits', JSON.stringify(profile.posLimits));
+      }
+    }
 
     // ── Boot: check session ──────────────────────────────────────────────────
     supa.auth.getSession().then(function(result) {
@@ -425,43 +553,198 @@
       }
       // Always load services section
       loadServices();
-      renderPreDraftChecklist();
-      // Load draft history
-      loadDraftHistory();
     }
 
     function showLeaguesSection() {
-      document.getElementById('leaguesSectionHdr').style.display = 'flex';
-      document.getElementById('statsRow').style.display = 'flex';
-      document.getElementById('leaguesGrid').innerHTML = skeletons();
+      var wrap = document.getElementById('leagueTabsWrap');
+      if (wrap) wrap.style.display = 'block';
+      var bar = document.getElementById('leagueTabsBar');
+      if (bar) bar.innerHTML = skeletonTabs();
     }
 
-    function skeletons() {
-      return [1,2,3].map(function() {
-        return '<div class="sk-card">' +
-          '<div class="skeleton sk-line" style="width:60%;margin-bottom:12px"></div>' +
-          '<div class="skeleton sk-line" style="width:35%;margin-bottom:8px"></div>' +
-          '<div class="skeleton sk-line" style="width:45%"></div>' +
-        '</div>';
+    function skeletonTabs() {
+      return [1, 2, 3].map(function() {
+        return '<span class="league-tab" style="opacity:.45;pointer-events:none"><span class="skeleton sk-line" style="display:inline-block;width:88px;height:11px;margin:0"></span></span>';
       }).join('');
+    }
+
+    function selectLeagueTab(leagueId) {
+      if (!leagueId) return;
+      _activeTabLeagueId = leagueId;
+      LeagueStore.setActiveId(leagueId);
+
+      var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
+      if (league) {
+        LeagueStore.ensureProfile(leagueId, {
+          leagueName: league.name,
+          myTeamName: league.myTeamName,
+          myRosterId: league.myRosterId
+        });
+        localStorage.setItem('dc_activeLeague', JSON.stringify({
+          leagueId: leagueId,
+          teamName: league.myTeamName,
+          rosterId: league.myRosterId,
+          leagueName: league.name,
+          userId: (currentUser && currentUser.user_metadata || {}).sleeper_user_id,
+          username: (currentUser && currentUser.user_metadata || {}).sleeper_username,
+          provider: 'sleeper'
+        }));
+      }
+
+      syncLegacyLeagueKeys(leagueId, LeagueStore.getProfile(leagueId));
+      renderLeagueTabs();
+      renderLeagueHero();
+      renderPreDraftChecklist();
+      renderLeagueSetup();
+      loadDraftHistory();
+
+      var panel = document.getElementById('leagueTabPanel');
+      if (panel) panel.classList.add('visible');
+
+      if (window.location.hash === '#league-setup') {
+        var section = document.getElementById('league-setup');
+        if (section && section.scrollIntoView) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function renderLeagueTabs() {
+      var bar = document.getElementById('leagueTabsBar');
+      if (!bar || !_leaguesCache.length) return;
+      var activeId = getActiveLeagueId();
+      bar.innerHTML = _leaguesCache.map(function(league) {
+        var isActive = league.league_id === activeId;
+        var label = league.name.length > 24 ? league.name.slice(0, 22) + '…' : league.name;
+        return '<button type="button" class="league-tab' + (isActive ? ' active' : '') + '" onclick="selectLeagueTab(\'' + league.league_id + '\')" title="' + league.name.replace(/"/g, '&quot;') + '">' +
+          label + (league.status === 'drafting' ? ' <span class="tab-live">●</span>' : '') +
+          '</button>';
+      }).join('');
+    }
+
+    function renderLeagueHero() {
+      var el = document.getElementById('leagueHero');
+      if (!el) return;
+      var leagueId = getActiveLeagueId();
+      var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
+      if (!league) { el.innerHTML = ''; return; }
+
+      var scoring = scoringLabel(league);
+      var nameEsc = (league.myTeamName || '').replace(/'/g, "\\'");
+      var rosterId = league.myRosterId || 'null';
+      var leagueNameEsc = (league.name || '').replace(/'/g, "\\'");
+      var isLive = league.status === 'drafting';
+
+      el.innerHTML = '<div class="league-hero">' +
+        '<div>' +
+          '<div class="lh-name">' + league.name + '</div>' +
+          '<div class="lh-meta">👤 ' + league.myTeamName + ' · ' + scoring + ' · ' + (league.total_rosters || '?') + ' teams' +
+            (isLive ? ' · <span class="draft-status live">Live draft</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button class="btn-launch" id="btn-' + league.league_id + '" onclick="launchDraft(\'' + league.league_id + '\',\'' + nameEsc + '\',' + rosterId + ',\'' + leagueNameEsc + '\')">' +
+          (isLive ? '→ Join Live Draft' : '→ Open Draft Board') +
+        '</button>' +
+      '</div>';
+    }
+
+    function renderLeagueSetup() {
+      var section = document.getElementById('league-setup');
+      if (!section) return;
+      var leagueId = getActiveLeagueId();
+      if (!leagueId) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
+
+      var profile = LeagueStore.getProfile(leagueId) || {};
+      var leagueInp = document.getElementById('acctLeagueId');
+      var draftInp = document.getElementById('acctDraftId');
+      var statusEl = document.getElementById('sleeperSetupStatus');
+      if (leagueInp) leagueInp.value = leagueId;
+      if (draftInp) draftInp.value = profile.draftId || '';
+
+      var leagueName = profile.leagueName || localStorage.getItem('ff26_leagueName') || '';
+      var draftId = profile.draftId || '';
+
+      if (statusEl) {
+        if (profile.draftId || profile.teamNames && profile.teamNames.length) {
+          statusEl.className = 'setup-status ok';
+          statusEl.textContent = '✓ ' + (leagueName || 'League') + (draftId ? ' · Draft linked' : ' · Import to link draft');
+        } else {
+          statusEl.className = 'setup-status';
+          statusEl.textContent = 'Import this league before draft day to load teams, keepers, and pick trades.';
+        }
+      }
+
+      renderAccountTradesList();
+    }
+
+    function renderAccountTradesList() {
+      var el = document.getElementById('acctTradesList');
+      if (!el) return;
+      var leagueId = getActiveLeagueId();
+      var profile = leagueId ? (LeagueStore.getProfile(leagueId) || {}) : {};
+      var trades = profile.trades || [];
+      var teamNames = profile.teamNames || [];
+      if (!trades.length) {
+        try { trades = JSON.parse(localStorage.getItem('ff26_trades') || '[]'); } catch (e) {}
+      }
+      if (!teamNames.length) {
+        try { teamNames = JSON.parse(localStorage.getItem('ff26_teamNames') || '[]'); } catch (e) {}
+      }
+      if (!trades.length) {
+        el.innerHTML = '<div class="trade-empty">No pick trades loaded — import your league or add trades in Full Setup.</div>';
+        return;
+      }
+      var rdLabels = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th','13th','14th','15th','16th','17th','18th'];
+      el.innerHTML = trades.map(function(tr) {
+        var from = teamNames[tr.fromTeam] || ('Team ' + (tr.fromTeam + 1));
+        var to = teamNames[tr.toTeam] || ('Team ' + (tr.toTeam + 1));
+        var rd = rdLabels[(tr.round || 1) - 1] || ('Rd ' + tr.round);
+        return '<div class="trade-row"><span style="color:#f87171">' + from + '</span> → <span style="color:#4ade80">' + to + '</span> · <span style="color:#fbbf24">' + rd + ' round</span></div>';
+      }).join('');
+    }
+
+    function accountSaveLeagueIds() {
+      var leagueId = getActiveLeagueId();
+      var draftId = (document.getElementById('acctDraftId') || {}).value || '';
+      draftId = draftId.trim();
+      if (!leagueId) return;
+      LeagueStore.saveProfile(leagueId, { draftId: draftId });
+      syncLegacyLeagueKeys(leagueId, LeagueStore.getProfile(leagueId));
+    }
+
+    function accountOpenSetup(mode) {
+      accountSaveLeagueIds();
+      window.location.href = 'fantasy_draft_2026.html?setup=' + encodeURIComponent(mode || 'sleeper');
+    }
+
+    function accountImportLeague() {
+      var leagueId = getActiveLeagueId();
+      if (!leagueId) {
+        alert('Select a league tab first.');
+        return;
+      }
+      accountSaveLeagueIds();
+      window.location.href = 'fantasy_draft_2026.html?setup=sleeper&import=1';
     }
 
     function renderPreDraftChecklist() {
       var grid = document.getElementById('checklistGrid');
       if (!grid) return;
       var meta = (currentUser && currentUser.user_metadata) || {};
-      var leagueId = localStorage.getItem('ff26_leagueId') || '';
-      var draftId = localStorage.getItem('ff26_draftId') || '';
-      var myTeamIdx = parseInt(localStorage.getItem('ff26_myTeamIdx') || '-1', 10);
+      var leagueId = getActiveLeagueId();
+      var profile = leagueId ? (LeagueStore.getProfile(leagueId) || {}) : {};
+      var draftId = profile.draftId || '';
+      var myTeamIdx = profile.myTeamIdx != null ? profile.myTeamIdx : parseInt(localStorage.getItem('ff26_myTeamIdx') || '-1', 10);
       var apiKey = localStorage.getItem('ff26_apiKey') || '';
-      var posLimits = {};
-      try { posLimits = JSON.parse(localStorage.getItem('ff26_posLimits') || '{}') || {}; } catch (e) {}
-      var activeLeague = null;
-      try { activeLeague = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch (e) {}
+      var posLimits = profile.posLimits || {};
+      if (!Object.keys(posLimits).length) {
+        try { posLimits = JSON.parse(localStorage.getItem('ff26_posLimits') || '{}') || {}; } catch (e) {}
+      }
+      var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
       var items = [
         { label: 'Sleeper account linked', ok: !!meta.sleeper_username },
-        { label: 'League imported on draft board', ok: !!leagueId },
-        { label: 'My team selected', ok: myTeamIdx >= 0 || !!(activeLeague && activeLeague.roster_id) },
+        { label: 'League tab selected', ok: !!leagueId },
+        { label: 'League imported on draft board', ok: !!(profile.teamNames && profile.teamNames.length) || !!draftId },
+        { label: 'My team selected', ok: myTeamIdx >= 0 || !!(league && league.myRosterId) },
         { label: 'Claude API key saved', ok: apiKey.indexOf('sk-') === 0 },
         { label: 'Draft ID ready for live sync', ok: !!draftId },
         { label: 'Position limits loaded', ok: Object.keys(posLimits).length > 0 }
@@ -519,7 +802,6 @@
           document.getElementById('connectBanner').style.display = 'none';
           showLeaguesSection();
           loadLeagues();
-          renderPreDraftChecklist();
         }, 800);
 
       } catch(e) {
@@ -548,10 +830,9 @@
       var sleeperUserId = meta.sleeper_user_id;
       if (!sleeperUserId) return;
 
-      var grid = document.getElementById('leaguesGrid');
       var errBanner = document.getElementById('errorBanner');
       errBanner.classList.remove('show');
-      grid.innerHTML = skeletons();
+      showLeaguesSection();
 
       try {
         var res = await fetch('https://api.sleeper.app/v1/user/' + sleeperUserId + '/leagues/nfl/2026');
@@ -559,8 +840,10 @@
         var leagues = await res.json();
 
         if (!leagues || !leagues.length) {
-          grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏈</div><div>No 2026 NFL leagues found for this account.</div></div>';
-          document.getElementById('statsRow').style.display = 'none';
+          document.getElementById('leagueTabsBar').innerHTML = '';
+          document.getElementById('leagueHero').innerHTML = '<div class="empty-state"><div class="empty-icon">🏈</div><div>No 2026 NFL leagues found for this account.</div></div>';
+          document.getElementById('leagueTabPanel').classList.add('visible');
+          _leaguesCache = [];
           return;
         }
 
@@ -585,81 +868,57 @@
           }
         }));
 
-        var active = null;
-        try { active = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch(e) {}
+        _leaguesCache = details;
+        details.forEach(function(league) {
+          LeagueStore.ensureProfile(league.league_id, {
+            leagueName: league.name,
+            myTeamName: league.myTeamName,
+            myRosterId: league.myRosterId
+          });
+        });
 
-        // Stats
-        document.getElementById('statLeagues').textContent = details.length;
-        if (active) {
-          var al = details.find(function(l) { return l.league_id === active.leagueId; });
-          document.getElementById('statActive').textContent = al ? al.name.split(' ').slice(0,2).join(' ') : '—';
-          document.getElementById('statFormat').textContent = al ? scoringLabel(al) : '—';
+        var activeId = LeagueStore.getActiveId();
+        if (!activeId || !details.find(function(l) { return l.league_id === activeId; })) {
+          activeId = details[0].league_id;
         }
-
-        grid.innerHTML = details.map(function(league) {
-          var isActive = active && active.leagueId === league.league_id;
-          var scoring  = scoringLabel(league);
-          var teams    = league.total_rosters || '?';
-          var isLive   = league.status === 'drafting';
-          var nameEsc  = (league.myTeamName || '').replace(/'/g, "\\'");
-          var rosterId = league.myRosterId || 'null';
-
-          return '<div class="league-card' + (isActive ? ' active-card' : '') + '" id="lc-' + league.league_id + '">' +
-            '<div class="lc-top">' +
-              '<span class="platform-badge sleeper">Sleeper</span>' +
-              (isActive ? '<span class="active-badge">Active</span>' : '') +
-            '</div>' +
-            '<div class="lc-name" title="' + league.name + '">' + league.name + '</div>' +
-            '<div class="lc-team">👤 ' + league.myTeamName + '</div>' +
-            '<div class="lc-pills">' +
-              '<span class="pill">' + teams + ' Teams</span>' +
-              '<span class="pill">' + scoring + '</span>' +
-              '<span class="pill">2026</span>' +
-            '</div>' +
-            '<div class="lc-footer">' +
-              (isLive ? '<span class="draft-status live">● Live Draft</span>' : '<span class="draft-status">Pre-draft</span>') +
-              '<button class="btn-launch' + (isActive ? ' active-launch' : '') + '" ' +
-                'id="btn-' + league.league_id + '" ' +
-                'onclick="launchDraft(\'' + league.league_id + '\',\'' + nameEsc + '\',' + rosterId + ',\'' + league.name.replace(/'/g,"\\'") + '\')">' +
-                (isActive ? '✓ Resume Draft' : '→ Launch Draft') +
-              '</button>' +
-            '</div>' +
-            '<div class="lc-loading" id="loading-' + league.league_id + '" style="display:none">' +
-              '<div class="spinner"></div><span>Connecting to league…</span>' +
-            '</div>' +
-          '</div>';
-        }).join('');
+        selectLeagueTab(activeId);
 
       } catch(e) {
         errBanner.textContent = 'Could not load leagues. Check your connection and try again.';
         errBanner.classList.add('show');
-        grid.innerHTML = '';
       }
     }
 
     // ── Launch Draft (pre-import then redirect) ──────────────────────────────
     async function launchDraft(leagueId, teamName, rosterId, leagueName) {
-      var btn     = document.getElementById('btn-' + leagueId);
-      var loading = document.getElementById('loading-' + leagueId);
+      var btn = document.getElementById('btn-' + leagueId);
 
-      btn.disabled = true;
-      btn.textContent = 'Connecting…';
-      if (loading) loading.style.display = 'flex';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Connecting…';
+      }
 
-      // Quick validation fetch — confirm league is reachable
       try {
         var res = await fetch('https://api.sleeper.app/v1/league/' + leagueId);
         if (!res.ok) throw new Error('League unreachable');
-        var league = await res.json();
+        await res.json();
       } catch(e) {
-        btn.disabled = false;
-        btn.textContent = '→ Launch Draft';
-        if (loading) loading.style.display = 'none';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '→ Open Draft Board';
+        }
         alert('Could not reach Sleeper for league "' + leagueName + '". Check your connection.');
         return;
       }
 
-      // Store selection and redirect — full import runs on draft page
+      LeagueStore.setActiveId(leagueId);
+      LeagueStore.ensureProfile(leagueId, {
+        leagueName: leagueName || '',
+        myTeamName: teamName,
+        myRosterId: rosterId
+      });
+      syncLegacyLeagueKeys(leagueId, LeagueStore.getProfile(leagueId));
+
       localStorage.setItem('dc_activeLeague', JSON.stringify({
         leagueId: leagueId,
         teamName: teamName,
@@ -676,15 +935,6 @@
     // ── Connected Services ────────────────────────────────────────────────────
     async function loadServices() {
       document.getElementById('servicesSection').style.display = 'block';
-
-      // Sleeper
-      var meta = currentUser.user_metadata || {};
-      var sleeperEl = document.getElementById('sleeperServiceStatus');
-      if (meta.sleeper_username) {
-        sleeperEl.innerHTML = '<span style="color:var(--success)">● Connected</span> as ' + meta.sleeper_username;
-      } else {
-        sleeperEl.textContent = 'Not connected — use the banner above to link your account.';
-      }
 
       // Claude key — check Supabase user_settings
       var claudeEl = document.getElementById('claudeStatus');
@@ -737,6 +987,7 @@
         document.getElementById('claudeStatus').innerHTML = '<span style="color:var(--success)">● Connected</span>';
         localStorage.setItem('ff26_apiKey', key);
         renderPreDraftChecklist();
+        renderLeagueSetup();
       }
 
       btn.disabled = false; btn.textContent = 'Save';
@@ -749,9 +1000,12 @@
       if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
       if (status) status.textContent = 'Fetching league history…';
 
-      // Get league ID from user settings
-      var { data: settings } = await supa.from('user_settings').select('sleeper_league_id').eq('user_id', currentUser.id).single();
-      var startId = settings && settings.sleeper_league_id;
+      // Get league ID from active tab (walk previous seasons from this league)
+      var startId = getActiveLeagueId();
+      if (!startId) {
+        var settings = (await supa.from('user_settings').select('sleeper_league_id').eq('user_id', currentUser.id).single()).data;
+        startId = settings && settings.sleeper_league_id;
+      }
       if (!startId) {
         if (status) status.textContent = 'No Sleeper league found — import a league first.';
         if (btn) { btn.disabled = false; btn.textContent = 'Import Past Seasons'; }
@@ -969,7 +1223,17 @@
 
     async function loadDraftHistory() {
       var section = document.getElementById('draftHistorySection');
+      var intelSection = document.getElementById('leagueIntelSection');
+      var scoutSection = document.getElementById('scoutingSection');
       if (!section) return;
+
+      var leagueId = getActiveLeagueId();
+      if (!leagueId) {
+        section.style.display = 'none';
+        if (intelSection) intelSection.style.display = 'none';
+        if (scoutSection) scoutSection.style.display = 'none';
+        return;
+      }
 
       var { data, error } = await supa.from('saved_drafts')
         .select('id,league_name,league_id,season,draft_date,my_grade,my_rank,team_count,my_team_idx,team_names,picks,team_rosters,draft_type')
@@ -977,22 +1241,76 @@
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error || !data || data.length === 0) return;
-      section.style.display = 'block';
-      window._savedDrafts = data;
-      renderDraftList(data);
-      buildLeagueIntelligence(data);
+      if (error) {
+        section.style.display = 'none';
+        return;
+      }
 
-      // Auto-load scouting for the most recent real league that has team names
-      var forScouting = data.find(function(d){ return d.league_id && (d.draft_type||'real')==='real' && Array.isArray(d.team_names) && d.team_names.length > 0; });
-      if (forScouting) loadScoutingNotes(forScouting.league_id, forScouting.league_name||'My League', forScouting.team_names);
+      var allDrafts = data || [];
+      window._savedDraftsAll = allDrafts;
+
+      var relatedIds = await collectRelatedLeagueIds(leagueId);
+      var leagueDrafts = allDrafts.filter(function(d) {
+        return d.league_id && relatedIds.indexOf(String(d.league_id)) >= 0;
+      });
+
+      if (!leagueDrafts.length) {
+        section.style.display = 'block';
+        window._savedDrafts = [];
+        renderDraftList([]);
+        if (intelSection) intelSection.style.display = 'none';
+        if (scoutSection) scoutSection.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      window._savedDrafts = leagueDrafts;
+      renderDraftList(leagueDrafts);
+      buildLeagueIntelligence(leagueDrafts);
+
+      var forScouting = leagueDrafts.find(function(d) {
+        return (d.draft_type || 'real') === 'real' && Array.isArray(d.team_names) && d.team_names.length > 0;
+      });
+      if (forScouting) {
+        var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
+        loadScoutingNotes(leagueId, (league && league.name) || forScouting.league_name || 'My League', forScouting.team_names);
+      } else if (scoutSection) {
+        scoutSection.style.display = 'none';
+      }
+    }
+
+    async function collectRelatedLeagueIds(startId) {
+      var ids = [String(startId)];
+      var walkId = startId;
+      for (var hop = 0; hop < 8; hop++) {
+        try {
+          var res = await fetch('https://api.sleeper.app/v1/league/' + walkId);
+          if (!res.ok) break;
+          var lg = await res.json();
+          var prevId = lg && lg.previous_league_id;
+          if (!prevId || prevId === '0' || prevId === 0) break;
+          var prevStr = String(prevId);
+          if (ids.indexOf(prevStr) >= 0) break;
+          ids.push(prevStr);
+          walkId = prevStr;
+        } catch (e) { break; }
+      }
+      return ids;
     }
 
     // ── League Intelligence ───────────────────────────────────────────────────
     function buildLeagueIntelligence(allDrafts) {
-      var realDrafts = allDrafts.filter(function(d){ return (d.draft_type||'real') === 'real'; });
-      if (!realDrafts.length) return;
+      var keepersSub = document.getElementById('keepersSubSection');
+      var tendSub = document.getElementById('tendenciesSubSection');
+      if (keepersSub) keepersSub.style.display = 'none';
+      if (tendSub) tendSub.style.display = 'none';
+
+      var realDrafts = (allDrafts || []).filter(function(d){ return (d.draft_type||'real') === 'real'; });
       var section = document.getElementById('leagueIntelSection');
+      if (!realDrafts.length) {
+        if (section) section.style.display = 'none';
+        return;
+      }
       if (section) section.style.display = '';
       showKeepersSection(realDrafts);
       showTendenciesSection(realDrafts);
@@ -1116,7 +1434,7 @@
       if (!window._tendencyData || !currentUser || !supa) return;
       var draft = window._tendencyDraft;
       if (!draft) return;
-      var leagueId  = draft.league_id;
+      var leagueId = getActiveLeagueId() || draft.league_id;
       var teamNames = draft.team_names || [];
       var btn = document.getElementById('saveTendenciesBtn');
       if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }

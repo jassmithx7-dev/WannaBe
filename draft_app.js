@@ -1029,6 +1029,7 @@ function applySetup(){
 function setMyTeamFromKeeper(ti) {
   myTeamIdx = ti;
   localStorage.setItem('ff26_myTeamIdx', String(ti));
+  if (sleeperLeagueId) saveLeagueProfileFromState(sleeperLeagueId);
   // Also update the topbar dropdown to stay in sync
   var sel = document.getElementById('myTeamSel');
   if (sel) sel.value = ti;
@@ -1047,6 +1048,7 @@ function setMyTeamFromModal() {
   if (ti < 0) { alert('Please select a team first'); return; }
   myTeamIdx = ti;
   localStorage.setItem('ff26_myTeamIdx', String(ti));
+  if (sleeperLeagueId) saveLeagueProfileFromState(sleeperLeagueId);
   loadTeamRosterForKeepers();
   renderAll();
 }
@@ -3049,6 +3051,7 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
     }
 
     await saveUserSettings(true);
+    persistLeagueSetupCache();
 
   } catch(e) {
     console.error('Sleeper import error:', e);
@@ -3533,6 +3536,72 @@ function renderPickTradesList() {
 
 function removePickTrade(i) { pendingPickTrades.splice(i,1); renderPickTradesList(); }
 
+function loadLeagueProfileIntoState(leagueId) {
+  if (!leagueId || typeof LeagueStore === 'undefined') return;
+  LeagueStore.migrateLegacy();
+  LeagueStore.setActiveId(leagueId);
+  var p = LeagueStore.getProfile(leagueId) || {};
+  sleeperLeagueId = leagueId;
+  sleeperLeagueName = p.leagueName || localStorage.getItem('ff26_leagueName') || '';
+  sleeperDraftId = p.draftId || localStorage.getItem('ff26_draftId') || '';
+  myTeamIdx = p.myTeamIdx != null ? p.myTeamIdx : (localStorage.getItem('ff26_myTeamIdx') !== null ? parseInt(localStorage.getItem('ff26_myTeamIdx'), 10) : -1);
+  if (Array.isArray(p.teamNames) && p.teamNames.length) {
+    p.teamNames.forEach(function(n, i) { if (i < teamNames.length) teamNames[i] = n; });
+  }
+  if (Array.isArray(p.teamUserIds) && p.teamUserIds.length) teamUserIds = p.teamUserIds.slice();
+  if (Array.isArray(p.teamRosterIds) && p.teamRosterIds.length) teamRosterIds = p.teamRosterIds.slice();
+  if (Array.isArray(p.trades)) trades = p.trades.slice();
+  if (p.posLimits && Object.keys(p.posLimits).length) leaguePosLimits = Object.assign({}, p.posLimits);
+  localStorage.setItem('ff26_leagueId', leagueId);
+  if (sleeperLeagueName) localStorage.setItem('ff26_leagueName', sleeperLeagueName);
+  if (sleeperDraftId) localStorage.setItem('ff26_draftId', sleeperDraftId);
+  if (myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
+  if (Array.isArray(p.trades)) localStorage.setItem('ff26_trades', JSON.stringify(trades));
+  if (Array.isArray(p.teamNames) && p.teamNames.length) localStorage.setItem('ff26_teamNames', JSON.stringify(p.teamNames.slice(0, TEAMS)));
+  try { localStorage.setItem('ff26_posLimits', JSON.stringify(leaguePosLimits)); } catch (e) {}
+  var li = document.getElementById('sleeperLeagueInput');
+  if (li) li.value = leagueId;
+  var di = document.getElementById('sleeperDraftInput');
+  if (di && sleeperDraftId) di.value = sleeperDraftId;
+  var sel = document.getElementById('myTeamSel');
+  if (sel && myTeamIdx >= 0) sel.value = myTeamIdx;
+  if (trades.length) buildPickOwners();
+}
+
+function saveLeagueProfileFromState(leagueId) {
+  if (!leagueId || typeof LeagueStore === 'undefined') return;
+  LeagueStore.saveProfile(leagueId, {
+    leagueName: sleeperLeagueName,
+    draftId: sleeperDraftId,
+    myTeamIdx: myTeamIdx,
+    teamNames: teamNames.slice(0, TEAMS),
+    teamUserIds: teamUserIds.slice(),
+    teamRosterIds: teamRosterIds.slice(),
+    trades: trades.slice(),
+    posLimits: leaguePosLimits
+  });
+  localStorage.setItem('ff26_leagueId', leagueId);
+  if (sleeperLeagueName) localStorage.setItem('ff26_leagueName', sleeperLeagueName);
+  if (sleeperDraftId) localStorage.setItem('ff26_draftId', sleeperDraftId);
+  if (myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
+  try {
+    localStorage.setItem('ff26_trades', JSON.stringify(trades || []));
+    localStorage.setItem('ff26_teamNames', JSON.stringify(teamNames || []));
+    localStorage.setItem('ff26_teamRosterIds', JSON.stringify(teamRosterIds || []));
+    localStorage.setItem('ff26_posLimits', JSON.stringify(leaguePosLimits || {}));
+  } catch (e) {}
+}
+
+function persistLeagueSetupCache() {
+  if (sleeperLeagueId) saveLeagueProfileFromState(sleeperLeagueId);
+  else {
+    try {
+      localStorage.setItem('ff26_trades', JSON.stringify(trades || []));
+      localStorage.setItem('ff26_teamNames', JSON.stringify(teamNames || []));
+    } catch (e) {}
+  }
+}
+
 function applyPickTrades() {
   if (!pendingPickTrades.length) { setKeeperMsg('No trades to apply', true); return; }
   pendingPickTrades.forEach(function(t) {
@@ -3543,6 +3612,7 @@ function applyPickTrades() {
   renderAll();
   setKeeperMsg('Applied ' + pendingPickTrades.length + ' pick trade(s) to board', false);
   pendingPickTrades = []; renderPickTradesList();
+  persistLeagueSetupCache();
 }
 
 function clearAllTrades() {
@@ -3554,6 +3624,7 @@ function clearAllTrades() {
   renderAll();
   renderPickTradesList();
   setKeeperMsg('Cleared ' + n + ' trade(s). Re-import or add trades manually.', false);
+  persistLeagueSetupCache();
 }
 
 function showKeyActive() {
@@ -4089,6 +4160,8 @@ function setPosFilter(pos, btn) {
 // ── Init ──
 (function init() {
   try {
+    var bootLeagueId = (typeof LeagueStore !== 'undefined') ? LeagueStore.getActiveId() : (localStorage.getItem('ff26_leagueId') || '');
+    if (bootLeagueId) loadLeagueProfileIntoState(bootLeagueId);
     var sel = document.getElementById('myTeamSel');
     if (sel) {
       sel.innerHTML = '<option value="-1">— Select your team —</option>';
@@ -4950,9 +5023,9 @@ function renderNextPicksPanel() {
     var bg     = highlight ? (warn ? 'rgba(245,158,11,.06)' : 'rgba(56,139,253,.06)') : 'transparent';
     var dim    = !highlight && !isMyTurn && myIdx >= 0 && seq.indexOf(s) > myIdx;
 
-    var html = '<div style="margin-bottom:8px;padding:7px 8px;border-radius:6px;border:1px solid ' + border + ';background:' + bg + ';' + (dim ? 'opacity:0.55;' : '') + '">';
-    html += '<div style="font-size:10px;color:#484f58;margin-bottom:2px">Pk' + s.pk + ' · Rd' + rd + '</div>';
-    html += '<div style="font-size:12px;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px" title="' + name + '">' + name + '</div>';
+    var html = '<div style="margin-bottom:6px;padding:6px 7px;border-radius:6px;border:1px solid ' + border + ';background:' + bg + ';' + (dim ? 'opacity:0.55;' : '') + '">';
+    html += '<div style="font-size:9px;color:#484f58;margin-bottom:2px">Pk' + s.pk + ' · Rd' + rd + '</div>';
+    html += '<div style="font-size:11px;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px" title="' + name + '">' + name + '</div>';
     html += ['QB','RB','WR','TE'].map(function(pos) {
       return '<span style="font-size:10px;font-weight:700;color:' + posC[pos] + ';margin-right:5px">' + pos + counts[pos] + '</span>';
     }).join('');
@@ -5110,14 +5183,25 @@ function saveTopSectionHeight() {
   }
 })();
 
-// ── Horizontal resizer: player list ↔ right panel ────────────────────────
+// ── Horizontal resizer: player list ↔ side panels ────────────────────────
 (function() {
+  function setSidePanelWidth(w) {
+    ['nextPicksPanel', 'rightPanel', 'pickHelpPanel'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.width = w + 'px';
+      el.style.flex = '0 0 ' + w + 'px';
+    });
+  }
+
   function init() {
     var resizer = document.getElementById('sideResizer');
     var panel   = document.getElementById('rightPanel');
     if (!resizer || !panel) return;
 
     var startX, startW;
+    var minW = 220;
+    var maxW = 340;
 
     resizer.addEventListener('mousedown', function(e) {
       startX = e.clientX;
@@ -5132,9 +5216,8 @@ function saveTopSectionHeight() {
 
     function onMove(e) {
       var delta = startX - e.clientX;
-      var newW  = Math.max(Math.round(window.innerWidth * 0.25), Math.min(startW + delta, Math.round(window.innerWidth * 0.55)));
-      panel.style.width = newW + 'px';
-      panel.style.flex  = '0 0 ' + newW + 'px';
+      var newW  = Math.max(minW, Math.min(startW + delta, maxW));
+      setSidePanelWidth(newW);
     }
 
     function onUp() {
@@ -5160,6 +5243,7 @@ function saveTopSectionHeight() {
   if (!acct || !acct.leagueId) return;
 
   function runAutoImport() {
+    if (typeof loadLeagueProfileIntoState === 'function') loadLeagueProfileIntoState(acct.leagueId);
     var inp = document.getElementById('sleeperLeagueInput');
     if (inp) inp.value = acct.leagueId;
     fetchSleeperLeague(acct.leagueId, acct.rosterId);
@@ -5169,5 +5253,35 @@ function saveTopSectionHeight() {
     document.addEventListener('DOMContentLoaded', runAutoImport);
   } else {
     runAutoImport();
+  }
+})();
+
+// ── Account setup deep-links (?setup=sleeper|trades, &import=1) ───────────
+(function() {
+  function runSetupParams() {
+    var params = new URLSearchParams(window.location.search);
+    var setup = params.get('setup');
+    var doImport = params.get('import') === '1';
+    if (!setup && !doImport) return;
+
+    var leagueInp = document.getElementById('sleeperLeagueInput');
+    var savedLeague = (typeof LeagueStore !== 'undefined' ? LeagueStore.getActiveId() : '') || localStorage.getItem('ff26_leagueId') || '';
+    if (leagueInp && savedLeague) leagueInp.value = savedLeague;
+    if (savedLeague && typeof loadLeagueProfileIntoState === 'function') loadLeagueProfileIntoState(savedLeague);
+    var draftInp = document.getElementById('sleeperDraftInput');
+    var savedDraft = localStorage.getItem('ff26_draftId') || '';
+    if (draftInp && savedDraft) draftInp.value = savedDraft;
+
+    setTimeout(function() {
+      if (setup === 'trades') openTradesModal();
+      else if (setup === 'sleeper') openSleeperModal();
+      if (doImport && typeof fetchSleeperLeague === 'function') fetchSleeperLeague();
+    }, 900);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runSetupParams);
+  } else {
+    runSetupParams();
   }
 })();
