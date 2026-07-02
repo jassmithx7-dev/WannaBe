@@ -4297,9 +4297,25 @@ function startMockDraft() {
   var myTi=slotToTi[mySlot]!==undefined?slotToTi[mySlot]:mySlot-1;
   var mr=Array.from({length:TEAMS},function(){return [];});
   myRosterSlots.forEach(function(p){if(p&&p.isKeeper)mr[myTi].push(p);});
+  // Build per-team personalities from leagueTendencies; random fallback when no history
+  var _pavg=function(arr){var v=(arr||[]).filter(function(x){return x!=null;});return v.length?v.reduce(function(a,b){return a+b;},0)/v.length:null;};
+  var _ptypes=['balanced','earlyQB','lateQB','earlyTE','heavyRB','heavyWR'];
+  var teamPersonalities=Array.from({length:TEAMS},function(_,ti){
+    if(ti===myTi)return null;
+    var uid=teamUserIds&&teamUserIds[ti],name=teamNames[ti]||('Team '+(ti+1));
+    var t=window.leagueTendencies&&((uid&&window.leagueTendencies[uid])||window.leagueTendencies[name]);
+    if(t&&t.seasons>0){
+      var qbRd=_pavg(t.qbRounds),teRd=_pavg(t.teRounds);
+      var eRB=_pavg(t.earlyByPos&&t.earlyByPos.RB)||0,eWR=_pavg(t.earlyByPos&&t.earlyByPos.WR)||0,eQB=_pavg(t.earlyByPos&&t.earlyByPos.QB)||0;
+      return{qbRound:qbRd||6,teRound:teRd||7,heavyRB:eRB>=1.5,heavyWR:eWR>=1.5,earlyQB:eQB>=0.7||(qbRd!=null&&qbRd<=3),lateQB:qbRd!=null&&qbRd>=8,earlyTE:teRd!=null&&teRd<=3,fromHistory:true};
+    }
+    var type=_ptypes[ti%_ptypes.length];
+    return{qbRound:type==='earlyQB'?2:type==='lateQB'?9:6,teRound:type==='earlyTE'?2:7,heavyRB:type==='heavyRB',heavyWR:type==='heavyWR',earlyQB:type==='earlyQB',lateQB:type==='lateQB',earlyTE:type==='earlyTE',fromHistory:false};
+  });
   mockState={players:players.map(function(p){return Object.assign({},p,{mockDrafted:p.isKeeper||false});}),
     pickOwners:po,rosters:mr,mySlot:mySlot,myTi:myTi,strategy:strategy,myStrategy:myStrategy,
     timerSecs:timerSecs,currentPick:1,totalPicks:TOTAL,log:[],timerInterval:null,timerLeft:timerSecs,waiting:false,
+    teamPersonalities:teamPersonalities,recentPositions:[],
     savedPickLog:pickLog.slice(),savedTeamRosters:teamRosters.map(function(r){return r.slice();}),
     savedCurrentPick:currentPick,savedMyRosterSlots:myRosterSlots.slice(),savedMyTeamIdx:myTeamIdx};
   pickLog=[];teamRosters=Array.from({length:TEAMS},function(){return [];});currentPick=1;
@@ -4336,22 +4352,56 @@ function cpuPick(ti,strategy,mp,mr){
   var ks=roster.filter(function(p){return p.pos==='K';}).length;
   var defs=roster.filter(function(p){return p.pos==='DEF';}).length;
   var size=roster.length;
-  // Last 2 rounds: force-pick K or DEF if still missing
+  var pers=window.mockState&&window.mockState.teamPersonalities&&window.mockState.teamPersonalities[ti];
+  // Detect positional runs from recent picks and build bonus map
+  var runBonus={QB:0,RB:0,WR:0,TE:0};
+  if(window.mockState&&window.mockState.recentPositions){
+    var recent=window.mockState.recentPositions.slice(-5);
+    ['QB','RB','WR','TE'].forEach(function(pos){var cnt=recent.filter(function(x){return x===pos;}).length;if(cnt>=3)runBonus[pos]+=25;else if(cnt>=2)runBonus[pos]+=12;});
+  }
+  // Last 2 rounds: force K or DEF if still missing
   if(size>=ROUNDS-2){
-    if(ks===0){var bk=available.filter(function(p){return p.pos==='K'&&p.customScore>0;}).sort(function(a,b){return (b.vorp||0)-(a.vorp||0);});if(bk[0])return bk[0];}
-    if(defs===0){var bd=available.filter(function(p){return p.pos==='DEF'&&p.customScore>0;}).sort(function(a,b){return (b.vorp||0)-(a.vorp||0);});if(bd[0])return bd[0];}
+    if(ks===0){var bk=available.filter(function(p){return p.pos==='K'&&p.customScore>0;}).sort(function(a,b){return(b.vorp||0)-(a.vorp||0);});if(bk[0])return bk[0];}
+    if(defs===0){var bd=available.filter(function(p){return p.pos==='DEF'&&p.customScore>0;}).sort(function(a,b){return(b.vorp||0)-(a.vorp||0);});if(bd[0])return bd[0];}
+  }
+  // Smart: VORP weighted by positional need urgency — balanced auto for user
+  if(strategy==='smart'){
+    var ns={QB:Math.max(0,2-qbs)*15+(qbs===0?20:0),RB:Math.max(0,2-rbs)*12+(rbs===0?15:0),WR:Math.max(0,2-wrs)*12+(wrs===0?15:0),TE:Math.max(0,1-tes)*10+(tes===0?12:0)};
+    var f=available.filter(function(p){if(!p.customScore||p.customScore<=0)return false;if(p.pos==='QB'&&qbs>=2)return false;if(p.pos==='K'&&(ks>=1||size<14))return false;if(p.pos==='DEF'&&(defs>=1||size<14))return false;return true;});
+    f.sort(function(a,b){var sa=(a.vorp||0)+(ns[a.pos]||0)*0.4+(runBonus[a.pos]||0),sb=(b.vorp||0)+(ns[b.pos]||0)*0.4+(runBonus[b.pos]||0);return sb-sa;});
+    return f[0]||available[0];
   }
   if(strategy==='vorp'){
     var f=available.filter(function(p){if(!p.customScore||p.customScore<=0)return false;if(p.pos==='QB'&&qbs>=3)return false;if(p.pos==='QB'&&qbs>=2&&size<12)return false;if(p.pos==='K'&&(ks>=1||size<14))return false;if(p.pos==='DEF'&&(defs>=1||size<14))return false;return true;});
-    f.sort(function(a,b){return (b.vorp||0)-(a.vorp||0);});return f[0]||available[0];
+    f.sort(function(a,b){
+      var ba=runBonus[a.pos]||0,bb=runBonus[b.pos]||0;
+      if(pers){if(pers.earlyQB&&a.pos==='QB'&&qbs===0&&size>=pers.qbRound-2)ba+=20;if(pers.earlyQB&&b.pos==='QB'&&qbs===0&&size>=pers.qbRound-2)bb+=20;if(pers.earlyTE&&a.pos==='TE'&&tes===0)ba+=18;if(pers.earlyTE&&b.pos==='TE'&&tes===0)bb+=18;if(pers.heavyRB&&a.pos==='RB'&&size<6)ba+=15;if(pers.heavyRB&&b.pos==='RB'&&size<6)bb+=15;if(pers.heavyWR&&a.pos==='WR'&&size<6)ba+=15;if(pers.heavyWR&&b.pos==='WR'&&size<6)bb+=15;}
+      return((b.vorp||0)+bb)-((a.vorp||0)+ba);
+    });
+    return f[0]||available[0];
   }
-  if(strategy==='adp'){available.sort(function(a,b){return (a.adp||999)-(b.adp||999);});for(var i=0;i<available.length;i++){var ap=available[i];if(ap.pos==='QB'&&qbs>=2&&size<14)continue;if(ap.pos==='K'&&(ks>=1||size<14))continue;if(ap.pos==='DEF'&&(defs>=1||size<14))continue;return ap;}return available[0];}
-  var byPos={};['QB','RB','WR','TE','K','DEF'].forEach(function(p){byPos[p]=available.filter(function(x){return x.pos===p&&x.customScore>0;}).sort(function(a,b){return (b.customScore||0)-(a.customScore||0);});});
+  if(strategy==='adp'){
+    var filtered=available.filter(function(p){if(p.pos==='QB'&&qbs>=2&&size<14)return false;if(p.pos==='K'&&(ks>=1||size<14))return false;if(p.pos==='DEF'&&(defs>=1||size<14))return false;return true;});
+    filtered.sort(function(a,b){return(a.adp||999)-(b.adp||999);});
+    // Personality: reach for their signature position if at their typical round
+    if(pers&&filtered.length){
+      if(pers.earlyQB&&qbs===0&&size>=pers.qbRound-2){var qbOpt=filtered.find(function(p){return p.pos==='QB';});if(qbOpt)return qbOpt;}
+      if(pers.earlyTE&&tes===0&&size>=pers.teRound-2){var teOpt=filtered.find(function(p){return p.pos==='TE';});if(teOpt)return teOpt;}
+    }
+    // ADP noise: pick from top 3 with 60/25/15 weighting to simulate realistic variance
+    var pool=filtered.slice(0,3).filter(Boolean);
+    if(pool.length){var r=Math.random();return r<0.60?pool[0]:r<0.85?(pool[1]||pool[0]):(pool[2]||pool[1]||pool[0]);}
+    return available[0];
+  }
+  // Balanced / need-based with personality + run bonuses
+  var byPos={};['QB','RB','WR','TE','K','DEF'].forEach(function(p){byPos[p]=available.filter(function(x){return x.pos===p&&x.customScore>0;}).sort(function(a,b){return(b.customScore||0)-(a.customScore||0);});});
   var ps={QB:qbs===0?80:qbs===1&&size>7?50:qbs>=2?-999:0,RB:rbs===0?75:rbs===1?60:rbs===2?40:rbs===3?20:5,WR:wrs===0?70:wrs===1?55:wrs===2?35:wrs===3?15:5,TE:tes===0?65:tes===1?0:-20,K:(ks>=1)?-999:(size>=14?30:-999),DEF:(defs>=1)?-999:(size>=15?25:-999)};
+  if(pers){if(pers.earlyQB&&qbs===0)ps.QB+=30;if(pers.lateQB&&qbs===0&&size<6)ps.QB=Math.min(ps.QB,20);if(pers.earlyTE&&tes===0)ps.TE+=30;if(pers.heavyRB)ps.RB+=15;if(pers.heavyWR)ps.WR+=15;}
+  ['QB','RB','WR','TE'].forEach(function(pos){if(runBonus[pos])ps[pos]=(ps[pos]||0)+runBonus[pos];});
   var best=null,bs=-9999;
   ['QB','RB','WR','TE','K','DEF'].forEach(function(p){var ns=ps[p]||0;if(ns<=-999)return;var tp=byPos[p]&&byPos[p][0];if(!tp)return;var total=ns+Math.min((tp.customScore||0)/5,60);if(total>bs){bs=total;best=tp;}});
   if(best)return best;
-  available.sort(function(a,b){return (b.customScore||0)-(a.customScore||0);});
+  available.sort(function(a,b){return(b.customScore||0)-(a.customScore||0);});
   return available.find(function(p){return(p.pos!=='K'||ks<1)&&(p.pos!=='DEF'||defs<1);})||available[0];
 }
 
@@ -4384,6 +4434,7 @@ function executeMockPick(p){
   else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
   var mp=players.find(function(x){return x.name===p.name;});if(mp)mp.drafted=true;
   mockState.log.push({pick:pick,rd:rd,ti:ti,isMe:isMe,name:p.name,pos:p.pos,team:p.team,vorp:p.vorp||0});
+  mockState.recentPositions=(mockState.recentPositions||[]).concat(p.pos).slice(-6);
   mockState.currentPick++;mockState.waiting=false;
   while(mockState.currentPick<=TOTAL&&pickLog.some(function(l){return l.pick===mockState.currentPick&&l.isKeeper;})){mockState.currentPick++;currentPick++;}
   if(mockState.timerInterval){clearInterval(mockState.timerInterval);mockState.timerInterval=null;}
