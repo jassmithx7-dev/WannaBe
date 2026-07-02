@@ -255,7 +255,7 @@ const BASE_PLAYERS=[
   {rank:24,name:"Ashton Jeanty",team:"LV",pos:"RB",bye:"TBD",adp:13,sf:26,note:"Kubiak HC \u2014 run-first scheme"},
   {rank:25,name:"Saquon Barkley",team:"PHI",pos:"RB",bye:"TBD",adp:15,sf:27,note:"Sirianni \u2014 best OL, elite"},
   {rank:26,name:"Chase Brown",team:"CIN",pos:"RB",bye:"TBD",adp:20,sf:30,note:"Burrow health key"},
-  {rank:27,name:"Kenneth Walker III",team:"KC",pos:"RB",bye:"TBD",adp:22,sf:31,note:"Reid/Bieniemy \u2014 new team"},
+  {rank:27,name:"Kenneth Walker III",team:"SEA",pos:"RB",bye:"TBD",adp:22,sf:31,note:"Macdonald — lead back"},
   {rank:28,name:"Derrick Henry",team:"BAL",pos:"RB",bye:"TBD",adp:24,sf:32,note:"Minter HC \u2014 power run"},
   {rank:29,name:"Breece Hall",team:"NYJ",pos:"RB",bye:"TBD",adp:26,sf:33,note:"Glenn yr 2 \u2014 Reich OC"},
   {rank:30,name:"Travis Etienne",team:"NO",pos:"RB",bye:"TBD",adp:28,sf:34,note:"Moore HC \u2014 Nussmeier OC"},
@@ -399,7 +399,15 @@ const BASE_PLAYERS=[
 ];;
 
 // 2026 NFL bye weeks — sourced from official schedule release
-const BYE_2026={KC:5,CAR:5,MIA:6,CIN:6,DET:6,MIN:6,BUF:7,LAC:7,WAS:7,JAX:7,NYG:8,NO:8,SF:8,HOU:8,TEN:9,PIT:9,DEN:10,PHI:10,CHI:10,TB:10,NE:11,CLE:11,SEA:11,GB:11,ATL:11,LAR:11,IND:13,NYJ:13,LV:13,BAL:13,DAL:14,ARI:14};
+const BYE_2026={
+  CHI:5,LAR:5,
+  ATL:6,BAL:6,CLE:6,DEN:6,HOU:6,NE:6,
+  BUF:7,CAR:7,DAL:7,PHI:7,
+  CIN:9,IND:9,LAC:9,NYG:9,
+  GB:10,KC:10,LV:10,NO:10,NYJ:10,TB:10,
+  DET:11,MIA:11,MIN:11,SEA:11,SF:11,WAS:11,
+  ARI:12,JAX:12,PIT:12,TEN:12
+};
 BASE_PLAYERS.forEach(function(p){ if(BYE_2026[p.team]) p.bye=BYE_2026[p.team]; });
 
 const RSLOTS=[
@@ -679,6 +687,7 @@ let pickLog=[]; // {pick,teamIdx,player,pos,nfl,isKeeper,isTraded}
 let teamRosters=Array.from({length:TEAMS},()=>[]);
 let history=[];
 let compareRanks = []; // up to 3 player ranks for side-by-side compare
+let watchList = new Set();
 var leaguePosLimits = {}; // e.g. { QB: 3, WR: 8 } from Sleeper settings
 var sleeperRosterPositions = [];
 
@@ -1099,6 +1108,7 @@ function draftPlayer(rank){
    if(ti===myTi2){const result=smartAssign({...p,pickNum:currentPick,rd,isKeeper:false});
      if(!result.success&&document.getElementById('rNote'))document.getElementById('rNote').textContent='⚠️ '+result.message;}}
   pickLog=[...pickLog,{pick:currentPick,rd,teamIdx:ti,team:teamNames[ti]||"?",player:p.name,pos:p.pos,nfl:p.team,isKeeper:false,isTraded:isTradedPick(currentPick)}];
+  showPickToast(currentPick, p);
   currentPick++;
   while(currentPick<=TOTAL&&isKeeperPick(currentPick)) currentPick++;
   renderAll();
@@ -1162,6 +1172,30 @@ function renderClock(){
   const ta=document.getElementById("tradedAlert");
   if(traded){ta.style.display="block";ta.textContent=`Pick #${currentPick} is a traded pick`;} else ta.style.display="none";
   var pc=document.getElementById("pickCounter");if(pc)pc.textContent=`(${currentPick-1}/${TOTAL} picks made)`;
+  var needsEl=document.getElementById("clockNeeds");
+  if(needsEl){
+    needsEl.textContent="";
+    needsEl.style.display="none";
+    if(me){
+      var urgentNeeds=getPositionNeeds().filter(function(n){return n.urgent;}).slice(0,2);
+      if(urgentNeeds.length){
+        var needParts=urgentNeeds.map(function(need){
+          var slot=ROSTER_SLOTS.find(function(s){return s.key===need.key;});
+          if(!slot)return null;
+          var top=players.filter(function(pl){
+            return !pl.drafted&&!pl.mockDrafted&&pl.customScore>0&&slot.eligible.indexOf(pl.pos)>=0;
+          }).sort(function(a,b){return a.customRank-b.customRank;})[0];
+          if(!top)return need.slot+" → —";
+          var vStr=(top.vorp>0?"+":"")+(top.vorp||0).toFixed(1);
+          return need.slot+" → "+top.name+" ("+vStr+" VORP)";
+        }).filter(Boolean);
+        if(needParts.length){
+          needsEl.textContent="Needs: "+needParts.join(" · ");
+          needsEl.style.display="block";
+        }
+      }
+    }
+  }
 }
 
 const QB_STATS = {
@@ -1288,6 +1322,43 @@ function formatByeParen(playerOrName) {
         return p && p.bye && p.bye !== 'TBD' ? p.bye : null;
       })();
   return bye ? ' (' + bye + ')' : '';
+}
+
+var _pickToastEl = null;
+var _pickToastTimer = null;
+
+function showPickToast(pickNum, p) {
+  if (!p) return;
+  if (_pickToastTimer) clearTimeout(_pickToastTimer);
+  if (_pickToastEl) _pickToastEl.remove();
+  var adp = getAdpDeltaLabel(p);
+  var vorp = p.vorp != null ? p.vorp : 0;
+  var vorpColor = vorp > 5 ? '#3fb950' : vorp >= -5 ? '#fb923c' : '#f87171';
+  var vorpStr = (vorp > 0 ? '+' : '') + vorp.toFixed(1);
+  var adpWas = (p.adp && p.adp < 900) ? ('ADP was pick ' + Math.round(p.adp)) : '';
+  var gradeLine = adp.text !== '—'
+    ? adp.text + ' · ' + vorpStr + ' VORP' + (adpWas ? ' · ' + adpWas : '')
+    : vorpStr + ' VORP';
+  _pickToastEl = document.createElement('div');
+  _pickToastEl.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 14px;max-width:340px;transition:opacity .3s ease';
+  _pickToastEl.innerHTML =
+    '<div style="font-size:14px;font-weight:700;color:#e6edf3;margin-bottom:4px">#' + pickNum + ' — ' + p.name + ' (' + p.pos + ' · ' + p.team + ')</div>' +
+    '<div style="font-size:11px;font-weight:600;color:' + (adp.text !== '—' ? adp.color : vorpColor) + '">' + gradeLine + '</div>';
+  document.body.appendChild(_pickToastEl);
+  _pickToastTimer = setTimeout(function() {
+    if (!_pickToastEl) return;
+    _pickToastEl.style.opacity = '0';
+    setTimeout(function() {
+      if (_pickToastEl) { _pickToastEl.remove(); _pickToastEl = null; }
+    }, 300);
+  }, 2500);
+}
+
+function toggleWatch(rank) {
+  if (watchList.has(rank)) watchList.delete(rank);
+  else watchList.add(rank);
+  localStorage.setItem('ff26_watchList', JSON.stringify([...watchList]));
+  renderBA();
 }
 
 function toggleComparePlayer(rank, ev) {
@@ -1528,7 +1599,7 @@ function renderBA(){
     probMap[p.rank] = Math.max(0, Math.round((TEAMS - i) / TEAMS * 100));
   });
 
-  document.getElementById("baList").innerHTML=list.map((p,idx)=>{
+  function rowHtml(p) {
     const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};
     const sc=p.customScore?p.customScore.toFixed(0):"—";
     const intel = PLAYER_INTEL[p.name] || {};
@@ -1539,8 +1610,6 @@ function renderBA(){
     const vorpTxt = hasProj ? (p.vorp>0?'+':'')+p.vorp.toFixed(1) : '—';
     const vorpColor = !hasProj ? '#4b5563' : p.vorp>30?'#4ade80':p.vorp>10?'#60a5fa':p.vorp>0?'#9ca3af':'#f87171';
     const posBarColor = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'}[p.pos]||'#7d8590';
-
-    // Per-game stat line beside the player name
     const st = p.stats || {};
     const qbs = QB_STATS[p.name];
     var statLine = '';
@@ -1569,7 +1638,6 @@ function renderBA(){
       if (st.retg && st.retg >= 0.1) parts.push(st.retg+'td');
       statLine = parts.join(' · ');
     }
-
     const prob = (!p.drafted && !p.mockDrafted) ? (probMap[p.rank] || 0) : 0;
     const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
     const atLimit = myTeamIdx >= 0 && !p.drafted && !p.mockDrafted && isAtPosLimit(p.pos);
@@ -1586,7 +1654,9 @@ function renderBA(){
     const fitReasonHtml = fitInfo && fitInfo.reason
       ? '<div class="ba-fit-reason">' + fitInfo.reason + '</div>'
       : '';
+    const starColor = watchList.has(p.rank) ? '#e3b341' : '#30363d';
     return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}${atLimit?" limit-pos":""}${fitTopClass}" onclick="${clickAction}" title="${probTitle}" style="border-left:3px solid ${probBorder}">
+      <button onclick="event.stopPropagation();toggleWatch(${p.rank})" style="background:none;border:none;cursor:pointer;padding:0;font-size:11px;color:${starColor};line-height:1">★</button>
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${fitInfo ? fitInfo.idx + 1 : (p.customRank<9000?p.customRank:"—")}</span>
       <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
@@ -1606,7 +1676,42 @@ function renderBA(){
         <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 4px;cursor:pointer" title="Ask Claude about this player">🤖</button>
       </span>
     </div>`;
-  }).join("");
+  }
+
+  function listWithTierBreaks(playersList) {
+    var applyTiers = filt !== 'BESTFIT' && (sort === 'custom' || sort === 'sf' || sort === 'vorp');
+    var tierNum = 1;
+    var html = '';
+    for (var i = 0; i < playersList.length; i++) {
+      var p = playersList[i];
+      if (applyTiers && i > 0) {
+        var prev = playersList[i - 1];
+        if (!isDrafted(prev) && !isDrafted(p) && hasScore(prev) && hasScore(p)) {
+          var vorpDrop = (prev.vorp || 0) - (p.vorp || 0);
+          if (vorpDrop >= 8) {
+            tierNum++;
+            html += '<div style="padding:2px 8px 1px;font-size:9px;font-weight:700;letter-spacing:.08em;color:#484f58;text-transform:uppercase;border-top:1px solid #21262d;margin-top:2px;background:#0d1117;position:sticky;top:0;z-index:2">Tier ' + tierNum + '</div>';
+          }
+        }
+      }
+      html += rowHtml(p);
+    }
+    return html;
+  }
+
+  var baHtml = '';
+  if (watchList.size > 0) {
+    var watchedUndrafted = list.filter(function(p) { return watchList.has(p.rank) && !isDrafted(p); });
+    watchedUndrafted.sort(function(a, b) { return a.customRank - b.customRank; });
+    if (watchedUndrafted.length) {
+      baHtml += '<div style="padding:2px 8px 1px;font-size:9px;font-weight:700;letter-spacing:.08em;color:#e3b341;text-transform:uppercase;border-bottom:1px solid #21262d;background:#0d1117;position:sticky;top:0;z-index:3">★ Watching (' + watchedUndrafted.length + ')</div>';
+      watchedUndrafted.forEach(function(p) { baHtml += rowHtml(p); });
+      baHtml += '<div style="padding:2px 8px;border-bottom:1px solid #21262d;margin-bottom:2px;background:#0d1117"></div>';
+    }
+  }
+  var mainList = list.filter(function(p) { return !(watchList.has(p.rank) && !isDrafted(p)); });
+  baHtml += listWithTierBreaks(mainList);
+  document.getElementById("baList").innerHTML = baHtml;
 }
 
 function renderLog(){
@@ -2744,9 +2849,7 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
       );
     }
 
-    if (currentUser && supa) {
-      await saveUserSettings(true);
-    }
+    await saveUserSettings(true);
 
   } catch(e) {
     console.error('Sleeper import error:', e);
@@ -3698,6 +3801,10 @@ function setPosFilter(pos, btn) {
       var savedLimits = localStorage.getItem('ff26_posLimits');
       if (savedLimits) leaguePosLimits = JSON.parse(savedLimits) || {};
     } catch (e) {}
+    try {
+      var savedWatch = localStorage.getItem('ff26_watchList');
+      if (savedWatch) JSON.parse(savedWatch).forEach(function(r) { watchList.add(r); });
+    } catch (e) {}
     updatePosLimitsTag();
     renderAll();
     scheduleRestoreTopSectionHeight();
@@ -4115,6 +4222,7 @@ function executeMockPick(p){
   if(!teamRosters[ti])teamRosters[ti]=[];
   teamRosters[ti].push(entry);
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
+  if (isMe) showPickToast(pick, p);
   currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);if(compareRanks.length)clearCompare();}
   else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
