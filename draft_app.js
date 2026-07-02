@@ -1177,20 +1177,11 @@ function renderClock(){
     needsEl.textContent="";
     needsEl.style.display="none";
     if(me){
-      var urgentNeeds=getPositionNeeds().filter(function(n){return n.urgent;}).slice(0,2);
-      if(urgentNeeds.length){
-        var needParts=urgentNeeds.map(function(need){
-          var slot=ROSTER_SLOTS.find(function(s){return s.key===need.key;});
-          if(!slot)return null;
-          var top=players.filter(function(pl){
-            return !pl.drafted&&!pl.mockDrafted&&pl.customScore>0&&slot.eligible.indexOf(pl.pos)>=0;
-          }).sort(function(a,b){return a.customRank-b.customRank;})[0];
-          if(!top)return need.slot+" → —";
-          var vStr=(top.vorp>0?"+":"")+(top.vorp||0).toFixed(1);
-          return need.slot+" → "+top.name+" ("+vStr+" VORP)";
-        }).filter(Boolean);
-        if(needParts.length){
-          needsEl.textContent="Needs: "+needParts.join(" · ");
+      var needPos=getBiggestNeedPos();
+      if(needPos){
+        var targets=topPlayersAtPos(needPos,3);
+        if(targets.length){
+          needsEl.innerHTML='<span style="color:#7d8590">Target '+needPos+':</span> '+targets.map(formatClockTarget).join(' · ');
           needsEl.style.display="block";
         }
       }
@@ -1351,7 +1342,7 @@ function showPickToast(pickNum, p) {
     setTimeout(function() {
       if (_pickToastEl) { _pickToastEl.remove(); _pickToastEl = null; }
     }, 300);
-  }, 2500);
+  }, 2000);
 }
 
 function toggleWatch(rank) {
@@ -2251,6 +2242,77 @@ function getPositionNeeds() {
     }
   }
   return needs;
+}
+
+function getBiggestNeedPos() {
+  if (myTeamIdx < 0) return null;
+  var roster = myRosterSlots.filter(Boolean);
+  var c = { QB: 0, RB: 0, WR: 0, TE: 0 };
+  roster.forEach(function(p) { if (c[p.pos] !== undefined) c[p.pos]++; });
+  var score = {
+    QB: Math.max(0, 2 - c.QB) * 15 + (c.QB === 0 ? 20 : 0),
+    RB: Math.max(0, 2 - c.RB) * 12 + (c.RB === 0 ? 15 : 0),
+    WR: Math.max(0, 2 - c.WR) * 12 + (c.WR === 0 ? 15 : 0),
+    TE: Math.max(0, 1 - c.TE) * 10 + (c.TE === 0 ? 12 : 0)
+  };
+  getPositionNeeds().forEach(function(need) {
+    if (!need.urgent) return;
+    if (need.sf || need.key === 'SF') score.QB += 25;
+    else if (need.key === 'RB') score.RB += 20;
+    else if (need.key === 'WR1' || need.key === 'WR2') score.WR += 20;
+    else if (need.key === 'TE') score.TE += 18;
+    else if (need.key === 'FLX1' || need.key === 'FLX2') { score.RB += 8; score.WR += 8; score.TE += 6; }
+  });
+  var best = null, bestS = -1;
+  ['QB', 'RB', 'WR', 'TE'].forEach(function(pos) {
+    if (isAtPosLimit(pos)) return;
+    if (score[pos] > bestS) { bestS = score[pos]; best = pos; }
+  });
+  return bestS > 0 ? best : null;
+}
+
+function topPlayersAtPos(pos, limit) {
+  return players.filter(function(p) {
+    return p.pos === pos && !p.drafted && !p.mockDrafted && p.customScore > 0 && !isAtPosLimit(p.pos);
+  }).sort(function(a, b) { return (b.vorp || 0) - (a.vorp || 0); }).slice(0, limit || 3);
+}
+
+function formatClockTarget(p) {
+  var adp = getAdpDeltaLabel(p);
+  var vStr = (p.vorp > 0 ? '+' : '') + (p.vorp || 0).toFixed(1);
+  return p.name + ' (' + vStr + ' VORP' + (adp.text !== '—' ? ', ' + adp.text : '') + ')';
+}
+
+function leagueRoundSummary(rd) {
+  var ts = window.leagueTendencies ? Object.values(window.leagueTendencies) : [];
+  if (!ts.length) return '';
+  var avg = function(arr) {
+    var v = (arr || []).filter(function(x) { return x !== null && x !== undefined; });
+    return v.length ? v.reduce(function(a, b) { return a + b; }, 0) / v.length : null;
+  };
+  var mean = function(fn) {
+    var vals = ts.map(fn).filter(function(x) { return x != null; });
+    return vals.length ? vals.reduce(function(a, b) { return a + b; }, 0) / vals.length : null;
+  };
+  var parts = [];
+  var earlyRB = mean(function(t) { return avg(t.earlyByPos && t.earlyByPos.RB); });
+  var earlyWR = mean(function(t) { return avg(t.earlyByPos && t.earlyByPos.WR); });
+  var earlyQB = mean(function(t) { return avg(t.earlyByPos && t.earlyByPos.QB); });
+  if (earlyRB != null && earlyRB >= 1.2) parts.push('heavy RB');
+  if (earlyWR != null && earlyWR >= 1.2) parts.push('heavy WR');
+  if (earlyQB != null && earlyQB >= 0.6) parts.push('early QB');
+  var qbWindow = ts.filter(function(t) {
+    var q = avg(t.qbRounds);
+    return q != null && rd >= Math.round(q) - 1 && rd <= Math.round(q) + 1;
+  }).length;
+  if (qbWindow >= 2) parts.push('QB window (' + qbWindow + ' teams)');
+  var teWindow = ts.filter(function(t) {
+    var q = avg(t.teRounds);
+    return q != null && rd >= Math.round(q) - 1 && rd <= Math.round(q) + 1;
+  }).length;
+  if (teWindow >= 2) parts.push('TE window');
+  if (!parts.length) return 'Round ' + rd + ': mixed league tendencies';
+  return 'Round ' + rd + ' typically: ' + parts.join(', ');
 }
 
 var POS_LIMIT_SETTING_KEYS = {
@@ -4222,7 +4284,7 @@ function executeMockPick(p){
   if(!teamRosters[ti])teamRosters[ti]=[];
   teamRosters[ti].push(entry);
   pickLog.push({pick:pick,rd:rd,teamIdx:ti,team:teamNames[ti]||'T'+(ti+1),player:p.name,pos:p.pos,nfl:p.team,isKeeper:false});
-  if (isMe) showPickToast(pick, p);
+  showPickToast(pick, p);
   currentPick=pick+1;renderLog();renderBoard();scrollToBoardCurrentRound();
   if(isMe){smartAssign(entry);renderRoster();setTimeout(showPickSuggestions,100);if(compareRanks.length)clearCompare();}
   else { setTimeout(function(){ checkProactiveAlerts(ti); }, 600); }
@@ -4519,6 +4581,7 @@ async function loadLeagueIntelligence() {
 function renderNextPicksPanel() {
   var el  = document.getElementById('nextPicksList');
   var hdr = document.getElementById('nextPicksHdr');
+  var roundEl = document.getElementById('roundSummary');
   if (!el) return;
 
   var ms      = window.mockState;
@@ -4528,6 +4591,18 @@ function renderNextPicksPanel() {
   var rosters = ms ? ms.rosters     : teamRosters;
   var total   = ms ? ms.totalPicks  : (TEAMS * ROUNDS);
   var posC    = { QB: '#60a5fa', RB: '#4ade80', WR: '#a78bfa', TE: '#fb923c' };
+  var curRd   = curPick <= total ? Math.ceil(curPick / TEAMS) : ROUNDS;
+
+  if (roundEl) {
+    var summary = leagueRoundSummary(curRd);
+    if (summary && curPick <= total) {
+      roundEl.textContent = summary;
+      roundEl.style.display = 'block';
+    } else {
+      roundEl.textContent = '';
+      roundEl.style.display = 'none';
+    }
+  }
 
   if (!owners || curPick > total) {
     if (hdr) { hdr.textContent = '🕐 On Deck'; hdr.style.color = '#e6edf3'; }
