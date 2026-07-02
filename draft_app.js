@@ -4455,7 +4455,7 @@ function runMockDraft(){
     setTimeout(showPickSuggestions,50);
     if(clk){clk.textContent='MOCK — Pick #'+mockState.currentPick+' · Rd '+rd+' · YOUR PICK';clk.style.background='#1e3a5f';}
     var te=document.getElementById('mockBannerTimer');
-    if(mockState.myStrategy!=='manual'){setTimeout(mockAutoPick,1200);return;}
+    if(mockState.myStrategy!=='manual'){mockState.waiting=true;setTimeout(mockAutoPick,1200);return;}
     mockState.waiting=true;renderBA();renderNextPicksPanel();updateClockNeeds(true);
     if(mockState.timerSecs>0){mockState.timerLeft=mockState.timerSecs;if(te)te.textContent=mockState.timerLeft+'s';
       mockState.timerInterval=setInterval(function(){mockState.timerLeft--;if(te)te.textContent=mockState.timerLeft+'s';if(mockState.timerLeft<=0){clearInterval(mockState.timerInterval);mockState.timerInterval=null;if(te)te.textContent='';mockAutoPick();}},1000);}
