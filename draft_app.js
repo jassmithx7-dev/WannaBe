@@ -170,8 +170,7 @@ async function loadUserSettings() {
   }
   if (!data) return;
 
-  // Restore settings
-  // Only restore Supabase league ID when LeagueStore hasn't already set an active league
+  // Restore settings — skip league-specific fields when LeagueStore already has an active league
   var _lsActive = (typeof LeagueStore !== 'undefined') && LeagueStore.getActiveId();
   if (data.sleeper_league_id && !_lsActive) {
     sleeperLeagueId = data.sleeper_league_id;
@@ -179,7 +178,7 @@ async function loadUserSettings() {
     const li = document.getElementById('sleeperLeagueInput');
     if (li) li.value = sleeperLeagueId;
   }
-  if (data.sleeper_draft_id) {
+  if (data.sleeper_draft_id && !_lsActive) {
     sleeperDraftId = data.sleeper_draft_id;
     localStorage.setItem('ff26_draftId', sleeperDraftId);
     const di = document.getElementById('sleeperDraftInput');
@@ -192,7 +191,7 @@ async function loadUserSettings() {
   }
   // myTeamIdx is stored in localStorage only - not restored from Supabase
   // to prevent async overwrite of user's manual selection
-  if (data.team_names) {
+  if (data.team_names && !_lsActive) {
     try {
       const names = JSON.parse(data.team_names);
       if (Array.isArray(names)) {
@@ -1120,6 +1119,7 @@ function draftPlayer(rank){
   currentPick++;
   while(currentPick<=TOTAL&&isKeeperPick(currentPick)) currentPick++;
   renderAll();
+  persistLeagueSetupCache();
   setTimeout(()=>{const el=document.getElementById("pLog");const r=el.querySelector(".clk");if(r)r.scrollIntoView({block:"nearest"});},60);
   // Dynamic pick suggestions refresh after every pick when team is selected
   if(myTeamIdx >= 0) setTimeout(showPickSuggestions, 200);
@@ -1155,6 +1155,7 @@ function undoPick(){
   if(last.rosterSlots) myRosterSlots=[...last.rosterSlots];
   invalidateAISuggestedCache();
   renderAll();
+  persistLeagueSetupCache();
 }
 
 function resetDraft(){
@@ -1168,6 +1169,7 @@ function resetDraft(){
   initPlayers();
   if(setup){buildPickOwners();buildKeeperPicks();}
   renderAll();
+  persistLeagueSetupCache();
 }
 
 function renderClock(){
@@ -3213,6 +3215,7 @@ async function syncSleeperDraft(silent) {
   } finally {
     sleeperSyncing = false;
     if (!silent && btn) { btn.textContent = '🔄 Sync Picks'; btn.disabled = false; }
+    persistLeagueSetupCache();
   }
 }
 
@@ -3538,36 +3541,96 @@ function renderPickTradesList() {
 
 function removePickTrade(i) { pendingPickTrades.splice(i,1); renderPickTradesList(); }
 
-function loadLeagueProfileIntoState(leagueId) {
+function serializeMyRosterSlots() {
+  return myRosterSlots.map(function(s) {
+    if (!s) return null;
+    return {
+      name: s.name, pos: s.pos, pickNum: s.pickNum, rd: s.rd,
+      isKeeper: !!s.isKeeper, id: s.id, team: s.team
+    };
+  });
+}
+
+function rebuildPickOwnersFromProfile() {
+  if (trades.length || teamSlots.some(function(s) { return s > 0; })) buildPickOwners();
+}
+
+function restoreLeagueDraftState(profile) {
+  if (!profile) return;
+  pickLog = Array.isArray(profile.pickLog) ? profile.pickLog.slice() : [];
+  currentPick = profile.currentPick != null ? profile.currentPick : 1;
+  history = [];
+
+  teamRosters = Array.from({ length: TEAMS }, function() { return []; });
+  pickLog.forEach(function(l) {
+    var ti = l.teamIdx;
+    if (ti == null || ti < 0 || ti >= TEAMS) return;
+    var match = players.find(function(x) { return x.name.toLowerCase() === (l.player || '').toLowerCase(); });
+    var entry = match
+      ? Object.assign({}, match, { pickNum: l.pick, rd: l.rd, isKeeper: !!l.isKeeper })
+      : { id: 99000 + l.pick, name: l.player, pos: l.pos || '?', team: l.nfl || '?', pickNum: l.pick, rd: l.rd, customScore: 0, isKeeper: !!l.isKeeper };
+    if (match) {
+      match.drafted = true;
+      if (l.isKeeper) match.isKeeper = true;
+    }
+    teamRosters[ti].push(entry);
+  });
+
+  var slotLen = ROUNDS + 8;
+  myRosterSlots = Array(slotLen).fill(null);
+  if (Array.isArray(profile.myRosterSlots)) {
+    profile.myRosterSlots.forEach(function(slot, i) {
+      if (!slot || i >= slotLen) return;
+      var match = players.find(function(x) { return x.name.toLowerCase() === (slot.name || '').toLowerCase(); });
+      myRosterSlots[i] = match
+        ? Object.assign({}, match, { pickNum: slot.pickNum, rd: slot.rd, isKeeper: !!slot.isKeeper })
+        : slot;
+    });
+  }
+
+  if (currentPick > TOTAL && pickLog.length) {
+    var rb = document.getElementById('reportBtn');
+    if (rb) rb.style.display = 'inline-block';
+  }
+  rebuildPickOwnersFromProfile();
+}
+
+function loadLeagueProfileIntoState(leagueId, opts) {
+  opts = opts || {};
   if (!leagueId || typeof LeagueStore === 'undefined') return;
   LeagueStore.migrateLegacy();
   LeagueStore.setActiveId(leagueId);
   var p = LeagueStore.getProfile(leagueId) || {};
   sleeperLeagueId = leagueId;
-  sleeperLeagueName = p.leagueName || localStorage.getItem('ff26_leagueName') || '';
-  sleeperDraftId = p.draftId || localStorage.getItem('ff26_draftId') || '';
-  myTeamIdx = p.myTeamIdx != null ? p.myTeamIdx : (localStorage.getItem('ff26_myTeamIdx') !== null ? parseInt(localStorage.getItem('ff26_myTeamIdx'), 10) : -1);
+  sleeperLeagueName = p.leagueName || '';
+  sleeperDraftId = p.draftId || '';
+  myTeamIdx = p.myTeamIdx != null ? p.myTeamIdx : -1;
   if (Array.isArray(p.teamNames) && p.teamNames.length) {
     p.teamNames.forEach(function(n, i) { if (i < teamNames.length) teamNames[i] = n; });
   }
   if (Array.isArray(p.teamUserIds) && p.teamUserIds.length) teamUserIds = p.teamUserIds.slice();
   if (Array.isArray(p.teamRosterIds) && p.teamRosterIds.length) teamRosterIds = p.teamRosterIds.slice();
   if (Array.isArray(p.trades)) trades = p.trades.slice();
+  if (Array.isArray(p.teamSlots) && p.teamSlots.length) teamSlots = p.teamSlots.slice();
   if (p.posLimits && Object.keys(p.posLimits).length) leaguePosLimits = Object.assign({}, p.posLimits);
   localStorage.setItem('ff26_leagueId', leagueId);
   if (sleeperLeagueName) localStorage.setItem('ff26_leagueName', sleeperLeagueName);
+  else localStorage.removeItem('ff26_leagueName');
   if (sleeperDraftId) localStorage.setItem('ff26_draftId', sleeperDraftId);
+  else localStorage.removeItem('ff26_draftId');
   if (myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(myTeamIdx));
-  if (Array.isArray(p.trades)) localStorage.setItem('ff26_trades', JSON.stringify(trades));
-  if (Array.isArray(p.teamNames) && p.teamNames.length) localStorage.setItem('ff26_teamNames', JSON.stringify(p.teamNames.slice(0, TEAMS)));
-  try { localStorage.setItem('ff26_posLimits', JSON.stringify(leaguePosLimits)); } catch (e) {}
+  else localStorage.removeItem('ff26_myTeamIdx');
+  localStorage.setItem('ff26_trades', JSON.stringify(trades || []));
+  localStorage.setItem('ff26_teamNames', JSON.stringify(teamNames.slice(0, TEAMS) || []));
+  try { localStorage.setItem('ff26_posLimits', JSON.stringify(leaguePosLimits || {})); } catch (e) {}
   var li = document.getElementById('sleeperLeagueInput');
   if (li) li.value = leagueId;
   var di = document.getElementById('sleeperDraftInput');
   if (di && sleeperDraftId) di.value = sleeperDraftId;
   var sel = document.getElementById('myTeamSel');
   if (sel && myTeamIdx >= 0) sel.value = myTeamIdx;
-  if (trades.length) buildPickOwners();
+  rebuildPickOwnersFromProfile();
+  if (!opts.skipDraftRestore && players.length) restoreLeagueDraftState(p);
 }
 
 function saveLeagueProfileFromState(leagueId) {
@@ -3579,8 +3642,12 @@ function saveLeagueProfileFromState(leagueId) {
     teamNames: teamNames.slice(0, TEAMS),
     teamUserIds: teamUserIds.slice(),
     teamRosterIds: teamRosterIds.slice(),
+    teamSlots: teamSlots.slice(),
     trades: trades.slice(),
-    posLimits: leaguePosLimits
+    posLimits: leaguePosLimits,
+    currentPick: currentPick,
+    pickLog: pickLog.slice(),
+    myRosterSlots: serializeMyRosterSlots()
   });
   localStorage.setItem('ff26_leagueId', leagueId);
   if (sleeperLeagueName) localStorage.setItem('ff26_leagueName', sleeperLeagueName);
@@ -4163,24 +4230,41 @@ function setPosFilter(pos, btn) {
 (function init() {
   try {
     var bootLeagueId = (typeof LeagueStore !== 'undefined') ? LeagueStore.getActiveId() : (localStorage.getItem('ff26_leagueId') || '');
-    if (bootLeagueId) loadLeagueProfileIntoState(bootLeagueId);
+    var bootProfile = null;
+    if (bootLeagueId) {
+      loadLeagueProfileIntoState(bootLeagueId, { skipDraftRestore: true });
+      bootProfile = (typeof LeagueStore !== 'undefined') ? LeagueStore.getProfile(bootLeagueId) : null;
+    }
     var sel = document.getElementById('myTeamSel');
     if (sel) {
       sel.innerHTML = '<option value="-1">— Select your team —</option>';
       teamNames.forEach(function(n, i) { var o=document.createElement('option'); o.value=i; o.text=n; sel.appendChild(o); });
+      if (myTeamIdx >= 0) sel.value = myTeamIdx;
     }
-    teamSlots = Array(TEAMS).fill(0);
-    pickOwners = [];
-    for (var pick = 1; pick <= TOTAL; pick++) {
-      var rd = Math.ceil(pick/TEAMS), pos = pick-(rd-1)*TEAMS;
-      pickOwners.push(rd%2===1 ? pos-1 : TEAMS-pos);
+    if (!teamSlots.length || teamSlots.every(function(s) { return !s; })) {
+      teamSlots = Array(TEAMS).fill(0);
+    }
+    if (!trades.length && (!teamSlots.length || teamSlots.every(function(s) { return !s; }))) {
+      pickOwners = [];
+      origPickOwners = [];
+      for (var pick = 1; pick <= TOTAL; pick++) {
+        var rd = Math.ceil(pick/TEAMS), pos = pick-(rd-1)*TEAMS;
+        var ti = rd%2===1 ? pos-1 : TEAMS-pos;
+        pickOwners.push(ti);
+        origPickOwners.push(ti);
+      }
+    } else {
+      rebuildPickOwnersFromProfile();
     }
     initPlayers();
+    if (bootProfile) restoreLeagueDraftState(bootProfile);
     calcVORP();
-    try {
-      var savedLimits = localStorage.getItem('ff26_posLimits');
-      if (savedLimits) leaguePosLimits = JSON.parse(savedLimits) || {};
-    } catch (e) {}
+    if (!bootProfile || !bootProfile.posLimits || !Object.keys(bootProfile.posLimits).length) {
+      try {
+        var savedLimits = localStorage.getItem('ff26_posLimits');
+        if (savedLimits) leaguePosLimits = JSON.parse(savedLimits) || {};
+      } catch (e) {}
+    }
     try {
       var savedWatch = localStorage.getItem('ff26_watchList');
       if (savedWatch) JSON.parse(savedWatch).forEach(function(r) { watchList.add(r); });
@@ -4194,13 +4278,6 @@ function setPosFilter(pos, btn) {
     initKeyboardShortcuts();
     var savedKey = localStorage.getItem('ff26_apiKey');
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
-    // Restore myTeamIdx from localStorage if not loaded from Supabase
-    var savedTi = localStorage.getItem('ff26_myTeamIdx');
-    if (savedTi !== null && myTeamIdx < 0) {
-      myTeamIdx = parseInt(savedTi);
-      var topSel = document.getElementById('myTeamSel');
-      if (topSel) topSel.value = myTeamIdx;
-    }
     checkSession();
     setTimeout(fetchNFLFactors, 2000);
     setTimeout(async function() {
@@ -5250,6 +5327,13 @@ function saveTopSectionHeight() {
     if (typeof loadLeagueProfileIntoState === 'function') loadLeagueProfileIntoState(acct.leagueId);
     var inp = document.getElementById('sleeperLeagueInput');
     if (inp) inp.value = acct.leagueId;
+    var prof = (typeof LeagueStore !== 'undefined') ? LeagueStore.getProfile(acct.leagueId) : null;
+    var hasDraftProgress = prof && Array.isArray(prof.pickLog) && prof.pickLog.length > 0;
+    var forceReimport = new URLSearchParams(window.location.search).get('reimport') === '1';
+    if (hasDraftProgress && !forceReimport) {
+      console.log('[AutoImport] Resuming saved draft — skipping re-import (add ?reimport=1 to force fresh Sleeper import)');
+      return;
+    }
     fetchSleeperLeague(acct.leagueId, acct.rosterId);
   }
 
