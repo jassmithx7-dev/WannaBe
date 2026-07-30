@@ -697,6 +697,7 @@ var aiSuggestedCache = { pick: 0, items: [] };
 var aiSuggestedLoading = false;
 var leaguePosLimits = {}; // e.g. { QB: 3, WR: 8 } from Sleeper settings
 var sleeperRosterPositions = [];
+var sleeperScoringType = ''; // 'ppr', 'half_ppr', 'std' — from Sleeper league.scoring_type
 
 // ── AI state ──
 let apiKey = localStorage.getItem('ff26_apiKey') || '';
@@ -2498,6 +2499,7 @@ function parsePosLimitValue(raw) {
 function applySleeperLeagueConfig(league, draftData) {
   leaguePosLimits = {};
   sleeperRosterPositions = (league && league.roster_positions) ? league.roster_positions.slice() : [];
+  sleeperScoringType = (league && (league.scoring_type || (league.settings && league.settings.type))) || '';
   var sources = [(league && league.settings) || {}];
   if (league && league.metadata) sources.push(league.metadata);
   if (draftData && draftData.settings) sources.push(draftData.settings);
@@ -3855,12 +3857,38 @@ function buildDraftContext() {
   return [
     '=== DRAFT STATUS ===',
     'Pick #' + currentPick + ' | Round ' + rd + ' | ' + (isMyPick ? 'YOUR PICK NOW' : 'Not your pick'),
-    'LEAGUE: ' + TEAMS + '-team Superflex PPR | ' + ROUNDS + ' rounds',
-    'SLOTS: QB RB WR WR TE WRT-Flex WR-Flex SF-Flex K DEF + 8 bench (max 3 QB)',
+    (function() {
+      var hasSF = sleeperRosterPositions.indexOf('SUPER_FLEX') >= 0 || ROSTER_SLOTS.some(function(s){return s.sf;});
+      var stype = sleeperScoringType === 'half_ppr' ? 'Half-PPR' : sleeperScoringType === 'std' ? 'Standard' : 'PPR';
+      return 'LEAGUE: ' + TEAMS + '-team ' + (hasSF ? 'Superflex ' : '') + stype + ' | ' + ROUNDS + ' rounds';
+    })(),
+    (function() {
+      if (sleeperRosterPositions.length) {
+        var starters = sleeperRosterPositions.filter(function(s){return s!=='BN'&&s!=='IR';});
+        var bnCount = sleeperRosterPositions.filter(function(s){return s==='BN';}).length;
+        var limits = Object.keys(leaguePosLimits).map(function(p){return 'max '+leaguePosLimits[p]+' '+p;}).join(', ');
+        return 'SLOTS: ' + starters.join(' ') + ' + ' + bnCount + ' bench' + (limits ? ' (' + limits + ')' : '');
+      }
+      return 'SLOTS: QB RB WR WR TE WRT-Flex WR-Flex SF-Flex K DEF + 8 bench (max 3 QB)';
+    })(),
     '',
     '=== MY ROSTER (' + roster.length + '/' + ROUNDS + ') ===',
     rl,
     byeWarnings ? 'BYE STACKS: ' + byeWarnings : '',
+    (function() {
+      if (myTeamIdx < 0) return '';
+      var counts = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+      myRosterSlots.filter(Boolean).forEach(function(p){if(counts[p.pos]!==undefined)counts[p.pos]++;});
+      var needs = getBiggestNeedPos(4);
+      if (!Array.isArray(needs)) needs = needs ? [needs] : [];
+      if (!needs.length) return '';
+      var parts = needs.map(function(pos){
+        var starters = (pos==='QB')?2:(pos==='TE')?1:2;
+        var have = counts[pos]||0;
+        return pos + ' (' + have + '/' + starters + ' starters)';
+      });
+      return 'URGENT NEEDS: ' + parts.join(', ');
+    })(),
     '',
     '=== POSITION SCARCITY ===',
     scarcity,
@@ -3970,31 +3998,69 @@ async function sendToAI(userMessage) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 600,
+        stream: true,
         system: sys,
         messages: messages
       })
     });
-    var data = await res.json();
-    if (!res.ok || data.error) {
-      var errMsg = (data.error && data.error.message) ? data.error.message : ('HTTP ' + res.status);
+
+    if (!res.ok) {
+      var errData = await res.json().catch(function(){return {};});
+      var errMsg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + res.status);
       if (res.status === 401) errMsg = 'Invalid API key — update it in Account settings.';
       else if (res.status === 429) errMsg = 'Rate limited — wait a moment and try again.';
       else if (res.status === 400) errMsg = 'Bad request — ' + errMsg;
       if (thinking) thinking.remove();
       addChatMessage('assistant', '❌ ' + errMsg);
-      aiConversation.pop(); // remove user message so they can retry
-      return;
-    }
-    var reply = (data.content && data.content[0]) ? data.content[0].text : null;
-    if (!reply) {
-      if (thinking) thinking.remove();
-      addChatMessage('assistant', '❌ No response from API — check your key and try again.');
       aiConversation.pop();
       return;
     }
+
+    // Create streaming bubble
     if (thinking) thinking.remove();
-    aiConversation.push({ role: 'assistant', content: reply });
-    addChatMessage('assistant', reply);
+    var streamWrap = document.createElement('div');
+    streamWrap.style.cssText = 'display:flex;justify-content:flex-start';
+    var streamBubble = document.createElement('div');
+    streamBubble.style.cssText = 'background:#21262d;border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:#cdd9e5;line-height:1.55';
+    streamBubble.innerHTML = '<span style="color:#4b5563;font-style:italic">▍</span>';
+    streamWrap.appendChild(streamBubble);
+    if (thread) { thread.appendChild(streamWrap); thread.scrollTop = thread.scrollHeight; }
+
+    var fullText = '';
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buf = '';
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, {stream: true});
+      var lines = buf.split('\n');
+      buf = lines.pop();
+      for (var li = 0; li < lines.length; li++) {
+        var line = lines[li].trim();
+        if (!line.startsWith('data: ')) continue;
+        var jsonStr = line.slice(6);
+        if (jsonStr === '[DONE]') continue;
+        try {
+          var evt = JSON.parse(jsonStr);
+          if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+            fullText += evt.delta.text;
+            var safe = fullText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            streamBubble.innerHTML = safe;
+            if (thread) thread.scrollTop = thread.scrollHeight;
+          }
+        } catch(parseErr) {}
+      }
+    }
+
+    if (!fullText) {
+      streamBubble.innerHTML = '❌ No response from API — check your key and try again.';
+      aiConversation.pop();
+      return;
+    }
+    aiConversation.push({ role: 'assistant', content: fullText });
+
   } catch(e) {
     var errMsg = e.message || 'Error';
     if (errMsg.includes('401')) errMsg = 'Invalid API key — update it in Account settings.';
