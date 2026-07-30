@@ -3570,6 +3570,11 @@ function padProfileArray(arr, len, fill) {
 
 function applyProfileTeamFields(p) {
   p = p || {};
+  if (p.teams && p.teams > 0 && p.teams !== TEAMS) {
+    TEAMS = p.teams;
+    ROUNDS = p.rounds || ROUNDS;
+    TOTAL = TEAMS * ROUNDS;
+  }
   var names = Array.isArray(p.teamNames) ? p.teamNames : [];
   teamNames = Array.from({ length: TEAMS }, function(_, i) {
     return (i < names.length && names[i]) ? names[i] : ('Team ' + (i + 1));
@@ -3598,13 +3603,14 @@ function resetInMemoryDraftState() {
   pickLog = [];
   currentPick = 1;
   history = [];
+  keeperPicks = [];
+  manualKeepers = [];
+  sleeperRosterMap = {};
   teamRosters = Array.from({ length: TEAMS }, function() { return []; });
   myRosterSlots = Array(ROUNDS + 8).fill(null);
   players.forEach(function(p) {
-    if (!p.isKeeper) {
-      p.drafted = false;
-      delete p.isKeeper;
-    }
+    p.drafted = false;
+    delete p.isKeeper;
   });
 }
 
@@ -3691,6 +3697,8 @@ function saveLeagueProfileFromState(leagueId) {
     leagueName: sleeperLeagueName,
     draftId: sleeperDraftId,
     myTeamIdx: myTeamIdx,
+    teams: TEAMS,
+    rounds: ROUNDS,
     teamNames: teamNames.slice(0, TEAMS),
     teamUserIds: teamUserIds.slice(),
     teamRosterIds: teamRosterIds.slice(),
