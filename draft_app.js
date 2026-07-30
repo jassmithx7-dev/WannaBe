@@ -135,15 +135,19 @@ async function onSignedIn(user) {
 
 async function saveUserSettings(silent) {
   if (!currentUser) { if (!silent) alert('Sign in to save settings'); return false; }
+  var lsActive = (typeof LeagueStore !== 'undefined') && LeagueStore.getActiveId();
   const settings = {
     user_id: currentUser.id,
-    sleeper_league_id: sleeperLeagueId || '',
-    sleeper_draft_id: sleeperDraftId || '',
     anthropic_key: apiKey || '',
-    my_team_idx: myTeamIdx >= 0 ? myTeamIdx : null,
-    team_names: JSON.stringify(teamNames),
     updated_at: new Date().toISOString()
   };
+  // League-specific settings live in LeagueStore profiles — don't mirror one league globally
+  if (!lsActive) {
+    settings.sleeper_league_id = sleeperLeagueId || '';
+    settings.sleeper_draft_id = sleeperDraftId || '';
+    settings.my_team_idx = myTeamIdx >= 0 ? myTeamIdx : null;
+    settings.team_names = JSON.stringify(teamNames);
+  }
   const { error } = await supa.from('user_settings').upsert(settings, { onConflict: 'user_id' });
   if (error) {
     console.error('Save error:', error);
@@ -3555,6 +3559,53 @@ function rebuildPickOwnersFromProfile() {
   if (trades.length || teamSlots.some(function(s) { return s > 0; })) buildPickOwners();
 }
 
+function padProfileArray(arr, len, fill) {
+  if (!Array.isArray(arr) || !arr.length) return Array(len).fill(fill);
+  var out = arr.slice(0, len);
+  while (out.length < len) out.push(fill);
+  return out;
+}
+
+function applyProfileTeamFields(p) {
+  p = p || {};
+  var names = Array.isArray(p.teamNames) ? p.teamNames : [];
+  teamNames = Array.from({ length: TEAMS }, function(_, i) {
+    return (i < names.length && names[i]) ? names[i] : ('Team ' + (i + 1));
+  });
+  teamUserIds = padProfileArray(p.teamUserIds, TEAMS, null);
+  teamRosterIds = padProfileArray(p.teamRosterIds, TEAMS, null);
+  teamSlots = padProfileArray(p.teamSlots, TEAMS, 0);
+  trades = Array.isArray(p.trades) ? p.trades.slice() : [];
+  leaguePosLimits = (p.posLimits && Object.keys(p.posLimits).length) ? Object.assign({}, p.posLimits) : {};
+}
+
+function refreshMyTeamSelect() {
+  var sel = document.getElementById('myTeamSel');
+  if (!sel) return;
+  sel.innerHTML = '<option value="-1">— Select your team —</option>';
+  teamNames.forEach(function(n, i) {
+    var o = document.createElement('option');
+    o.value = i;
+    o.text = n;
+    sel.appendChild(o);
+  });
+  if (myTeamIdx >= 0) sel.value = myTeamIdx;
+}
+
+function resetInMemoryDraftState() {
+  pickLog = [];
+  currentPick = 1;
+  history = [];
+  teamRosters = Array.from({ length: TEAMS }, function() { return []; });
+  myRosterSlots = Array(ROUNDS + 8).fill(null);
+  players.forEach(function(p) {
+    if (!p.isKeeper) {
+      p.drafted = false;
+      delete p.isKeeper;
+    }
+  });
+}
+
 function restoreLeagueDraftState(profile) {
   if (!profile) return;
   pickLog = Array.isArray(profile.pickLog) ? profile.pickLog.slice() : [];
@@ -3605,14 +3656,7 @@ function loadLeagueProfileIntoState(leagueId, opts) {
   sleeperLeagueName = p.leagueName || '';
   sleeperDraftId = p.draftId || '';
   myTeamIdx = p.myTeamIdx != null ? p.myTeamIdx : -1;
-  if (Array.isArray(p.teamNames) && p.teamNames.length) {
-    p.teamNames.forEach(function(n, i) { if (i < teamNames.length) teamNames[i] = n; });
-  }
-  if (Array.isArray(p.teamUserIds) && p.teamUserIds.length) teamUserIds = p.teamUserIds.slice();
-  if (Array.isArray(p.teamRosterIds) && p.teamRosterIds.length) teamRosterIds = p.teamRosterIds.slice();
-  if (Array.isArray(p.trades)) trades = p.trades.slice();
-  if (Array.isArray(p.teamSlots) && p.teamSlots.length) teamSlots = p.teamSlots.slice();
-  if (p.posLimits && Object.keys(p.posLimits).length) leaguePosLimits = Object.assign({}, p.posLimits);
+  applyProfileTeamFields(p);
   localStorage.setItem('ff26_leagueId', leagueId);
   if (sleeperLeagueName) localStorage.setItem('ff26_leagueName', sleeperLeagueName);
   else localStorage.removeItem('ff26_leagueName');
@@ -3627,10 +3671,16 @@ function loadLeagueProfileIntoState(leagueId, opts) {
   if (li) li.value = leagueId;
   var di = document.getElementById('sleeperDraftInput');
   if (di && sleeperDraftId) di.value = sleeperDraftId;
-  var sel = document.getElementById('myTeamSel');
-  if (sel && myTeamIdx >= 0) sel.value = myTeamIdx;
+  refreshMyTeamSelect();
   rebuildPickOwnersFromProfile();
-  if (!opts.skipDraftRestore && players.length) restoreLeagueDraftState(p);
+  if (!opts.skipDraftRestore && players.length) {
+    if (Array.isArray(p.pickLog) && p.pickLog.length) restoreLeagueDraftState(p);
+    else resetInMemoryDraftState();
+  }
+  if (players.length && !opts.skipRender) {
+    calcVORP();
+    renderAll();
+  }
 }
 
 function saveLeagueProfileFromState(leagueId) {
@@ -4232,14 +4282,11 @@ function setPosFilter(pos, btn) {
     var bootLeagueId = (typeof LeagueStore !== 'undefined') ? LeagueStore.getActiveId() : (localStorage.getItem('ff26_leagueId') || '');
     var bootProfile = null;
     if (bootLeagueId) {
-      loadLeagueProfileIntoState(bootLeagueId, { skipDraftRestore: true });
+      loadLeagueProfileIntoState(bootLeagueId, { skipDraftRestore: true, skipRender: true });
       bootProfile = (typeof LeagueStore !== 'undefined') ? LeagueStore.getProfile(bootLeagueId) : null;
-    }
-    var sel = document.getElementById('myTeamSel');
-    if (sel) {
-      sel.innerHTML = '<option value="-1">— Select your team —</option>';
-      teamNames.forEach(function(n, i) { var o=document.createElement('option'); o.value=i; o.text=n; sel.appendChild(o); });
-      if (myTeamIdx >= 0) sel.value = myTeamIdx;
+    } else {
+      if (!teamNames.length) teamNames = Array.from({ length: TEAMS }, function(_, i) { return 'Team ' + (i + 1); });
+      refreshMyTeamSelect();
     }
     if (!teamSlots.length || teamSlots.every(function(s) { return !s; })) {
       teamSlots = Array(TEAMS).fill(0);

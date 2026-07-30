@@ -730,7 +730,7 @@
       var leagueId = getActiveLeagueId();
       var profile = leagueId ? (LeagueStore.getProfile(leagueId) || {}) : {};
       var draftId = profile.draftId || '';
-      var myTeamIdx = profile.myTeamIdx != null ? profile.myTeamIdx : parseInt(localStorage.getItem('ff26_myTeamIdx') || '-1', 10);
+      var myTeamIdx = profile.myTeamIdx != null ? profile.myTeamIdx : -1;
       var apiKey = localStorage.getItem('ff26_apiKey') || '';
       var posLimits = profile.posLimits || {};
       var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
