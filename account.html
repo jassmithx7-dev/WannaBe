@@ -493,6 +493,7 @@
     var currentUser = null;
     var _leaguesCache = [];
     var _activeTabLeagueId = null;
+    var _loadDraftHistoryGen = 0;
 
     function getActiveLeagueId() {
       return _activeTabLeagueId || LeagueStore.getActiveId() || localStorage.getItem('ff26_leagueId') || '';
@@ -1215,6 +1216,7 @@
     }
 
     async function loadDraftHistory() {
+      var gen = ++_loadDraftHistoryGen;
       var section = document.getElementById('draftHistorySection');
       var intelSection = document.getElementById('leagueIntelSection');
       var scoutSection = document.getElementById('scoutingSection');
@@ -1234,6 +1236,8 @@
         .order('created_at', { ascending: false })
         .limit(100);
 
+      if (gen !== _loadDraftHistoryGen) return;
+
       if (error) {
         section.style.display = 'none';
         return;
@@ -1243,6 +1247,8 @@
       window._savedDraftsAll = allDrafts;
 
       var relatedIds = await collectRelatedLeagueIds(leagueId);
+      if (gen !== _loadDraftHistoryGen) return;
+
       var leagueDrafts = allDrafts.filter(function(d) {
         return d.league_id && relatedIds.indexOf(String(d.league_id)) >= 0;
       });
