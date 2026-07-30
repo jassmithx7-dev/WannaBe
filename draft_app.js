@@ -171,7 +171,9 @@ async function loadUserSettings() {
   if (!data) return;
 
   // Restore settings
-  if (data.sleeper_league_id) {
+  // Only restore Supabase league ID when LeagueStore hasn't already set an active league
+  var _lsActive = (typeof LeagueStore !== 'undefined') && LeagueStore.getActiveId();
+  if (data.sleeper_league_id && !_lsActive) {
     sleeperLeagueId = data.sleeper_league_id;
     localStorage.setItem('ff26_leagueId', sleeperLeagueId);
     const li = document.getElementById('sleeperLeagueInput');
@@ -5241,6 +5243,8 @@ function saveTopSectionHeight() {
   var acct = null;
   try { acct = JSON.parse(localStorage.getItem('dc_activeLeague') || 'null'); } catch(e) {}
   if (!acct || !acct.leagueId) return;
+  // Let the ?import=1 deep-link handler own the import when both are present
+  if (new URLSearchParams(window.location.search).get('import') === '1') return;
 
   function runAutoImport() {
     if (typeof loadLeagueProfileIntoState === 'function') loadLeagueProfileIntoState(acct.leagueId);

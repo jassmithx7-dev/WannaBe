@@ -500,15 +500,17 @@
 
     function syncLegacyLeagueKeys(leagueId, profile) {
       if (!leagueId) return;
+      var p = profile || {};
       localStorage.setItem('ff26_leagueId', leagueId);
-      if (profile) {
-        if (profile.leagueName) localStorage.setItem('ff26_leagueName', profile.leagueName);
-        if (profile.draftId) localStorage.setItem('ff26_draftId', profile.draftId);
-        if (profile.myTeamIdx != null && profile.myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(profile.myTeamIdx));
-        if (profile.trades) localStorage.setItem('ff26_trades', JSON.stringify(profile.trades));
-        if (profile.teamNames) localStorage.setItem('ff26_teamNames', JSON.stringify(profile.teamNames));
-        if (profile.posLimits) localStorage.setItem('ff26_posLimits', JSON.stringify(profile.posLimits));
-      }
+      if (p.leagueName) localStorage.setItem('ff26_leagueName', p.leagueName);
+      else localStorage.removeItem('ff26_leagueName');
+      if (p.draftId) localStorage.setItem('ff26_draftId', p.draftId);
+      else localStorage.removeItem('ff26_draftId');
+      if (p.myTeamIdx != null && p.myTeamIdx >= 0) localStorage.setItem('ff26_myTeamIdx', String(p.myTeamIdx));
+      else localStorage.removeItem('ff26_myTeamIdx');
+      localStorage.setItem('ff26_trades', JSON.stringify(p.trades || []));
+      localStorage.setItem('ff26_teamNames', JSON.stringify(p.teamNames || []));
+      localStorage.setItem('ff26_posLimits', JSON.stringify(p.posLimits || {}));
     }
 
     // ── Boot: check session ──────────────────────────────────────────────────
@@ -684,12 +686,6 @@
       var trades = profile.trades || [];
       var teamNames = profile.teamNames || [];
       if (!trades.length) {
-        try { trades = JSON.parse(localStorage.getItem('ff26_trades') || '[]'); } catch (e) {}
-      }
-      if (!teamNames.length) {
-        try { teamNames = JSON.parse(localStorage.getItem('ff26_teamNames') || '[]'); } catch (e) {}
-      }
-      if (!trades.length) {
         el.innerHTML = '<div class="trade-empty">No pick trades loaded — import your league or add trades in Full Setup.</div>';
         return;
       }
@@ -736,9 +732,6 @@
       var myTeamIdx = profile.myTeamIdx != null ? profile.myTeamIdx : parseInt(localStorage.getItem('ff26_myTeamIdx') || '-1', 10);
       var apiKey = localStorage.getItem('ff26_apiKey') || '';
       var posLimits = profile.posLimits || {};
-      if (!Object.keys(posLimits).length) {
-        try { posLimits = JSON.parse(localStorage.getItem('ff26_posLimits') || '{}') || {}; } catch (e) {}
-      }
       var league = _leaguesCache.find(function(l) { return l.league_id === leagueId; });
       var items = [
         { label: 'Sleeper account linked', ok: !!meta.sleeper_username },
