@@ -5275,7 +5275,10 @@ function saveTopSectionHeight() {
     setTimeout(function() {
       if (setup === 'trades') openTradesModal();
       else if (setup === 'sleeper') openSleeperModal();
-      if (doImport && typeof fetchSleeperLeague === 'function') fetchSleeperLeague();
+      if (doImport && typeof fetchSleeperLeague === 'function') {
+        var _acct=null;try{_acct=JSON.parse(localStorage.getItem('dc_activeLeague')||'null');}catch(e){}
+        fetchSleeperLeague(null, _acct&&_acct.rosterId||null);
+      }
     }, 900);
   }
 
