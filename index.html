@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WannaBeGms AI — Sign In</title>
+  <script src="theme.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
@@ -20,6 +21,21 @@
       --success:  #3fb950;
       --danger:   #f87171;
     }
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg:       #ddd8cf;
+      --surface:  #f4f1eb;
+      --surface2: #ebe6de;
+      --border:   #c4bdb3;
+      --text:     #3d4554;
+      --muted:    #6b7384;
+      --accent:   #2563eb;
+      --green:    #15803d;
+      --green2:   #16a34a;
+      --orange:   #c2410c;
+      --success:  #15803d;
+      --danger:   #b91c1c;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -28,12 +44,30 @@
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 40px 20px;
-      /* Multi-layered glow: green burst at top, purple drift at bottom */
       background-image:
         radial-gradient(ellipse 80% 50% at 50% -10%, rgba(74,222,128,.18) 0%, transparent 65%),
         radial-gradient(ellipse at 15% 90%, rgba(59,130,246,.08) 0%, transparent 50%),
         radial-gradient(ellipse at 85% 85%, rgba(139,92,246,.06) 0%, transparent 50%);
     }
+    html[data-theme="light"] body {
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(22,163,74,.10) 0%, transparent 65%),
+        radial-gradient(ellipse at 15% 90%, rgba(37,99,235,.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 85%, rgba(124,58,237,.05) 0%, transparent 50%);
+    }
+    html[data-theme="light"] .card {
+      background: #f4f1eb;
+      border-color: #c4bdb3;
+      box-shadow: 0 4px 24px rgba(61,69,84,.08);
+    }
+    html[data-theme="light"] .hero-sub .pill { background: #ffedd5; color: #c2410c; border-color: #fdba74; }
+    .theme-toggle-btn {
+      position: fixed; top: 16px; right: 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: 6px 12px;
+      font-size: 12px; cursor: pointer; z-index: 50;
+    }
+    .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
 
     /* ── Hero ─────────────────────────────────────────────── */
     .hero {
@@ -212,6 +246,8 @@
   </style>
 </head>
 <body>
+
+  <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="Switch theme">🌙 Dark</button>
 
   <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner"></div>

@@ -109,6 +109,33 @@ async function signUp() {
   }
 }
 
+function setSignedInTopbar(show) {
+  var chip = document.getElementById('topUserChip');
+  var menu = document.getElementById('topAccountMenu');
+  var div = document.getElementById('topUserDivider');
+  if (chip) chip.style.display = show ? 'inline-flex' : 'none';
+  if (menu) menu.style.display = show ? 'block' : 'none';
+  if (div) div.style.display = show ? 'block' : 'none';
+}
+
+function toggleAccountMenu(e) {
+  if (e) e.stopPropagation();
+  var dd = document.getElementById('accountDropdown');
+  if (!dd) return;
+  var open = dd.classList.toggle('open');
+  if (open) {
+    setTimeout(function() {
+      document.addEventListener('click', closeAccountMenuOnce);
+    }, 0);
+  }
+}
+
+function closeAccountMenuOnce() {
+  var dd = document.getElementById('accountDropdown');
+  if (dd) dd.classList.remove('open');
+  document.removeEventListener('click', closeAccountMenuOnce);
+}
+
 async function signOut() {
   await supa.auth.signOut();
   localStorage.removeItem('dc_activeLeague');
@@ -117,15 +144,14 @@ async function signOut() {
 
 function continueAsGuest() {
   document.getElementById('authModal').style.display = 'none';
-  document.getElementById('userBar').style.display = 'none';
+  setSignedInTopbar(false);
 }
 
 async function onSignedIn(user) {
   currentUser = user;
   var modal = document.getElementById('authModal');
   if (modal) modal.style.display = 'none';
-  var bar = document.getElementById('userBar');
-  if (bar) bar.style.display = 'flex';
+  setSignedInTopbar(true);
   var emailEl = document.getElementById('userEmail');
   if (emailEl) emailEl.textContent = user.email;
   await loadUserSettings();
@@ -155,7 +181,7 @@ async function saveUserSettings(silent) {
     return false;
   }
   if (!silent) {
-    const btn = document.querySelector('#userBar button[onclick*="saveUserSettings"]');
+    const btn = document.getElementById('saveSettingsBtn');
     if (btn) { const orig = btn.textContent; btn.textContent = '✅ Saved!'; setTimeout(function(){ btn.textContent = orig; }, 2000); }
   }
   return true;
@@ -692,7 +718,11 @@ let pickLog=[]; // {pick,teamIdx,player,pos,nfl,isKeeper,isTraded}
 let teamRosters=Array.from({length:TEAMS},()=>[]);
 let history=[];
 let compareRanks = []; // up to 3 player ranks for side-by-side compare
-let watchList = new Set();
+let watchTargets = {}; // player rank → target draft round
+let playerTags = {};   // rank → 'target' | 'sleeper' | 'avoid'
+let draftQueue = [];   // ordered ranks — draft priority list
+let customRankOrder = null; // user rank order (array of ranks)
+let rankEditMode = false;
 var aiSuggestedCache = { pick: 0, items: [] };
 var aiSuggestedLoading = false;
 var leaguePosLimits = {}; // e.g. { QB: 3, WR: 8 } from Sleeper settings
@@ -785,6 +815,71 @@ function injuryBadgeHtml(p) {
     ';padding:1px 3px;border-radius:3px;margin-left:4px" title="' + tip + '">' + cfg.short + '</span>';
 }
 
+const BYE_WEEK_COLORS = {
+  '5':  { bg: '#3b1526', color: '#fda4af', border: '#e11d48' },
+  '6':  { bg: '#3d2010', color: '#fdba74', border: '#ea580c' },
+  '7':  { bg: '#3d3010', color: '#fcd34d', border: '#ca8a04' },
+  '8':  { bg: '#2d3a10', color: '#bef264', border: '#65a30d' },
+  '9':  { bg: '#103322', color: '#6ee7b7', border: '#059669' },
+  '10': { bg: '#0f3333', color: '#5eead4', border: '#0d9488' },
+  '11': { bg: '#0f2a3d', color: '#7dd3fc', border: '#0284c7' },
+  '12': { bg: '#151535', color: '#a5b4fc', border: '#4f46e5' },
+  '13': { bg: '#2a1535', color: '#d8b4fe', border: '#9333ea' },
+  '14': { bg: '#351530', color: '#f0abfc', border: '#c026d3' },
+};
+const BYE_WEEK_COLORS_LIGHT = {
+  '5':  { bg: '#ffe4e6', color: '#be123c', border: '#fda4af' },
+  '6':  { bg: '#ffedd5', color: '#c2410c', border: '#fdba74' },
+  '7':  { bg: '#fef3c7', color: '#a16207', border: '#fcd34d' },
+  '8':  { bg: '#ecfccb', color: '#4d7c0f', border: '#a3e635' },
+  '9':  { bg: '#d1fae5', color: '#047857', border: '#6ee7b7' },
+  '10': { bg: '#ccfbf1', color: '#0f766e', border: '#5eead4' },
+  '11': { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
+  '12': { bg: '#e0e7ff', color: '#4338ca', border: '#a5b4fc' },
+  '13': { bg: '#ede9fe', color: '#6d28d9', border: '#c4b5fd' },
+  '14': { bg: '#fae8ff', color: '#a21caf', border: '#f0abfc' },
+};
+
+function getByeWeekStyle(wk) {
+  var key = String(parseInt(wk, 10) || wk);
+  var palette = isLightTheme() ? BYE_WEEK_COLORS_LIGHT : BYE_WEEK_COLORS;
+  var fallback = isLightTheme()
+    ? { bg: '#e5dfd6', color: '#525c6e', border: '#c4bdb3' }
+    : { bg: '#1f2937', color: '#9ca3af', border: '#6b7280' };
+  return palette[key] || fallback;
+}
+
+function getMyRosterByeWeeks() {
+  var weeks = {};
+  if (myTeamIdx < 0) return weeks;
+  myRosterSlots.filter(Boolean).forEach(function(p) {
+    if (!p.bye || p.bye === 'TBD' || p.pos === 'K' || p.pos === 'DEF') return;
+    var wk = String(p.bye);
+    if (!weeks[wk]) weeks[wk] = [];
+    weeks[wk].push(p.pos);
+  });
+  return weeks;
+}
+
+function byeBadgeHtml(p, rosterByeWeeks, drafted) {
+  if (!p.bye || p.bye === 'TBD') {
+    return '<span style="font-size:10px;color:var(--faint);text-align:center;justify-self:center">—</span>';
+  }
+  var wk = String(p.bye);
+  var skipStack = p.pos === 'K' || p.pos === 'DEF';
+  var roster = rosterByeWeeks[wk] || [];
+  var conflict = !drafted && !skipStack && roster.length > 0;
+  var style = getByeWeekStyle(wk);
+  var border = conflict ? (isLightTheme() ? '#d97706' : '#fbbf24') : style.border;
+  var title = conflict
+    ? ('Bye wk ' + wk + ' stacks with ' + roster.join('+') + ' on your roster')
+    : ('Bye week ' + wk);
+  var shadow = conflict ? ('box-shadow:0 0 0 1px ' + (isLightTheme() ? '#d97706' : '#fbbf24') + ';') : '';
+  return '<span style="font-size:9px;font-weight:700;text-align:center;padding:1px 5px;border-radius:3px;background:' + style.bg +
+    ';color:' + style.color + ';border:1px solid ' + border + ';justify-self:center;white-space:nowrap;line-height:1.2;' + shadow + '" title="' + title + '">' +
+    (conflict ? '⚠ ' : '') + wk + '</span>';
+}
+
 
 function getNthBest(pos, n) {
   const sorted = [...players].filter(p => p.pos === pos)
@@ -840,7 +935,7 @@ function updateFactorStatus(msg, ok) {
   var el = document.getElementById('factorStatus');
   if (!el) return;
   el.textContent = msg;
-  el.style.color = ok ? '#4ade80' : '#9ca3af';
+  el.style.color = ok ? 'var(--green-text, #4ade80)' : 'var(--muted, #9ca3af)';
 }
 
 function normalizeToMult(val, lo, hi, multLo, multHi) {
@@ -1168,6 +1263,9 @@ function draftPlayer(rank){
   if(currentPick>TOTAL) return;
   const p=players.find(x=>x.rank===rank);
   if(!p||p.drafted) return;
+  if (getPlayerTag(rank) === 'avoid') {
+    if (!confirm('🚫 ' + p.name + ' is tagged Avoid. Draft anyway?')) return;
+  }
   const ti=clockTeamIdx();
   const myTi2 = myTeamIdx !== '' ? parseInt(myTeamIdx) : -1;
   if (myTi2 >= 0 && ti === myTi2) {
@@ -1246,9 +1344,62 @@ function resetDraft(){
   persistLeagueSetupCache();
 }
 
+function isPreDraftMode() {
+  if (document.body.getAttribute('data-mock') === '1' || mockState) return false;
+  if (currentPick > TOTAL) return false;
+  return !pickLog.some(function(l) { return !l.isKeeper; });
+}
+
+function updatePreDraftBanner() {
+  var el = document.getElementById('preDraftBanner');
+  if (!el) return;
+  var show = isPreDraftMode();
+  el.style.display = show ? 'flex' : 'none';
+  if (!show) return;
+  var sub = document.getElementById('preDraftBannerSub');
+  if (!sub) return;
+  var watchN = Object.keys(watchTargets).length;
+  var hasLeague = !!sleeperLeagueId || teamSlots.some(function(s) { return s > 0; });
+  var hasDraftId = !!(sleeperDraftId || (document.getElementById('sleeperDraftInput') || {}).value);
+  var parts = [];
+  if (watchN) {
+    parts.push(watchN + ' on your ★ watch list');
+  } else {
+    parts.push('★ Add players with target rounds');
+  }
+  if (!hasLeague) parts.push('import your Sleeper league');
+  else if (myTeamIdx < 0) parts.push('select My team');
+  else if (!hasDraftId) parts.push('add Draft ID before draft night');
+  else parts.push('Sync picks when Sleeper goes live');
+  sub.textContent = 'Draft hasn\u2019t started \u2014 ' + parts.join(' · ') + '.';
+}
+
 function renderClock(){
   const el=document.getElementById("clk");
-  if(currentPick>TOTAL){el.textContent="Draft complete!";el.className="clock done";return;}
+  if (!el) return;
+  el.style.background = '';
+  el.style.color = '';
+
+  if (document.body.getAttribute('data-mock') === '1' && mockState) {
+    if (mockState.currentPick > mockState.totalPicks) {
+      el.textContent = 'Mock draft complete!';
+      el.className = 'clock done';
+      updateClockNeeds(false);
+      updatePreDraftBanner();
+      return;
+    }
+    const ti = mockState.pickOwners[mockState.currentPick - 1];
+    const rd = Math.ceil(mockState.currentPick / TEAMS);
+    const tname = ti >= 0 ? (teamNames[ti] || 'Team ' + (ti + 1)) : 'Unknown';
+    const isMe = ti === mockState.myTi;
+    el.textContent = 'MOCK — Pick #' + mockState.currentPick + ' · Rd ' + rd + ' · ' + tname + (isMe ? ' · YOUR PICK' : '');
+    el.className = 'clock mock-active' + (isMe ? ' me' : '');
+    updateClockNeeds(isMe);
+    updatePreDraftBanner();
+    return;
+  }
+
+  if(currentPick>TOTAL){el.textContent="Draft complete!";el.className="clock done";updateClockNeeds(false);updatePreDraftBanner();return;}
   const ti=clockTeamIdx();
   const rd=ptRd(currentPick);
   const tname=ti>=0?(teamNames[ti]||"Team "+(ti+1)):(teamNames.length?"Unknown":"Import league →");
@@ -1260,12 +1411,14 @@ function renderClock(){
   if(traded){ta.style.display="block";ta.textContent=`Pick #${currentPick} is a traded pick`;} else ta.style.display="none";
   var pc=document.getElementById("pickCounter");if(pc)pc.textContent=`(${currentPick-1}/${TOTAL} picks made)`;
   updateClockNeeds(me);
+  updatePreDraftBanner();
 }
 
 function updateClockNeeds(isMeTurn) {
   var needsEl = document.getElementById("clockNeeds");
   if (!needsEl) return;
   needsEl.innerHTML = "";
+  needsEl.classList.remove("clock-needs-active");
   needsEl.style.display = "none";
   if (!isMeTurn) return;
   var positions = getBiggestNeedPos(2);
@@ -1273,10 +1426,11 @@ function updateClockNeeds(isMeTurn) {
   var lines = positions.map(function(pos) {
     var targets = topPlayersAtPos(pos, 2);
     if (!targets.length) return null;
-    return '<div><span style="color:#7d8590;font-weight:600">Need ' + pos + ':</span> ' + targets.map(formatClockTarget).join(' · ') + '</div>';
+    return '<div><span class="need-lbl">Need ' + pos + ':</span> ' + targets.map(formatClockTarget).join(' · ') + '</div>';
   }).filter(Boolean);
   if (lines.length) {
     needsEl.innerHTML = lines.join('');
+    needsEl.classList.add("clock-needs-active");
     needsEl.style.display = "block";
   }
 }
@@ -1316,7 +1470,7 @@ function showPickSuggestions() {
   if (!cards) return;
 
   if (mockTi < 0) {
-    cards.innerHTML = '<div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">Select your team for suggestions</div>';
+    cards.innerHTML = '<div style="padding:20px 12px;text-align:center;color:var(--faint);font-size:11px">Select your team for suggestions</div>';
     return;
   }
 
@@ -1329,7 +1483,7 @@ function showPickSuggestions() {
 
   var scored = getBestFitScoredPlayers();
   if (!scored.length) {
-    cards.innerHTML = '<div style="padding:20px 12px;text-align:center;color:#484f58;font-size:11px">No eligible players — check position limits or filters</div>';
+    cards.innerHTML = '<div style="padding:20px 12px;text-align:center;color:var(--faint);font-size:11px">No eligible players — check position limits or filters</div>';
     return;
   }
 
@@ -1346,12 +1500,12 @@ function showPickSuggestions() {
   var posColors = { QB: '#388bfd', RB: '#3fb950', WR: '#f78166', TE: '#bc8cff', K: '#e3b341', DEF: '#56d364' };
   cards.innerHTML = diverse.map(function(item) {
     var p = item.p;
-    var color = posColors[p.pos] || '#7d8590';
+    var color = posColors[p.pos] || 'var(--muted)';
     var proj = p.customScore ? p.customScore.toFixed(0) : '—';
     var floor = p.customScore ? Math.round(p.customScore * 0.78) : '—';
     var ceil = p.customScore ? Math.round(p.customScore * 1.14) : '—';
     var vorp = p.vorp != null ? (p.vorp > 0 ? '+' : '') + p.vorp.toFixed(0) : '—';
-    var vorpColor = p.vorp > 20 ? '#3fb950' : p.vorp > 0 ? '#388bfd' : '#7d8590';
+    var vorpColor = p.vorp > 20 ? '#16a34a' : p.vorp > 0 ? '#2563eb' : 'var(--muted)';
     var factorTxt = '';
     if (nflFactorsLoaded && p.customScore > 0) {
       var parts = [];
@@ -1369,10 +1523,10 @@ function showPickSuggestions() {
         '</div>' +
       '</div>' +
       '<div class="sugg-stats">' +
-        '<div class="sugg-stat"><div class="sugg-stat-val" style="color:#7d8590">'+floor+'</div><div class="sugg-stat-lbl">Floor</div></div>' +
+        '<div class="sugg-stat"><div class="sugg-stat-val" style="color:var(--muted)">'+floor+'</div><div class="sugg-stat-lbl">Floor</div></div>' +
         '<div class="sugg-stat"><div class="sugg-stat-val" style="color:'+color+'">'+proj+'</div><div class="sugg-stat-lbl">Proj</div></div>' +
         '<div class="sugg-stat"><div class="sugg-stat-val" style="color:'+vorpColor+'">'+vorp+'</div><div class="sugg-stat-lbl">VORP</div></div>' +
-        '<div class="sugg-stat"><div class="sugg-stat-val" style="color:#7d8590">'+ceil+'</div><div class="sugg-stat-lbl">Ceil</div></div>' +
+        '<div class="sugg-stat"><div class="sugg-stat-val" style="color:var(--muted)">'+ceil+'</div><div class="sugg-stat-lbl">Ceil</div></div>' +
       '</div>' +
       (factorTxt ? '<div class="sugg-factor">'+factorTxt+'</div>' : '') +
       '<div class="sugg-btns">' +
@@ -1387,13 +1541,11 @@ function showPickSuggestions() {
 // ── Player comparison ──
 function getAdpDeltaLabel(p) {
   var adp = p.displayAdp || p.adp;
-  if (!adp || adp >= 900) return { text: '—', color: '#7d8590' };
+  if (!adp || adp >= 900) return { text: '—', color: 'var(--faint)' };
   var delta = Math.round(adp - currentPick);
-  // delta > 0: ADP later than this pick → drafting early (reach)
-  // delta < 0: ADP earlier than this pick → player fell (steal)
-  if (delta > 8) return { text: 'REACH +' + delta, color: '#f87171' };
-  if (delta < -8) return { text: 'STEAL +' + Math.abs(delta), color: '#4ade80' };
-  return { text: 'Fair ' + (delta > 0 ? '+' : '') + delta, color: '#9ca3af' };
+  if (delta > 8) return { text: 'REACH +' + delta, color: '#dc2626' };
+  if (delta < -8) return { text: 'STEAL +' + Math.abs(delta), color: '#16a34a' };
+  return { text: 'Fair ' + (delta > 0 ? '+' : '') + delta, color: 'var(--muted)' };
 }
 
 function formatByeParen(playerOrName) {
@@ -1446,10 +1598,10 @@ function showPickToast(pickNum, p) {
     ? adp.text + ' · ' + vorpStr + ' VORP' + (adpWas ? ' · ' + adpWas : '')
     : vorpStr + ' VORP';
   _pickToastEl = document.createElement('div');
-  _pickToastEl.style.cssText = 'position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 14px;max-width:340px;transition:opacity .3s ease,bottom .25s ease';
+  _pickToastEl.className = 'pick-toast';
   _pickToastEl.innerHTML =
-    '<div style="font-size:14px;font-weight:700;color:#e6edf3;margin-bottom:4px">#' + pickNum + ' — ' + p.name + ' (' + p.pos + ' · ' + p.team + ')</div>' +
-    '<div style="font-size:11px;font-weight:600;color:' + (adp.text !== '—' ? adp.color : vorpColor) + '">' + gradeLine + '</div>';
+    '<div class="pick-toast-title">#' + pickNum + ' — ' + p.name + ' (' + p.pos + ' · ' + p.team + ')</div>' +
+    '<div class="pick-toast-sub" style="color:' + (adp.text !== '—' ? adp.color : vorpColor) + '">' + gradeLine + '</div>';
   document.body.appendChild(_pickToastEl);
   requestAnimationFrame(function() { layoutCornerToasts(); });
   _pickToastTimer = setTimeout(function() {
@@ -1507,25 +1659,509 @@ function updateAIPauseBtn() {
   var btn = document.getElementById('aiPauseBtn');
   if (!btn) return;
   if (aiAlertsPaused) {
-    btn.textContent = '▶ AI Alerts';
-    btn.style.background = '#21262d';
-    btn.style.borderColor = '#30363d';
-    btn.style.color = '#7d8590';
+    btn.textContent = '▶ Alerts';
+    btn.classList.add('paused');
     btn.title = 'AI proactive alerts paused — click to resume';
   } else {
-    btn.textContent = '⏸ AI Alerts';
-    btn.style.background = '#2d2008';
-    btn.style.borderColor = '#9e6a03';
-    btn.style.color = '#fbbf24';
+    btn.textContent = '⏸ Alerts';
+    btn.classList.remove('paused');
     btn.title = 'Pause proactive AI alerts and auto-pick prompts';
   }
 }
 
-function toggleWatch(rank) {
-  if (watchList.has(rank)) watchList.delete(rank);
-  else watchList.add(rank);
-  localStorage.setItem('ff26_watchList', JSON.stringify([...watchList]));
+function isWatched(rank) {
+  return watchTargets[rank] != null;
+}
+
+function defaultWatchRound(p) {
+  if (!p) return Math.max(1, Math.min(ROUNDS, Math.ceil(currentPick / TEAMS)));
+  var adp = p.displayAdp || p.adp;
+  if (adp && adp < 900) return Math.max(1, Math.min(ROUNDS, Math.ceil(adp / TEAMS)));
+  if (p.customRank && p.customRank < 9000) return Math.max(1, Math.min(ROUNDS, Math.ceil(p.customRank / TEAMS)));
+  return Math.max(1, Math.min(ROUNDS, Math.ceil(currentPick / TEAMS)));
+}
+
+function persistWatchTargets() {
+  try { localStorage.setItem('ff26_watchTargets_v1', JSON.stringify(watchTargets)); } catch (e) {}
+}
+
+function loadWatchTargets() {
+  watchTargets = {};
+  try {
+    var saved = localStorage.getItem('ff26_watchTargets_v1');
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      Object.keys(parsed || {}).forEach(function(k) {
+        var rd = parseInt(parsed[k], 10);
+        if (rd >= 1) watchTargets[parseInt(k, 10)] = Math.min(ROUNDS, rd);
+      });
+      return;
+    }
+    var legacy = localStorage.getItem('ff26_watchList');
+    if (legacy) {
+      JSON.parse(legacy).forEach(function(rank) {
+        var p = players.find(function(x) { return x.rank === rank; });
+        watchTargets[rank] = defaultWatchRound(p);
+      });
+      persistWatchTargets();
+    }
+  } catch (e) {}
+}
+
+function draftPrefsKey(name) {
+  var id = sleeperLeagueId || localStorage.getItem('ff26_leagueId') || 'default';
+  return 'ff26_' + name + '_' + id;
+}
+
+function persistPlayerTags() {
+  try { localStorage.setItem(draftPrefsKey('playerTags_v1'), JSON.stringify(playerTags)); } catch (e) {}
+}
+
+function loadPlayerTags() {
+  playerTags = {};
+  try {
+    var saved = localStorage.getItem(draftPrefsKey('playerTags_v1'));
+    if (saved) playerTags = JSON.parse(saved) || {};
+  } catch (e) {}
+}
+
+function persistDraftQueue() {
+  try { localStorage.setItem(draftPrefsKey('draftQueue_v1'), JSON.stringify(draftQueue)); } catch (e) {}
+}
+
+function loadDraftQueue() {
+  draftQueue = [];
+  try {
+    var saved = localStorage.getItem(draftPrefsKey('draftQueue_v1'));
+    if (saved) draftQueue = JSON.parse(saved) || [];
+    draftQueue = draftQueue.filter(function(r) { return typeof r === 'number'; });
+  } catch (e) {}
+}
+
+function persistCustomRankOrder() {
+  try {
+    if (customRankOrder && customRankOrder.length) {
+      localStorage.setItem(draftPrefsKey('customRankOrder_v1'), JSON.stringify(customRankOrder));
+    } else {
+      localStorage.removeItem(draftPrefsKey('customRankOrder_v1'));
+    }
+  } catch (e) {}
+}
+
+function loadCustomRankOrder() {
+  customRankOrder = null;
+  try {
+    var saved = localStorage.getItem(draftPrefsKey('customRankOrder_v1'));
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) customRankOrder = parsed;
+    }
+  } catch (e) {}
+}
+
+function loadDraftPrefs() {
+  loadWatchTargets();
+  loadPlayerTags();
+  loadDraftQueue();
+  loadCustomRankOrder();
+}
+
+function getPlayerTag(rank) {
+  return playerTags[rank] || null;
+}
+
+function cyclePlayerTag(rank, ev) {
+  if (ev) ev.stopPropagation();
+  var p = players.find(function(x) { return x.rank === rank; });
+  if (!p || p.drafted || p.mockDrafted) return;
+  var order = [null, 'target', 'sleeper', 'avoid'];
+  var cur = getPlayerTag(rank);
+  var idx = order.indexOf(cur);
+  var next = order[(idx + 1) % order.length];
+  if (next) playerTags[rank] = next;
+  else delete playerTags[rank];
+  persistPlayerTags();
   renderBA();
+  renderQueuePanel();
+}
+
+function setPlayerTag(rank, tag) {
+  if (!tag) delete playerTags[rank];
+  else playerTags[rank] = tag;
+  persistPlayerTags();
+  renderBA();
+  renderQueuePanel();
+}
+
+function isInQueue(rank) {
+  return draftQueue.indexOf(rank) >= 0;
+}
+
+function queuePosition(rank) {
+  var i = draftQueue.indexOf(rank);
+  return i >= 0 ? i + 1 : 0;
+}
+
+function toggleQueue(rank, ev) {
+  if (ev) ev.stopPropagation();
+  var p = players.find(function(x) { return x.rank === rank; });
+  if (!p || p.drafted || p.mockDrafted) return;
+  var idx = draftQueue.indexOf(rank);
+  if (idx >= 0) draftQueue.splice(idx, 1);
+  else draftQueue.push(rank);
+  persistDraftQueue();
+  renderBA();
+  renderQueuePanel();
+}
+
+function removeFromQueue(rank) {
+  var idx = draftQueue.indexOf(rank);
+  if (idx >= 0) draftQueue.splice(idx, 1);
+  persistDraftQueue();
+  renderBA();
+  renderQueuePanel();
+}
+
+function moveQueueItem(rank, dir) {
+  var idx = draftQueue.indexOf(rank);
+  if (idx < 0) return;
+  var ni = idx + dir;
+  if (ni < 0 || ni >= draftQueue.length) return;
+  var tmp = draftQueue[ni];
+  draftQueue[ni] = draftQueue[idx];
+  draftQueue[idx] = tmp;
+  persistDraftQueue();
+  renderQueuePanel();
+  renderBA();
+}
+
+function clearDraftQueue() {
+  draftQueue = [];
+  persistDraftQueue();
+  renderBA();
+  renderQueuePanel();
+}
+
+function tagBtnHtml(rank) {
+  var tag = getPlayerTag(rank);
+  var labels = { target: '🎯', sleeper: '💤', avoid: '🚫' };
+  var cls = tag ? ' tag-btn tag-' + tag : ' tag-btn';
+  var title = tag ? ('Tag: ' + tag + ' — click to change') : 'Set tag: Target → Sleeper → Avoid';
+  return '<button type="button" class="' + cls + '" onclick="event.stopPropagation();cyclePlayerTag(' + rank + ', event)" title="' + title + '">' + (labels[tag] || '·') + '</button>';
+}
+
+function queueBtnHtml(rank, drafted) {
+  if (drafted) return '<span class="queue-slot empty">·</span>';
+  var pos = queuePosition(rank);
+  var cls = pos ? ' queue-slot in-queue' : ' queue-slot';
+  var label = pos ? String(pos) : '+';
+  return '<button type="button" class="' + cls + '" onclick="event.stopPropagation();toggleQueue(' + rank + ', event)" title="' + (pos ? 'In queue #' + pos + ' — click to remove' : 'Add to draft queue') + '">' + label + '</button>';
+}
+
+function isDrafted(p) {
+  return !!(p && (p.drafted || p.mockDrafted));
+}
+
+function hasScore(p) {
+  return !!(p && p.customScore && p.customScore > 0);
+}
+
+function getMyNextPickNumber() {
+  var ctx = draftContext();
+  if (ctx.myTi < 0 || !ctx.pickOwners || !ctx.pickOwners.length) return null;
+  for (var pick = ctx.curPick; pick <= TOTAL; pick++) {
+    if (ctx.pickOwners[pick - 1] === ctx.myTi) return pick;
+  }
+  return null;
+}
+
+function getPickAvailProb(p) {
+  if (isDrafted(p)) return null;
+  var nextPick = getMyNextPickNumber();
+  if (nextPick == null || myTeamIdx < 0) return null;
+  var cur = draftContext().curPick;
+  var picksUntil = nextPick - cur;
+  if (picksUntil <= 0) return 100;
+  var adp = p.displayAdp || p.adp;
+  if (!adp || adp >= 900) {
+    if (p.customRank && p.customRank < 9000) adp = p.customRank;
+    else return null;
+  }
+  if (adp <= cur) return 0;
+  var cushion = adp - nextPick;
+  if (cushion >= picksUntil * 1.5) return 99;
+  if (cushion >= picksUntil * 0.75) return Math.min(99, 82 + Math.round(cushion / Math.max(picksUntil, 1) * 5));
+  if (cushion >= 0) return Math.max(12, Math.min(81, 55 + Math.round(cushion / Math.max(picksUntil, 1) * 22)));
+  var deficit = nextPick - adp;
+  return Math.max(1, Math.min(48, Math.round(42 - deficit / Math.max(picksUntil, 1) * 55)));
+}
+
+function probColor(pct) {
+  if (pct == null) return 'var(--faint)';
+  if (pct >= 70) return '#16a34a';
+  if (pct >= 40) return '#ca8a04';
+  if (pct >= 15) return 'var(--muted)';
+  return '#dc2626';
+}
+
+function toggleRankEditMode() {
+  rankEditMode = !rankEditMode;
+  if (rankEditMode) initCustomRankOrderIfNeeded();
+  var btn = document.getElementById('rankEditBtn');
+  if (btn) {
+    btn.classList.toggle('active', rankEditMode);
+    btn.textContent = rankEditMode ? '✓ Done' : '↕ Ranks';
+  }
+  renderBA();
+}
+
+function initCustomRankOrderIfNeeded() {
+  if (customRankOrder && customRankOrder.length) return;
+  customRankOrder = players.filter(function(p) { return hasScore(p); })
+    .sort(function(a, b) { return a.customRank - b.customRank; })
+    .map(function(p) { return p.rank; });
+}
+
+function moveCustomRank(rank, dir) {
+  initCustomRankOrderIfNeeded();
+  var idx = customRankOrder.indexOf(rank);
+  if (idx < 0) return;
+  var ni = idx + dir;
+  if (ni < 0 || ni >= customRankOrder.length) return;
+  var tmp = customRankOrder[ni];
+  customRankOrder[ni] = customRankOrder[idx];
+  customRankOrder[idx] = tmp;
+  persistCustomRankOrder();
+  renderBA();
+}
+
+function resetCustomRankOrder() {
+  customRankOrder = null;
+  persistCustomRankOrder();
+  renderBA();
+}
+
+function effectiveListRank(p, fitIdx) {
+  if (fitIdx != null) return fitIdx + 1;
+  if (customRankOrder) {
+    var i = customRankOrder.indexOf(p.rank);
+    if (i >= 0) return i + 1;
+  }
+  return p.customRank < 9000 ? p.customRank : '—';
+}
+
+function draftContext() {
+  var isMock = document.body.getAttribute('data-mock') === '1' && mockState;
+  return {
+    pickOwners: isMock ? mockState.pickOwners : pickOwners,
+    myTi: isMock ? mockState.myTi : myTeamIdx,
+    curPick: isMock ? mockState.currentPick : currentPick
+  };
+}
+
+function myPickNumberInRound(rd) {
+  var ctx = draftContext();
+  if (ctx.myTi < 0 || !ctx.pickOwners || !ctx.pickOwners.length) return null;
+  for (var pick = 1; pick <= TOTAL; pick++) {
+    if (ptRd(pick) === rd && ctx.pickOwners[pick - 1] === ctx.myTi) return pick;
+  }
+  return null;
+}
+
+function getWatchTargetStatus(p, targetRd) {
+  if (!p) return { key: 'unknown', label: '—', color: 'var(--muted)' };
+  if (p.drafted || p.mockDrafted) return { key: 'gone', label: 'Taken', color: 'var(--faint)' };
+  var ctx = draftContext();
+  var myPick = myPickNumberInRound(targetRd);
+  if (myPick == null) return { key: 'unknown', label: 'Set team', color: 'var(--muted)' };
+  if (ctx.curPick > myPick) return { key: 'passed', label: 'Window closed', color: 'var(--red)' };
+  var adp = p.displayAdp || p.adp;
+  var curRd = Math.ceil(ctx.curPick / TEAMS);
+  if (curRd >= targetRd || ctx.curPick >= myPick - Math.max(3, Math.floor(TEAMS / 2))) {
+    if (adp && adp < 900 && adp <= myPick + 2) return { key: 'now', label: 'Take now', color: 'var(--green-text)' };
+    if (adp && adp < 900 && adp < myPick - TEAMS) return { key: 'unlikely', label: 'May not fall', color: 'var(--yellow-text)' };
+    return { key: 'window', label: 'In window', color: 'var(--accent)' };
+  }
+  if (targetRd - curRd <= 1) return { key: 'soon', label: 'Coming up', color: 'var(--yellow-text)' };
+  return { key: 'waiting', label: 'On track', color: 'var(--muted)' };
+}
+
+function toggleWatch(rank, ev) {
+  if (ev) ev.stopPropagation();
+  if (isWatched(rank)) {
+    delete watchTargets[rank];
+  } else {
+    var p = players.find(function(x) { return x.rank === rank; });
+    if (!p || p.drafted || p.mockDrafted) return;
+    watchTargets[rank] = defaultWatchRound(p);
+    switchNP('queue');
+  }
+  persistWatchTargets();
+  renderBA();
+  renderQueuePanel();
+  updateQueueTabBadge();
+}
+
+function setWatchTargetRound(rank, round) {
+  if (!isWatched(rank)) return;
+  var rd = parseInt(round, 10);
+  if (!rd || rd < 1) rd = 1;
+  if (rd > ROUNDS) rd = ROUNDS;
+  watchTargets[rank] = rd;
+  persistWatchTargets();
+  renderBA();
+  renderQueuePanel();
+}
+
+function removeWatch(rank) {
+  delete watchTargets[rank];
+  persistWatchTargets();
+  renderBA();
+  renderQueuePanel();
+  updateQueueTabBadge();
+}
+
+function updateQueueTabBadge() {
+  var btn = document.getElementById('npt-queue');
+  if (!btn) return;
+  var qn = draftQueue.length;
+  var wn = Object.keys(watchTargets).length;
+  var parts = [];
+  if (qn) parts.push('Q' + qn);
+  if (wn) parts.push('★' + wn);
+  btn.textContent = parts.length ? '📋 Queue (' + parts.join(' · ') + ')' : '📋 Queue';
+}
+
+function updateWatchTabBadge() { updateQueueTabBadge(); }
+
+function watchListRowHtml(p, targetRd) {
+  var status = getWatchTargetStatus(p, targetRd);
+  var myPick = myPickNumberInRound(targetRd);
+  var adp = (p.displayAdp || p.adp) && (p.displayAdp || p.adp) < 900 ? (p.displayAdp || p.adp) : null;
+  var rdOpts = '';
+  for (var r = 1; r <= ROUNDS; r++) {
+    rdOpts += '<option value="' + r + '"' + (r === targetRd ? ' selected' : '') + '>Rd ' + r + '</option>';
+  }
+  var gone = p.drafted || p.mockDrafted;
+  return '<div class="watch-row' + (status.key === 'now' || status.key === 'window' ? ' watch-row-hot' : '') + (gone ? ' watch-row-gone' : '') + '">' +
+    '<div class="watch-row-top">' +
+      '<span class="pos ' + p.pos + '" style="font-size:9px">' + p.pos + '</span>' +
+      '<span class="watch-name" title="' + p.name + '">' + p.name + '</span>' +
+      '<button type="button" onclick="removeWatch(' + p.rank + ')" class="watch-rm" title="Remove from watch list">×</button>' +
+    '</div>' +
+    '<div class="watch-row-meta">' + (p.team || '?') + (adp ? ' · ADP ' + adp : '') + (myPick ? ' · your pick #' + myPick : '') + '</div>' +
+    '<div class="watch-row-actions">' +
+      '<select class="watch-rd-sel" onchange="setWatchTargetRound(' + p.rank + ', this.value)" title="Target round">' + rdOpts + '</select>' +
+      '<span class="watch-status" style="color:' + status.color + '">' + status.label + '</span>' +
+      (gone ? '' : '<button type="button" class="watch-draft-btn" onclick="draftPlayer(' + p.rank + ')">Draft</button>') +
+    '</div>' +
+  '</div>';
+}
+
+function renderQueuePanel() {
+  renderDraftQueueSection();
+  renderWatchListSection();
+  updateQueueTabBadge();
+}
+
+function renderDraftQueueSection() {
+  var el = document.getElementById('draftQueueContent');
+  if (!el) return;
+  var ranks = draftQueue.filter(function(rank) {
+    return players.some(function(p) { return p.rank === rank; });
+  });
+  draftQueue = ranks;
+  if (!ranks.length) {
+    el.innerHTML = '<div class="queue-empty">Click <strong>+</strong> on any player to build your pick order. Queue shows here when it\'s your turn.</div>';
+    return;
+  }
+  var html = '<div class="queue-section-hdr">Pick order <button type="button" class="queue-clear-btn" onclick="clearDraftQueue()">Clear</button></div>';
+  ranks.forEach(function(rank, i) {
+    var p = players.find(function(x) { return x.rank === rank; });
+    if (!p) return;
+    var gone = p.drafted || p.mockDrafted;
+    var tag = getPlayerTag(rank);
+    var tagLbl = tag === 'target' ? '🎯' : tag === 'sleeper' ? '💤' : tag === 'avoid' ? '🚫' : '';
+    var prob = !gone ? getPickAvailProb(p) : null;
+    html += '<div class="queue-row' + (gone ? ' queue-row-gone' : '') + (i === 0 && !gone ? ' queue-row-next' : '') + '">' +
+      '<span class="queue-num">' + (i + 1) + '</span>' +
+      '<span class="pos ' + p.pos + '" style="font-size:9px">' + p.pos + '</span>' +
+      '<span class="queue-name" title="' + p.name + '">' + p.name + '</span>' +
+      (tagLbl ? '<span class="queue-tag">' + tagLbl + '</span>' : '') +
+      (prob != null ? '<span class="queue-prob" style="color:' + probColor(prob) + '">' + prob + '%</span>' : '') +
+      '<span class="queue-move">' +
+        (i > 0 ? '<button type="button" onclick="moveQueueItem(' + rank + ',-1)" title="Move up">↑</button>' : '') +
+        (i < ranks.length - 1 ? '<button type="button" onclick="moveQueueItem(' + rank + ',1)" title="Move down">↓</button>' : '') +
+        '<button type="button" onclick="removeFromQueue(' + rank + ')" title="Remove">×</button>' +
+      '</span>' +
+      (gone ? '' : '<button type="button" class="watch-draft-btn" onclick="draftPlayer(' + rank + ')">Draft</button>') +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderWatchListSection() {
+  var el = document.getElementById('watchListContent');
+  if (!el) return;
+  updateWatchTabBadge();
+
+  var ranks = Object.keys(watchTargets).map(function(k) { return parseInt(k, 10); }).filter(function(rank) {
+    return players.some(function(p) { return p.rank === rank; });
+  });
+
+  if (!ranks.length) {
+    el.innerHTML = '<div class="watch-empty">★ = watch by round · + = draft queue · Tag = 🎯 Target / 💤 Sleeper / 🚫 Avoid</div>';
+    return;
+  }
+
+  ranks.sort(function(a, b) {
+    if (watchTargets[a] !== watchTargets[b]) return watchTargets[a] - watchTargets[b];
+    return a - b;
+  });
+
+  var urgent = ranks.filter(function(rank) {
+    var p = players.find(function(x) { return x.rank === rank; });
+    if (!p || p.drafted || p.mockDrafted) return false;
+    var st = getWatchTargetStatus(p, watchTargets[rank]);
+    return st.key === 'now' || st.key === 'window';
+  });
+
+  var html = '<div class="queue-section-hdr" style="margin-top:2px">★ Watch by round</div>';
+  if (urgent.length) {
+    html += '<div class="watch-alert">⚡ ' + urgent.length + ' watched player' + (urgent.length > 1 ? 's' : '') + ' in or near their target window</div>';
+  }
+
+  var lastRd = null;
+  ranks.forEach(function(rank) {
+    var p = players.find(function(x) { return x.rank === rank; });
+    if (!p) return;
+    var targetRd = watchTargets[rank];
+    if (targetRd !== lastRd) {
+      if (lastRd !== null) html += '</div>';
+      var myPk = myPickNumberInRound(targetRd);
+      html += '<div class="watch-rd-grp"><div class="watch-rd-hdr">Round ' + targetRd +
+        (myPk ? ' <span class="watch-rd-pick">· your pick #' + myPk + '</span>' : '') + '</div>';
+      lastRd = targetRd;
+    }
+    html += watchListRowHtml(p, targetRd);
+  });
+  if (lastRd !== null) html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderWatchListPanel() { renderQueuePanel(); }
+
+var nextPanelTab = 'ondeck';
+function switchNP(tab) {
+  if (tab === 'watch') tab = 'queue';
+  nextPanelTab = tab;
+  ['ondeck', 'queue'].forEach(function(t) {
+    var el = document.getElementById('np-' + t);
+    var btn = document.getElementById('npt-' + t);
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('sp-on', t === tab);
+  });
+  if (tab === 'queue') renderQueuePanel();
 }
 
 function toggleComparePlayer(rank, ev) {
@@ -1555,8 +2191,7 @@ function updateCompareTopBtn() {
   var n = compareRanks.length;
   btn.disabled = n < 2;
   btn.textContent = n ? ('⚖ Compare (' + n + ')') : '⚖ Compare';
-  btn.style.opacity = n >= 2 ? '1' : '0.55';
-  btn.style.cursor = n >= 2 ? 'pointer' : 'default';
+  btn.classList.toggle('ready', n >= 2);
 }
 
 function renderCompareBar() {
@@ -1569,7 +2204,7 @@ function renderCompareBar() {
   if (compareRanks.length > 0 && compareRanks.length < 2) closeCompareModal();
   bar.style.display = 'flex';
   if (!compareRanks.length) {
-    bar.innerHTML = '<span style="font-size:10px;color:#7d8590">Click <strong style="color:#388bfd">⚖</strong> on player rows to compare up to 3 · then <strong style="color:#388bfd">Compare</strong> in the top bar</span>';
+    bar.innerHTML = '<span style="font-size:10px;color:var(--muted)">Click <strong style="color:var(--accent)">⚖</strong> on player rows to compare up to 3 · then <strong style="color:var(--accent)">Compare</strong> in the top bar</span>';
     updateCompareTopBtn();
     return;
   }
@@ -1577,16 +2212,16 @@ function renderCompareBar() {
     var p = players.find(function(x) { return x.rank === rank; });
     if (!p) return '';
     var safeName = p.name.replace(/'/g, '&#39;');
-    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#21262d;border:1px solid #30363d;border-radius:12px;padding:2px 8px;font-size:10px">' +
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:10px">' +
       '<span class="pos ' + p.pos + '" style="font-size:9px">' + p.pos + '</span>' +
-      '<span style="color:#e6edf3">' + safeName + '</span>' +
-      '<button onclick="toggleComparePlayer(' + rank + ', event)" style="background:transparent;border:none;color:#7d8590;cursor:pointer;font-size:11px;padding:0 2px;line-height:1" title="Remove">×</button>' +
+      '<span style="color:var(--text)">' + safeName + '</span>' +
+      '<button onclick="toggleComparePlayer(' + rank + ', event)" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;line-height:1" title="Remove">×</button>' +
       '</span>';
   }).join('');
   var canCompare = compareRanks.length >= 2;
-  bar.innerHTML = '<span style="font-size:10px;color:#7d8590;font-weight:600;margin-right:4px">Compare:</span>' + chips +
-    '<button onclick="openCompareModal()" style="margin-left:auto;font-size:10px;background:' + (canCompare ? '#1f6feb' : '#21262d') + ';color:' + (canCompare ? '#fff' : '#484f58') + ';border:1px solid ' + (canCompare ? '#1f6feb' : '#30363d') + ';border-radius:5px;padding:4px 10px;cursor:' + (canCompare ? 'pointer' : 'default') + '"' + (canCompare ? '' : ' disabled') + '>Open (' + compareRanks.length + '/3)</button>' +
-    '<button onclick="clearCompare()" style="font-size:10px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:5px;padding:4px 8px;cursor:pointer">Clear</button>';
+  bar.innerHTML = '<span style="font-size:10px;color:var(--muted);font-weight:600;margin-right:4px">Compare:</span>' + chips +
+    '<button onclick="openCompareModal()" style="margin-left:auto;font-size:10px;background:' + (canCompare ? 'var(--accent-strong)' : 'var(--surface2)') + ';color:' + (canCompare ? '#fff' : 'var(--faint)') + ';border:1px solid ' + (canCompare ? 'var(--accent-strong)' : 'var(--border)') + ';border-radius:5px;padding:4px 10px;cursor:' + (canCompare ? 'pointer' : 'default') + '"' + (canCompare ? '' : ' disabled') + '>Open (' + compareRanks.length + '/3)</button>' +
+    '<button onclick="clearCompare()" style="font-size:10px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:4px 8px;cursor:pointer">Clear</button>';
   updateCompareTopBtn();
 }
 
@@ -1623,7 +2258,7 @@ function renderCompareModal() {
     return players.find(function(x) { return x.rank === rank; });
   }).filter(Boolean);
   if (ps.length < 2) {
-    el.innerHTML = '<p style="color:#7d8590;font-size:12px">Select at least 2 available players using ⚖ on the board.</p>';
+    el.innerHTML = '<p style="color:var(--muted);font-size:12px">Select at least 2 available players using ⚖ on the board.</p>';
     return;
   }
 
@@ -1638,7 +2273,7 @@ function renderCompareModal() {
     { label: 'vs pick #' + currentPick, fn: function(p) { return getAdpDeltaLabel(p).text; }, colorFn: function(p) { return getAdpDeltaLabel(p).color; } },
     { label: 'Tier', fn: function(p) { return p.tier || '—'; }, best: 'min', numKey: 'tier' },
     { label: 'Bye', fn: function(p) { return (p.bye && p.bye !== 'TBD') ? 'Wk ' + p.bye : '—'; } },
-    { label: 'Scheme fit', fn: function(p) { var f = SCHEME_FIT[p.name]; return f ? f.grade : '?'; } },
+    { label: 'Scheme fit', fn: function(p) { var f = schemeFitFor(p.name); return f.grade; } },
     { label: 'OL', fn: function(p) { var i = PLAYER_INTEL[p.name]; return i.ol_grade || '—'; } },
     { label: 'SoS', fn: function(p) {
       var i = PLAYER_INTEL[p.name];
@@ -1654,24 +2289,24 @@ function renderCompareModal() {
   ];
 
   var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
-  html += '<thead><tr style="border-bottom:1px solid #30363d">';
-  html += '<th style="text-align:left;padding:8px 10px;color:#7d8590;font-weight:600;width:96px"></th>';
+  html += '<thead><tr style="border-bottom:1px solid var(--border)">';
+  html += '<th style="text-align:left;padding:8px 10px;color:var(--muted);font-weight:600;width:96px"></th>';
   ps.forEach(function(p) {
     html += '<th style="text-align:center;padding:8px 10px;min-width:150px;vertical-align:bottom">' +
       '<span class="pos ' + p.pos + '" style="font-size:10px">' + p.pos + '</span>' +
-      '<div style="font-size:13px;font-weight:700;color:#e6edf3;margin:4px 0 6px;line-height:1.25">' + p.name + '</div>' +
-      '<button onclick="draftPlayer(' + p.rank + ')" style="font-size:10px;background:#2ea043;color:#fff;border:1px solid #3fb950;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Draft</button>' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin:4px 0 6px;line-height:1.25">' + p.name + '</div>' +
+      '<button onclick="draftPlayer(' + p.rank + ')" style="font-size:10px;background:var(--green-border);color:#fff;border:1px solid var(--green);border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Draft</button>' +
       '</th>';
   });
   html += '</tr></thead><tbody>';
 
   metrics.forEach(function(metric) {
     var bi = compareBestIdx(metric, ps);
-    html += '<tr style="border-bottom:1px solid #21262d">';
-    html += '<td style="padding:7px 10px;color:#7d8590;font-weight:600;white-space:nowrap;vertical-align:top">' + metric.label + '</td>';
+    html += '<tr style="border-bottom:1px solid var(--border-subtle)">';
+    html += '<td style="padding:7px 10px;color:var(--muted);font-weight:600;white-space:nowrap;vertical-align:top">' + metric.label + '</td>';
     ps.forEach(function(p, ci) {
       var val = metric.fn(p);
-      var color = metric.colorFn ? metric.colorFn(p) : (bi === ci ? '#4ade80' : '#e6edf3');
+      var color = metric.colorFn ? metric.colorFn(p) : (bi === ci ? 'var(--green-text)' : 'var(--text)');
       var weight = bi === ci ? '700' : '500';
       html += '<td style="padding:7px 10px;text-align:' + (metric.wrap ? 'left' : 'center') + ';color:' + color + ';font-weight:' + weight + ';vertical-align:top' + (metric.wrap ? ';line-height:1.45;font-size:10px' : '') + '">' + val + '</td>';
     });
@@ -1681,8 +2316,8 @@ function renderCompareModal() {
 
   var best = ps.slice().sort(function(a, b) { return (b.vorp || 0) - (a.vorp || 0); })[0];
   var adp = getAdpDeltaLabel(best);
-  html += '<div style="margin-top:14px;padding:10px 12px;background:#0e2a1a;border:1px solid #2ea043;border-radius:8px;font-size:11px;color:#86efac;line-height:1.5">' +
-    '<strong style="color:#4ade80">Recommendation:</strong> ' + best.name +
+  html += '<div style="margin-top:14px;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;font-size:11px;color:var(--green-text);line-height:1.5">' +
+    '<strong style="color:var(--green-text)">Recommendation:</strong> ' + best.name +
     ' — highest VORP (' + (best.vorp > 0 ? '+' : '') + (best.vorp || 0).toFixed(1) + ')' +
     (adp.text !== '—' ? ' · ' + adp.text : '') +
     '</div>';
@@ -1696,8 +2331,6 @@ function renderBA(){
   const filt=document.getElementById("posFilt").value;
   const fit=document.getElementById("fitFilt").value;
   const q=(document.getElementById("srch").value||"").toLowerCase();
-  const hasScore = p => p.customScore && p.customScore > 0;
-  const isDrafted = p => !!(p.drafted || p.mockDrafted);
 
   if (filt === 'BESTFIT' && myTeamIdx < 0) {
     document.getElementById('baList').innerHTML =
@@ -1739,7 +2372,17 @@ function renderBA(){
     return true;
   });
   if(filt==='SFLX') list=list.filter(p=>['QB','RB','WR','TE'].includes(p.pos));
-  else if(filt!=='ALL' && filt!=='BESTFIT' && filt!=='TOPVORP' && filt!=='AISUGGEST') list=list.filter(p=>p.pos===filt);
+  else if(filt==='QUEUE') {
+    list = draftQueue.map(function(rank) {
+      return players.find(function(p) { return p.rank === rank; });
+    }).filter(function(p) { return p && !isDrafted(p); });
+  } else if(filt==='TARGET') {
+    list = list.filter(function(p) { return getPlayerTag(p.rank) === 'target' && !isDrafted(p); });
+  } else if(filt==='SLEEPER') {
+    list = list.filter(function(p) { return getPlayerTag(p.rank) === 'sleeper' && !isDrafted(p); });
+  } else if(filt==='AVOID') {
+    list = list.filter(function(p) { return getPlayerTag(p.rank) === 'avoid' && !isDrafted(p); });
+  } else if(filt!=='ALL' && filt!=='BESTFIT' && filt!=='TOPVORP' && filt!=='AISUGGEST') list=list.filter(p=>p.pos===filt);
   if(q) list=list.filter(p=>p.name.toLowerCase().includes(q)||p.team.toLowerCase().includes(q));
   if(fit==="A") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return f&&(f.grade==="A"||f.grade==="A+");});
   if(fit==="B") list=list.filter(p=>{const f=SCHEME_FIT[p.name];return !f||!f.grade.startsWith("C");});
@@ -1758,6 +2401,8 @@ function renderBA(){
   } else if (filt === 'TOPVORP') {
     list = list.filter(function(p) { return !isDrafted(p) && hasScore(p); });
     list.sort(function(a, b) { return (b.vorp || 0) - (a.vorp || 0); });
+  } else if (filt === 'QUEUE') {
+    /* order preserved from draftQueue */
   } else if (filt === 'AISUGGEST') {
     list = aiSuggestedCache.items.map(function(item) {
       return players.find(function(p) { return p.rank === item.rank; });
@@ -1772,6 +2417,12 @@ function renderBA(){
     if(isDrafted(a)!==isDrafted(b)) return isDrafted(a)?1:-1;
     if(!hasScore(a)&&hasScore(b)) return 1;
     if(hasScore(a)&&!hasScore(b)) return -1;
+    if (customRankOrder) {
+      var ia = customRankOrder.indexOf(a.rank), ib = customRankOrder.indexOf(b.rank);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+    }
     return a.customRank-b.customRank;
   });
   else if(sort==="sf") list.sort((a,b)=>{
@@ -1802,24 +2453,24 @@ function renderBA(){
   document.getElementById("qbAlert").style.display=qbGone>=8?"block":"none";
   var deltaHdr = document.getElementById('baDeltaHdr');
   if (deltaHdr) deltaHdr.title = 'ADP vs pick #' + currentPick + ' — STEAL = fell, REACH = early';
-  // Pick probability: rank each available player, color border by likelihood of going next round
-  const availByRank = list.filter(p => !p.drafted && !p.mockDrafted && p.customScore > 0)
-    .sort((a,b) => a.customRank - b.customRank);
-  const probMap = {};
-  availByRank.forEach(function(p, i) {
-    probMap[p.rank] = Math.max(0, Math.round((TEAMS - i) / TEAMS * 100));
-  });
+  var nextPickNum = getMyNextPickNumber();
+  var probHdr = document.getElementById('baProbHdr');
+  if (probHdr) probHdr.title = nextPickNum
+    ? ('Estimated % still available at your next pick #' + nextPickNum)
+    : 'Set your team to see availability at your next pick';
+  var rosterByeWeeks = getMyRosterByeWeeks();
 
   function rowHtml(p) {
-    const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};
+    var nb = neutralBadgeStyle();
+    const fit = schemeFitFor(p.name);
     const sc=p.customScore?p.customScore.toFixed(0):"—";
     const intel = PLAYER_INTEL[p.name] || {};
-    const olC = intel.ol_grade ? olColor(intel.ol_grade) : {color:'#9ca3af',bg:'#252836'};
-    const sosC = intel.sos ? sosColor(intel.sos) : {color:'#9ca3af',bg:'#252836',label:'?'};
+    const olC = intel.ol_grade ? olColor(intel.ol_grade) : nb;
+    const sosC = intel.sos ? sosColor(intel.sos) : Object.assign({}, nb, {label:'?'});
     const sosLabel = intel.sos ? `${intel.sos}` : '—';
     const hasProj = p.customScore && p.customScore > 0;
     const vorpTxt = hasProj ? (p.vorp>0?'+':'')+p.vorp.toFixed(1) : '—';
-    const vorpColor = !hasProj ? '#4b5563' : p.vorp>30?'#4ade80':p.vorp>10?'#60a5fa':p.vorp>0?'#9ca3af':'#f87171';
+    const vorpColor = !hasProj ? 'var(--faint)' : p.vorp>30?'#16a34a':p.vorp>10?'#2563eb':p.vorp>0?'var(--muted)':'#dc2626';
     const posBarColor = {QB:'#388bfd',RB:'#3fb950',WR:'#f78166',TE:'#bc8cff',K:'#e3b341',DEF:'#56d364'}[p.pos]||'#7d8590';
     const st = p.stats || {};
     const qbs = QB_STATS[p.name];
@@ -1849,42 +2500,61 @@ function renderBA(){
       if (st.retg && st.retg >= 0.1) parts.push(st.retg+'td');
       statLine = parts.join(' · ');
     }
-    const prob = (!p.drafted && !p.mockDrafted) ? (probMap[p.rank] || 0) : 0;
-    const probBorder = prob >= 70 ? '#4ade80' : prob >= 40 ? '#fbbf24' : prob >= 15 ? '#484f58' : 'transparent';
+    const availProb = (!p.drafted && !p.mockDrafted) ? getPickAvailProb(p) : null;
+    const probBorder = availProb != null
+      ? (availProb >= 70 ? '#4ade80' : availProb >= 40 ? '#fbbf24' : availProb >= 15 ? 'var(--faint)' : '#f87171')
+      : 'transparent';
     const atLimit = myTeamIdx >= 0 && !p.drafted && !p.mockDrafted && isAtPosLimit(p.pos);
     const limitTitle = atLimit ? (p.pos + ' max ' + getMyRosterCounts()[p.pos] + '/' + getPosLimit(p.pos)) : '';
-    const probTitle = limitTitle || (prob > 0 ? ('Pick prob ~' + prob + '% before your next turn') : p.note);
+    const probTitle = limitTitle || (availProb != null
+      ? (availProb + '% available at pick #' + (nextPickNum || '?'))
+      : (p.note || ''));
     const inCompare = compareRanks.indexOf(p.rank) >= 0;
     const adpDelta = (!p.drafted && !p.mockDrafted) ? getAdpDeltaLabel(p) : null;
     const adpDeltaCell = adpDelta && adpDelta.text !== '—'
       ? `<span style="font-size:8px;font-weight:700;text-align:center;color:${adpDelta.color};justify-self:center;white-space:nowrap;line-height:1.15" title="ADP vs pick #${currentPick}">${adpDelta.text}</span>`
-      : `<span style="font-size:10px;text-align:center;color:#484f58;justify-self:center">—</span>`;
-    const clickAction = atLimit ? ("showPosLimitWarn('" + p.pos + "')") : ("draftPlayer(" + p.rank + ")");
+      : `<span style="font-size:10px;text-align:center;color:var(--faint);justify-self:center">—</span>`;
+    const clickAction = rankEditMode ? 'void(0)' : (atLimit ? ("showPosLimitWarn('" + p.pos + "')") : ("draftPlayer(" + p.rank + ")"));
     const fitInfo = fitMap[p.rank];
     const fitTopClass = fitInfo && fitInfo.idx < 12 ? ' fit-top' : '';
     const fitReasonHtml = fitInfo && fitInfo.reason
       ? '<div class="ba-fit-reason">' + fitInfo.reason + '</div>'
       : '';
-    const starColor = watchList.has(p.rank) ? '#e3b341' : '#30363d';
-    return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}${atLimit?" limit-pos":""}${fitTopClass}" onclick="${clickAction}" title="${probTitle}" style="border-left:3px solid ${probBorder}">
-      <button onclick="event.stopPropagation();toggleWatch(${p.rank})" style="background:none;border:none;cursor:pointer;padding:0;font-size:11px;color:${starColor};line-height:1">★</button>
-      <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${fitInfo ? fitInfo.idx + 1 : (p.customRank<9000?p.customRank:"—")}</span>
+    const starWatched = isWatched(p.rank);
+    const watchRd = starWatched ? watchTargets[p.rank] : null;
+    const starTitle = watchRd ? ('Watching for Rd ' + watchRd + ' — click to remove') : 'Add to watch list (target round)';
+    const ptag = getPlayerTag(p.rank);
+    const tagRowClass = ptag ? ' tag-row-' + ptag : '';
+    const nameColor = p.drafted ? 'var(--faint)' : p.injuryStatus ? '#fbbf24' : 'var(--text)';
+    const rankEditCell = rankEditMode && sort === 'custom' && !p.drafted && !p.mockDrafted
+      ? '<span class="rank-edit-btns"><button type="button" onclick="event.stopPropagation();moveCustomRank(' + p.rank + ',-1)">↑</button><button type="button" onclick="event.stopPropagation();moveCustomRank(' + p.rank + ',1)">↓</button></span>'
+      : '';
+    const probCell = availProb != null
+      ? '<span class="prob-cell" style="color:' + probColor(availProb) + '" title="' + probTitle + '">' + availProb + '%</span>'
+      : '<span class="prob-cell prob-cell-na">—</span>';
+    return `<div class="ba ba-grid${p.drafted?" out":""}${inCompare?" compare-on":""}${atLimit?" limit-pos":""}${fitTopClass}${tagRowClass}" onclick="${clickAction}" title="${probTitle}" style="border-left:3px solid ${probBorder}">
+      <button type="button" class="watch-star-btn${starWatched?' is-watched':''}" onclick="event.stopPropagation();toggleWatch(${p.rank}, event)" title="${starTitle}">★</button>
+      ${queueBtnHtml(p.rank, p.drafted || p.mockDrafted)}
+      ${tagBtnHtml(p.rank)}
+      <span style="font-size:10px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:flex-end;gap:2px">${rankEditCell}${effectiveListRank(p, fitInfo ? fitInfo.idx : null)}</span>
       <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
-        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':p.injuryStatus?'#fbbf24':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${injuryBadgeHtml(p)}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
-        <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
+        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${injuryBadgeHtml(p)}${p.isKeeper?'<span style="color:var(--accent);font-size:9px;margin-left:3px">[K]</span>':''}${ptag==='target'?' <span class="inline-tag it-target">Target</span>':''}${ptag==='sleeper'?' <span class="inline-tag it-sleeper">Sleeper</span>':''}${ptag==='avoid'?' <span class="inline-tag it-avoid">Avoid</span>':''}</div>
+        <div style="font-size:10px;color:var(--muted);white-space:nowrap">${p.team}${statLine?' · <span style="color:var(--text-soft)">'+statLine+'</span>':''}</div>
         ${fitReasonHtml}
       </div>
-      <span style="font-size:10px;text-align:center;color:${p.injuryStatus?'#fb923c':'#7d8590'};font-variant-numeric:tabular-nums;justify-self:center" title="${p.injuryStatus&&p.adp&&p.adp<900?'ECR '+p.adp:''}">${(p.displayAdp||p.adp)&&((p.displayAdp||p.adp)<900)?(p.displayAdp||p.adp):'—'}</span>
+      ${byeBadgeHtml(p, rosterByeWeeks, p.drafted || p.mockDrafted)}
+      ${probCell}
+      <span style="font-size:10px;text-align:center;color:${p.injuryStatus?'#fb923c':'var(--muted)'};font-variant-numeric:tabular-nums;justify-self:center" title="${p.injuryStatus&&p.adp&&p.adp<900?'ECR '+p.adp:''}">${(p.displayAdp||p.adp)&&((p.displayAdp||p.adp)<900)?(p.displayAdp||p.adp):'—'}</span>
       ${adpDeltaCell}
-      <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums;justify-self:center">${sc}</span>
+      <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'var(--faint)':hasProj?posBarColor:'var(--faint)'};font-variant-numeric:tabular-nums;justify-self:center">${sc}</span>
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums;justify-self:center">${vorpTxt}</span>
       <span style="font-size:9px;font-weight:700;text-align:center;padding:1px 3px;border-radius:3px;background:${olC.bg};color:${olC.color};justify-self:center">${intel.ol_grade||'—'}</span>
       <span style="font-size:9px;font-weight:600;text-align:center;padding:1px 3px;border-radius:3px;background:${sosC.bg};color:${sosC.color};justify-self:center">${sosLabel}</span>
       <span class="fit-badge" style="background:${fit.bg};color:${fit.color};justify-self:center" title="Scheme fit">${fit.grade}</span>
       <span style="display:flex;gap:2px;justify-content:center;flex-shrink:0;justify-self:center">
-        <button onclick="event.stopPropagation();toggleComparePlayer(${p.rank}, event)" style="font-size:9px;background:${inCompare?'#1f6feb':'transparent'};color:${inCompare?'#fff':'#7d8590'};border:1px solid ${inCompare?'#1f6feb':'#30363d'};border-radius:3px;padding:2px 4px;cursor:pointer" title="Add to compare (up to 3)">⚖</button>
-        <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:3px;padding:2px 4px;cursor:pointer" title="Ask Claude about this player">🤖</button>
+        <button onclick="event.stopPropagation();toggleComparePlayer(${p.rank}, event)" style="font-size:9px;background:${inCompare?'var(--accent-strong)':'transparent'};color:${inCompare?'#fff':'var(--muted)'};border:1px solid ${inCompare?'var(--accent-strong)':'var(--border)'};border-radius:3px;padding:2px 4px;cursor:pointer" title="Add to compare (up to 3)">⚖</button>
+        <button onclick="event.stopPropagation();askAIAboutPlayer(${p.rank})" style="font-size:9px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:2px 4px;cursor:pointer" title="Ask Claude about this player">🤖</button>
       </span>
     </div>`;
   }
@@ -1901,7 +2571,7 @@ function renderBA(){
           var vorpDrop = (prev.vorp || 0) - (p.vorp || 0);
           if (vorpDrop >= 8) {
             tierNum++;
-            html += '<div style="padding:2px 8px 1px;font-size:9px;font-weight:700;letter-spacing:.08em;color:#484f58;text-transform:uppercase;border-top:1px solid #21262d;margin-top:2px;background:#0d1117;position:sticky;top:0;z-index:2">Tier ' + tierNum + '</div>';
+            html += '<div class="tier-hdr">Tier ' + tierNum + '</div>';
           }
         }
       }
@@ -1911,17 +2581,35 @@ function renderBA(){
   }
 
   var baHtml = '';
-  if (watchList.size > 0) {
-    var watchedUndrafted = list.filter(function(p) { return watchList.has(p.rank) && !isDrafted(p); });
-    watchedUndrafted.sort(function(a, b) { return a.customRank - b.customRank; });
-    if (watchedUndrafted.length) {
-      baHtml += '<div style="padding:2px 8px 1px;font-size:9px;font-weight:700;letter-spacing:.08em;color:#e3b341;text-transform:uppercase;border-bottom:1px solid #21262d;background:#0d1117;position:sticky;top:0;z-index:3">★ Watching (' + watchedUndrafted.length + ')</div>';
-      watchedUndrafted.forEach(function(p) { baHtml += rowHtml(p); });
-      baHtml += '<div style="padding:2px 8px;border-bottom:1px solid #21262d;margin-bottom:2px;background:#0d1117"></div>';
+  if (filt === 'ALL' || filt === 'QUEUE') {
+    var queuedUndrafted = draftQueue.map(function(rank) {
+      return players.find(function(p) { return p.rank === rank; });
+    }).filter(function(p) { return p && !isDrafted(p); });
+    if (queuedUndrafted.length && filt === 'ALL') {
+      baHtml += '<div class="queue-section-hdr pool-pinned-hdr">📋 Draft queue (' + queuedUndrafted.length + ')</div>';
+      queuedUndrafted.forEach(function(p) { baHtml += rowHtml(p); });
+      baHtml += '<div style="padding:2px 8px;border-bottom:1px solid var(--border-subtle);margin-bottom:2px;background:var(--surface2)"></div>';
     }
   }
-  var mainList = list.filter(function(p) { return !(watchList.has(p.rank) && !isDrafted(p)); });
-  baHtml += listWithTierBreaks(mainList);
+  var watchRanks = Object.keys(watchTargets).map(function(k) { return parseInt(k, 10); });
+  if (watchRanks.length > 0 && filt === 'ALL') {
+    var watchedUndrafted = list.filter(function(p) { return isWatched(p.rank) && !isDrafted(p) && !isInQueue(p.rank); });
+    watchedUndrafted.sort(function(a, b) {
+      var ra = watchTargets[a.rank], rb = watchTargets[b.rank];
+      if (ra !== rb) return ra - rb;
+      return a.customRank - b.customRank;
+    });
+    if (watchedUndrafted.length) {
+      baHtml += '<div class="watch-section-hdr pool-pinned-hdr">★ Watch by round (' + watchedUndrafted.length + ')</div>';
+      watchedUndrafted.forEach(function(p) { baHtml += rowHtml(p); });
+      baHtml += '<div style="padding:2px 8px;border-bottom:1px solid var(--border-subtle);margin-bottom:2px;background:var(--surface2)"></div>';
+    }
+  }
+  var mainList = list.filter(function(p) {
+    if (filt !== 'ALL') return true;
+    return !((isWatched(p.rank) || isInQueue(p.rank)) && !isDrafted(p));
+  });
+  baHtml += listWithTierBreaks(filt === 'QUEUE' ? list : mainList);
   document.getElementById("baList").innerHTML = baHtml;
 }
 
@@ -1956,7 +2644,7 @@ function renderRecentPicks() {
   var el = document.getElementById('recentPicksStrip');
   if (!el) return;
   if (!pickLog.length) {
-    el.innerHTML = '<span style="color:#484f58;font-style:italic">Recent picks appear here as the draft progresses</span>';
+    el.innerHTML = '<span style="color:var(--faint);font-style:italic">Recent picks appear here as the draft progresses</span>';
     return;
   }
   var items = pickLog.slice(-6).map(function(l) {
@@ -1964,61 +2652,13 @@ function renderRecentPicks() {
     var teamLabel = (teamNames[l.teamIdx] || l.team || '?').split(' ')[0];
     return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;padding:1px 0' +
       (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
-      '<span style="color:#484f58;font-variant-numeric:tabular-nums">#' + l.pick + '</span>' +
+      '<span style="color:var(--faint);font-variant-numeric:tabular-nums">#' + l.pick + '</span>' +
       '<span class="pos ' + l.pos + '" style="font-size:9px">' + l.pos + '</span>' +
-      '<span style="color:#cdd9e5;max-width:120px;overflow:hidden;text-overflow:ellipsis">' + l.player + formatByeParen(l.player) + '</span>' +
-      '<span style="color:#484f58;font-size:9px">' + teamLabel + '</span>' +
+      '<span style="color:var(--text-soft);max-width:120px;overflow:hidden;text-overflow:ellipsis">' + l.player + formatByeParen(l.player) + '</span>' +
+      '<span style="color:var(--faint);font-size:9px">' + teamLabel + '</span>' +
       '</span>';
   }).join('');
-  el.innerHTML = '<span style="color:#484f58;margin-right:8px;font-weight:600">Recent:</span>' + items;
-}
-
-function renderKnownKeepersBanner() {
-  var el = document.getElementById('knownKeepersBanner');
-  if (!el) return;
-
-  var sections = [];
-
-  var locked = pickLog.filter(function(l) { return l.isKeeper; });
-  if (locked.length) {
-    var lockedItems = locked.map(function(k) {
-      var team = teamNames[k.teamIdx] || k.team || ('T' + (k.teamIdx + 1));
-      var shortTeam = team.split(' ')[0];
-      var me = myTeamIdx >= 0 && k.teamIdx === myTeamIdx;
-      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px' +
-        (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
-        '<span style="color:#484f58;font-variant-numeric:tabular-nums">#' + k.pick + '</span>' +
-        '<span class="pos ' + k.pos + '" style="font-size:9px">' + k.pos + '</span>' +
-        '<span style="color:#cdd9e5">' + k.player + formatByeParen(k.player) + '</span>' +
-        '<span style="color:#484f58;font-size:9px">' + shortTeam + '</span></span>';
-    }).join('');
-    sections.push('<span style="color:#60a5fa;font-weight:600;margin-right:8px">🔒 Locked:</span>' + lockedItems);
-  }
-
-  var hist = window.leagueKeepers || [];
-  if (hist.length) {
-    var season = hist[0].season || 'Prior';
-    var histItems = hist.map(function(k) {
-      var team = teamNames[k.teamIdx] || k.teamName || ('T' + (k.teamIdx + 1));
-      var shortTeam = team.split(' ')[0];
-      var me = myTeamIdx >= 0 && k.teamIdx === myTeamIdx;
-      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px' +
-        (me ? ';background:rgba(56,139,253,.12);padding:1px 6px;border-radius:4px' : '') + '">' +
-        '<span class="pos ' + k.pos + '" style="font-size:9px">' + k.pos + '</span>' +
-        '<span style="color:#cdd9e5">' + k.player + formatByeParen(k.player) + '</span>' +
-        '<span style="color:#484f58;font-size:9px">' + shortTeam + ' · R' + k.rd + '</span></span>';
-    }).join('');
-    sections.push('<span style="color:#a78bfa;font-weight:600;margin-right:8px">📋 ' + season + ' keepers:</span>' + histItems);
-  }
-
-  if (!sections.length) {
-    el.style.display = 'none';
-    el.innerHTML = '';
-    return;
-  }
-
-  el.style.display = 'block';
-  el.innerHTML = sections.join('<span style="color:#30363d;margin:0 8px">|</span>');
+  el.innerHTML = '<span style="color:var(--faint);margin-right:8px;font-weight:600">Recent:</span>' + items;
 }
 
 function renderRoster(){
@@ -2059,8 +2699,8 @@ function renderRoster(){
   // Position need alerts
   let alertHtml = '';
   if (urgentNeeds.length) {
-    const urgentLabels = urgentNeeds.map(n => `<span style="background:#3d1515;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:9px;margin:1px">${n.slot}</span>`).join(' ');
-    alertHtml = `<div style="padding:4px 10px;background:#2d1515;border-bottom:1px solid #3d1515;font-size:10px;color:#fca5a5;display:flex;align-items:center;gap:4px;flex-wrap:wrap">⚠️ Need starters: ${urgentLabels}</div>`;
+    const urgentLabels = urgentNeeds.map(n => '<span class="roster-needs-tag">' + n.slot + '</span>').join(' ');
+    alertHtml = '<div class="roster-needs-alert">⚠️ Need starters: ' + urgentLabels + '</div>';
   }
 
   const projTotal = myRosterSlots.slice(0,10).reduce((s,p) => s + (p ? (p.customScore||0) : 0), 0);
@@ -2074,29 +2714,29 @@ function renderRoster(){
     const isStarter = slot.starter;
     const isSf = slot.sf;
     // Color coding for empty slots
-    let emptyColor = '#374151';
+    let emptyColor = 'var(--faint)';
     let emptyBg = 'transparent';
     if (isEmpty && isStarter) {
-      emptyColor = isSf ? '#c084fc' : '#6b7280';
-      emptyBg = isSf ? '#1a0a2e' : 'transparent';
+      emptyColor = isSf ? '#7c3aed' : 'var(--muted)';
+      emptyBg = isSf ? 'color-mix(in srgb, #7c3aed 8%, transparent)' : 'transparent';
     }
-    const fit = p ? (SCHEME_FIT[p.name] || null) : null;
-    const divider = i === 9 ? 'border-top:2px solid #374151;margin-top:2px;' : '';
+    const fit = p ? schemeFitFor(p.name) : null;
+    const divider = i === 9 ? 'border-top:2px solid var(--border);margin-top:2px;' : '';
     return `<div class="rslot" style="${divider}${isEmpty && isStarter ? 'background:'+emptyBg : ''}">
       <span class="rslot-lbl${isSf?' sf':''}" style="color:${isEmpty && isStarter ? emptyColor : ''}">${slot.label}</span>
       ${p
         ? `<span class="rslot-p">
             <span class="pos ${p.pos}" style="font-size:9px">${p.pos}</span>
             ${p.isKeeper ? '<span style="color:#60a5fa;font-size:9px;margin:0 2px">[K]</span>' : ''}
-            <span style="font-size:11px;color:#e8eaf0">${p.name}${formatByeParen(p)}</span>
+            <span style="font-size:11px;color:var(--text)">${p.name}${formatByeParen(p)}</span>
 
             ${fit ? `<span class="fit-badge" style="background:${fit.bg};color:${fit.color};margin-left:2px">${fit.grade}</span>` : ''}
-            <button onclick="moveToRoster(${p.id},'remove')" style="margin-left:auto;background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:9px" title="Remove">✕</button>
+            <button onclick="moveToRoster(${p.id},'remove')" style="margin-left:auto;background:transparent;border:none;color:var(--faint);cursor:pointer;font-size:9px" title="Remove">✕</button>
            </span>`
         : `<span style="font-size:10px;color:${emptyColor};font-style:italic">${isStarter ? '— open —' : 'bench'}</span>`
       }
     </div>`;
-  }).join('') + `<div style="padding:4px 10px;border-top:1px solid #374151;font-size:10px;display:flex;justify-content:space-between;color:#6b7280"><span>Proj starter pts</span><span style="color:#4ade80;font-weight:600">${projTotal.toFixed(0)}</span></div>`;
+  }).join('') + `<div style="padding:4px 10px;border-top:1px solid var(--border);font-size:10px;display:flex;justify-content:space-between;color:var(--muted)"><span>Proj starter pts</span><span style="color:var(--green-text);font-weight:600">${projTotal.toFixed(0)}</span></div>`;
 }
 
 function moveToRoster(playerId, action) {
@@ -2131,7 +2771,7 @@ function renderQBPanel(){
     <div style="font-size:11px;color:#6b7280;margin-bottom:6px">${gone.length} taken \u00b7 ${avail.length} available \u00b7 Your QBs: ${myQBs.length}/3</div>
     ${myQBs.map(p=>`<div style="font-size:11px;padding:3px 0;color:#60a5fa">\u2713 ${p.name} (${p.team||"?"}) Rd ${p.rd}${p.isKeeper?" [K]":""}</div>`).join("")}
     <div style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:6px 0 3px">Available QBs</div>
-    ${avail.map(p=>{const fit=SCHEME_FIT[p.name]||{grade:"?",bg:"#252836",color:"#9ca3af"};return`<div class="qb-row">
+    ${avail.map(p=>{const fit=schemeFitFor(p.name);return`<div class="qb-row">
       <span style="font-size:10px;color:#6b7280;width:18px">${p.customRank}</span>
       <span style="font-size:12px;font-weight:500;flex:1">${p.name}</span>
       <span style="font-size:10px;color:#6b7280;width:28px">${p.team}</span>
@@ -2279,8 +2919,10 @@ function renderBoard() {
 
 function renderAll(){
   renderBoard();
-  renderClock();renderBA();renderLog();renderRecentPicks();renderKnownKeepersBanner();renderCompareBar();renderRoster();
+  renderClock();renderBA();renderLog();renderRecentPicks();renderCompareBar();renderRoster();
   renderNextPicksPanel();
+  renderQueuePanel();
+  updatePreDraftBanner();
   if (myTeamIdx >= 0) showPickSuggestions();
   const at=document.querySelector(".tc.on");
   if(at){
@@ -2360,17 +3002,66 @@ const PLAYER_INTEL = {
 };
 
 
+function isLightTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light';
+}
+
+function neutralBadgeStyle() {
+  return isLightTheme()
+    ? { color: 'var(--badge-neutral-fg, #334155)', bg: 'var(--badge-neutral-bg, #e2e8f0)' }
+    : { color: '#9ca3af', bg: '#252836' };
+}
+
+function schemeFitStyle(grade) {
+  var g = grade || '?';
+  if (isLightTheme()) {
+    if (g === 'A+' || g === 'A') return { bg: '#dcfce7', color: '#15803d' };
+    if (g.charAt(0) === 'B') return { bg: '#d1fae5', color: '#166534' };
+    if (g === 'C+' || g === 'C' || g === 'C-') return { bg: '#ffedd5', color: '#c2410c' };
+    return neutralBadgeStyle();
+  }
+  if (g === 'A+' || g === 'A') return { bg: '#1a3a2a', color: '#4ade80' };
+  if (g.charAt(0) === 'B') return { bg: '#1e2d1a', color: '#86efac' };
+  if (g.charAt(0) === 'C') return { bg: '#2d1f1a', color: '#fb923c' };
+  return neutralBadgeStyle();
+}
+
+function schemeFitFor(name) {
+  var entry = SCHEME_FIT[name];
+  if (!entry) {
+    var nb = neutralBadgeStyle();
+    return { grade: '?', bg: nb.bg, color: nb.color };
+  }
+  var s = schemeFitStyle(entry.grade);
+  return { grade: entry.grade, bg: s.bg, color: s.color };
+}
+
 function olColor(grade) {
   const c={'A+':'#4ade80','A':'#4ade80','B+':'#86efac','B':'#fbbf24','C+':'#fb923c','C':'#f87171','C-':'#f87171','D+':'#ef4444'};
   const b={'A+':'#14532d','A':'#14532d','B+':'#1a3a2a','B':'#2d2a0a','C+':'#3d1f0a','C':'#3d1515','C-':'#3d1515','D+':'#3d1515'};
+  if (isLightTheme()) {
+    const cL={'A+':'#15803d','A':'#15803d','B+':'#166534','B':'#a16207','C+':'#c2410c','C':'#b91c1c','C-':'#b91c1c','D+':'#b91c1c'};
+    const bL={'A+':'#dcfce7','A':'#dcfce7','B+':'#ecfdf5','B':'#fef9c3','C+':'#ffedd5','C':'#fee2e2','C-':'#fee2e2','D+':'#fee2e2'};
+    return {color:cL[grade]||'#475569',bg:bL[grade]||'#e2e8f0'};
+  }
   return {color:c[grade]||'#9ca3af',bg:b[grade]||'#252836'};
 }
 function sosColor(rank) {
+  if (isLightTheme()) {
+    if (rank <= 10) return {color:'#15803d',bg:'#dcfce7'};
+    if (rank <= 20) return {color:'#a16207',bg:'#fef9c3'};
+    return {color:'#b91c1c',bg:'#fee2e2'};
+  }
   if(rank<=10) return {color:'#4ade80',bg:'#14532d'};
   if(rank<=20) return {color:'#fbbf24',bg:'#2d2a0a'};
   return {color:'#f87171',bg:'#3d1515'};
 }
 function tendencyColor(t) {
+  if (isLightTheme()) {
+    if (t === 'Pass-Heavy' || t === 'Pass-First') return {color:'#1d4ed8',bg:'#dbeafe'};
+    if (t === 'Run-Heavy') return {color:'#15803d',bg:'#dcfce7'};
+    return {color:'#475569',bg:'#e2e8f0'};
+  }
   if(t==='Pass-Heavy'||t==='Pass-First') return {color:'#60a5fa',bg:'#1e3a5f'};
   if(t==='Run-Heavy') return {color:'#4ade80',bg:'#14532d'};
   return {color:'#9ca3af',bg:'#252836'};
@@ -2737,15 +3428,7 @@ function showMainTab(tab) {
   ['draft','aiChat'].forEach(t => {
     const btn = document.getElementById('tab-'+t);
     if (!btn) return;
-    if (t === tab) {
-      btn.style.background = '#0e1f3d';
-      btn.style.color = '#388bfd';
-      btn.style.borderColor = '#1f6feb';
-    } else {
-      btn.style.background = '#21262d';
-      btn.style.color = '#7d8590';
-      btn.style.borderColor = '#30363d';
-    }
+    btn.classList.toggle('tb-btn-active', t === tab);
   });
 }
 
@@ -3036,6 +3719,7 @@ async function fetchSleeperLeague(overrideId, overrideRosterId) {
     if (krl) krl.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:8px">Import complete — select your team above and click Set team to load your roster</div>';
 
     sleeperImportDone = true;
+    try { loadDraftPrefs(); } catch (e) {}
 
     // Reveal My team picker now that we have real team names
     var myTeamSection = document.getElementById('myTeamSection');
@@ -3168,15 +3852,15 @@ function stopAutoSync() {
   clearInterval(_syncIndicatorTmr);
   _autoSyncTimer = null; _syncIndicatorTmr = null;
   var ind = document.getElementById('liveSync');
-  if (ind) ind.style.display = 'none';
+  if (ind) ind.classList.remove('visible');
   console.log('[AutoSync] Stopped');
 }
 
 function updateSyncIndicator() {
   var ind = document.getElementById('liveSync');
   if (!ind) return;
-  if (!_autoSyncTimer) { ind.style.display = 'none'; return; }
-  ind.style.display = 'inline-flex';
+  if (!_autoSyncTimer) { ind.classList.remove('visible'); return; }
+  ind.classList.add('visible');
   if (_lastSyncTime) {
     var s = Math.round((Date.now() - _lastSyncTime) / 1000);
     ind.textContent = s < 60 ? '🟢 Live · ' + s + 's ago' : '🟢 Live · ' + Math.floor(s / 60) + 'm ago';
@@ -3335,11 +4019,11 @@ function selectKeeperPlayer(name, team, pos) {
     for (var i = 0; i < posEl.options.length; i++) {
       if (posEl.options[i].value === pos) { posEl.selectedIndex = i; break; }
     }
-    posEl.style.color = '#e8eaf0';
+    posEl.style.color = 'var(--text)';
   }
   // Show team
   var teamEl = document.getElementById('kpTeam');
-  if (teamEl) teamEl.style.color = '#e8eaf0';
+  if (teamEl) teamEl.style.color = 'var(--text)';
 }
 
 // Close dropdown when clicking outside
@@ -3377,7 +4061,7 @@ function addManualKeeper() {
   document.getElementById('kpDropdown').style.display = 'none';
   // Reset pos to dimmed
   var posEl = document.getElementById('kpPos');
-  if (posEl) posEl.style.color = '#6b7280';
+  if (posEl) posEl.style.color = 'var(--muted)';
   renderKeeperRows();
 }
 
@@ -3409,85 +4093,188 @@ function openSleeperModal() {
   document.getElementById('sleeperModal').style.display = 'flex';
 }
 
+function switchKeeperTab(tab) {
+  var mine = document.getElementById('keeperPanelMine');
+  var all = document.getElementById('keeperPanelAll');
+  var tMine = document.getElementById('keeperTabMine');
+  var tAll = document.getElementById('keeperTabAll');
+  if (mine) mine.style.display = tab === 'mine' ? 'block' : 'none';
+  if (all) all.style.display = tab === 'all' ? 'block' : 'none';
+  if (tMine) tMine.classList.toggle('active', tab === 'mine');
+  if (tAll) tAll.classList.toggle('active', tab === 'all');
+}
+
+function keeperRowHtml(p, i, idPrefix) {
+  var posColors = { QB: '#60a5fa', RB: '#4ade80', WR: '#fb923c', TE: '#c084fc', K: '#fbbf24', DEF: '#94a3b8' };
+  var color = posColors[p.pos] || '#9ca3af';
+  return '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border-subtle)">' +
+    '<input type="checkbox" id="' + idPrefix + '_' + i + '" onchange="keeperCheckChange(\'' + idPrefix + '\')" style="cursor:pointer;width:14px;height:14px">' +
+    '<span style="font-weight:700;font-size:10px;color:' + color + ';width:24px">' + p.pos + '</span>' +
+    '<span style="flex:1;font-size:12px;color:var(--text-soft)">' + p.name + '</span>' +
+    '<span style="font-size:10px;color:var(--muted);width:30px">' + p.team + '</span>' +
+    '<span style="font-size:10px;color:var(--muted);margin-right:2px">Rd</span>' +
+    '<input type="number" id="' + idPrefix + 'r_' + i + '" min="1" max="' + ROUNDS + '" placeholder="—" disabled ' +
+      'style="width:40px;background:var(--input-bg);border:1px solid var(--border);color:var(--yellow-text);border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;outline:none" ' +
+      'data-name="' + p.name + '" data-pos="' + p.pos + '" data-team="' + p.team + '">' +
+  '</div>';
+}
+
+function collectKeepersFromChecks(checkPrefix) {
+  var keepersToApply = [];
+  var allChecks = document.querySelectorAll('input[type=checkbox][id^="' + checkPrefix + '_"]');
+  for (var ci = 0; ci < allChecks.length; ci++) {
+    var cb = allChecks[ci];
+    if (!cb.checked) continue;
+    var idx = cb.id.replace(checkPrefix + '_', '');
+    var rdInput = document.getElementById(checkPrefix + 'r_' + idx);
+    var roundVal = rdInput ? rdInput.value.trim() : '';
+    if (!roundVal || isNaN(parseInt(roundVal, 10))) {
+      return { error: 'Enter a round number for ' + (rdInput ? rdInput.getAttribute('data-name') : 'checked player') };
+    }
+    keepersToApply.push({
+      name: rdInput.getAttribute('data-name'),
+      pos: rdInput.getAttribute('data-pos'),
+      team: rdInput.getAttribute('data-team'),
+      round: parseInt(roundVal, 10)
+    });
+  }
+  return { keepers: keepersToApply };
+}
+
+function applyKeepersForTeam(ownerTi, keepersToApply) {
+  var applied = 0;
+  keepersToApply.forEach(function(k) {
+    var p = players.find(function(x) { return x.name.toLowerCase() === k.name.toLowerCase(); });
+    if (!p) {
+      var maxId = Math.max.apply(null, players.map(function(x) { return x.id || 0; })) + 1;
+      p = { id: maxId, rank: maxId, name: k.name, pos: k.pos, team: k.team, bye: 'TBD',
+            customScore: 0, customRank: 9999, vorp: null, adp: 999, sf: 999,
+            drafted: false, isKeeper: false };
+      players.push(p);
+    }
+    p.drafted = true;
+    p.isKeeper = true;
+    p.rd = k.round;
+    var slot = (teamSlots[ownerTi] && teamSlots[ownerTi] > 0) ? teamSlots[ownerTi] : (ownerTi + 1);
+    var pickNum = k.round % 2 === 1
+      ? (k.round - 1) * TEAMS + slot
+      : (k.round - 1) * TEAMS + (TEAMS + 1 - slot);
+    if (!pickLog.find(function(l) { return l.pick === pickNum; })) {
+      pickLog.push({ pick: pickNum, rd: k.round, teamIdx: ownerTi,
+        team: teamNames[ownerTi] || ('Team ' + (ownerTi + 1)),
+        player: k.name, pos: k.pos, nfl: k.team, isKeeper: true });
+    }
+    if (!teamRosters[ownerTi]) teamRosters[ownerTi] = [];
+    var entry = Object.assign({}, p, { pickNum: pickNum, rd: k.round, isKeeper: true });
+    if (!teamRosters[ownerTi].find(function(r) { return r.name === k.name; })) {
+      teamRosters[ownerTi].push(entry);
+    }
+    if (ownerTi === myTeamIdx) smartAssign(entry);
+    applied++;
+  });
+  return applied;
+}
+
 function applyManualKeepers() {
   var ownerTi = myTeamIdx;
   if (ownerTi < 0) { setKeeperMsg('Set your team first', true); return; }
 
-  // Only process CHECKED checkboxes with a filled round number
-  var keepersToApply = [];
-  var allChecks = document.querySelectorAll('#keeperRosterList input[type=checkbox]');
-  for (var ci = 0; ci < allChecks.length; ci++) {
-    var cb = allChecks[ci];
-    if (!cb.checked) continue; // skip unchecked
-    var idx = cb.id.replace('kp_', '');
-    var rdInput = document.getElementById('kpr_' + idx);
-    var roundVal = rdInput ? rdInput.value.trim() : '';
-    if (!roundVal || isNaN(parseInt(roundVal))) {
-      setKeeperMsg('Enter a round number for ' + (rdInput ? rdInput.getAttribute('data-name') : 'checked player'), true);
-      return;
-    }
-    keepersToApply.push({
-      name:  rdInput.getAttribute('data-name'),
-      pos:   rdInput.getAttribute('data-pos'),
-      team:  rdInput.getAttribute('data-team'),
-      round: parseInt(roundVal)
-    });
-  }
+  var collected = collectKeepersFromChecks('kp');
+  if (collected.error) { setKeeperMsg(collected.error, true); return; }
+  var keepersToApply = collected.keepers;
 
   if (keepersToApply.length === 0) { setKeeperMsg('Check up to 2 players and enter their cost round', true); return; }
-  if (keepersToApply.length > 2)   { setKeeperMsg('Max 2 keepers per team', true); return; }
+  if (keepersToApply.length > 2) { setKeeperMsg('Max 2 keepers per team', true); return; }
 
-  var applied = 0;
-  keepersToApply.forEach(function(k) {
-    var p = players.find(function(x){ return x.name.toLowerCase() === k.name.toLowerCase(); });
-    if (!p) {
-      var maxId = Math.max.apply(null, players.map(function(x){ return x.id||0; })) + 1;
-      p = { id:maxId, rank:maxId, name:k.name, pos:k.pos, team:k.team, bye:'TBD',
-            customScore:0, customRank:9999, vorp:null, adp:999, sf:999,
-            drafted:false, isKeeper:false };
-      players.push(p);
-    }
+  var applied = applyKeepersForTeam(ownerTi, keepersToApply);
 
-    p.drafted  = true;
-    p.isKeeper = true;
-    p.rd = k.round;
-
-    var slot    = (teamSlots[ownerTi] && teamSlots[ownerTi] > 0) ? teamSlots[ownerTi] : (ownerTi + 1);
-    // Snake draft: even rounds reverse slot order — must match renderBoard's formula
-    var pickNum = k.round % 2 === 1
-      ? (k.round - 1) * TEAMS + slot
-      : (k.round - 1) * TEAMS + (TEAMS + 1 - slot);
-
-    // Only add to pickLog if slot not already taken
-    if (!pickLog.find(function(l){ return l.pick === pickNum; })) {
-      pickLog.push({ pick:pickNum, rd:k.round, teamIdx:ownerTi,
-        team:teamNames[ownerTi]||('Team '+(ownerTi+1)),
-        player:k.name, pos:k.pos, nfl:k.team, isKeeper:true });
-    }
-
-    if (!teamRosters[ownerTi]) teamRosters[ownerTi] = [];
-    var entry = Object.assign({}, p, { pickNum:pickNum, rd:k.round, isKeeper:true });
-    if (!teamRosters[ownerTi].find(function(r){ return r.name === k.name; })) {
-      teamRosters[ownerTi].push(entry);
-    }
-
-    // If my team, slot into roster panel
-    if (ownerTi === myTeamIdx) {
-      smartAssign(entry);
-    }
-    applied++;
-  });
-
-  // Advance currentPick past keeper slots
-  while (currentPick <= TOTAL && pickLog.find(function(l){ return l.pick === currentPick; })) {
+  while (currentPick <= TOTAL && pickLog.find(function(l) { return l.pick === currentPick; })) {
     currentPick++;
   }
 
   calcVORP();
   renderAll();
   if (ownerTi === myTeamIdx) renderRoster();
-  setKeeperMsg('Applied ' + applied + ' keeper(s) for ' + (teamNames[ownerTi]||('Team '+(ownerTi+1))), false);
+  setKeeperMsg('Applied ' + applied + ' keeper(s) for ' + (teamNames[ownerTi] || ('Team ' + (ownerTi + 1))), false);
   clearKeeperChecks();
+}
+
+async function loadAllLeagueKeepers() {
+  if (!sleeperLeagueId) { setKeeperMsg('Import your league first', true); return; }
+  var listEl = document.getElementById('allKeepersList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:8px">Loading all team rosters...</div>';
+  switchKeeperTab('all');
+
+  try {
+    var BASE = 'https://api.sleeper.app/v1';
+    var results = await Promise.all([
+      sleeperFetch(BASE + '/league/' + sleeperLeagueId + '/rosters'),
+      sleeperFetch(BASE + '/players/nfl')
+    ]);
+    var rosters = results[0];
+    var allPlayers = results[1];
+    var validPos = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+    var html = '';
+
+    for (var ti = 0; ti < TEAMS; ti++) {
+      var rosterId = teamRosterIds[ti];
+      var rosterData = rosterId !== undefined
+        ? rosters.find(function(r) { return r.roster_id === rosterId; })
+        : rosters.sort(function(a, b) { return (a.roster_id || 0) - (b.roster_id || 0); })[ti];
+      var tname = teamNames[ti] || ('Team ' + (ti + 1));
+      html += '<div class="keeper-team-block"><div class="keeper-team-hdr">' + tname + '</div><div id="akl_inner_' + ti + '">';
+      if (!rosterData || !rosterData.players || !rosterData.players.length) {
+        html += '<div style="color:var(--faint);font-size:10px;padding:8px">No roster in Sleeper</div>';
+      } else {
+        var rosterPlayers = rosterData.players.map(function(pid) {
+          var pd = allPlayers[pid];
+          if (!pd) return null;
+          var pos = (pd.fantasy_positions && pd.fantasy_positions[0]) || '?';
+          if (validPos.indexOf(pos) < 0) return null;
+          return { name: ((pd.first_name || '') + ' ' + (pd.last_name || '')).trim(), pos: pos, team: pd.team || 'FA' };
+        }).filter(Boolean).sort(function(a, b) { return validPos.indexOf(a.pos) - validPos.indexOf(b.pos); });
+        rosterPlayers.forEach(function(p, i) {
+          html += keeperRowHtml(p, i, 'akp' + ti);
+        });
+        if (!rosterPlayers.length) html += '<div style="color:var(--faint);font-size:10px;padding:8px">No skill players</div>';
+      }
+      html += '</div></div>';
+    }
+    listEl.innerHTML = html;
+    setKeeperMsg('Loaded rosters for all ' + TEAMS + ' teams — check keepers and enter cost rounds', false);
+  } catch (e) {
+    listEl.innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Error: ' + e.message + '</div>';
+  }
+}
+
+function applyAllLeagueKeepers() {
+  var total = 0;
+  var teamsApplied = 0;
+  for (var ti = 0; ti < TEAMS; ti++) {
+    var collected = collectKeepersFromChecks('akp' + ti);
+    if (collected.error) {
+      setKeeperMsg((teamNames[ti] || ('Team ' + (ti + 1))) + ': ' + collected.error, true);
+      return;
+    }
+    if (!collected.keepers.length) continue;
+    if (collected.keepers.length > 2) {
+      setKeeperMsg('Max 2 keepers per team (' + (teamNames[ti] || ('Team ' + (ti + 1))) + ')', true);
+      return;
+    }
+    total += applyKeepersForTeam(ti, collected.keepers);
+    teamsApplied++;
+  }
+  if (!total) { setKeeperMsg('No keepers selected — check players and enter cost rounds', true); return; }
+
+  while (currentPick <= TOTAL && pickLog.find(function(l) { return l.pick === currentPick; })) {
+    currentPick++;
+  }
+
+  calcVORP();
+  renderAll();
+  if (myTeamIdx >= 0) renderRoster();
+  setKeeperMsg('Applied ' + total + ' keeper(s) across ' + teamsApplied + ' team(s) to the draft board', false);
 }
 
 async function loadTeamRosterForKeepers() {
@@ -3516,7 +4303,6 @@ async function loadTeamRosterForKeepers() {
       listEl.innerHTML = '<div style="color:#f87171;font-size:11px;padding:8px">No players on this roster in Sleeper</div>';
       return;
     }
-    var posColors = {QB:'#60a5fa',RB:'#4ade80',WR:'#fb923c',TE:'#c084fc',K:'#fbbf24',DEF:'#94a3b8'};
     var validPos = ['QB','RB','WR','TE','K','DEF'];
     var rosterPlayers = myRosterData.players.map(function(pid) {
       var pd = allPlayers[pid];
@@ -3527,17 +4313,7 @@ async function loadTeamRosterForKeepers() {
     }).filter(Boolean).sort(function(a,b){ return validPos.indexOf(a.pos) - validPos.indexOf(b.pos); });
 
     listEl.innerHTML = rosterPlayers.map(function(p, i) {
-      var color = posColors[p.pos] || '#9ca3af';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid #1a1d27">' +
-        '<input type="checkbox" id="kp_' + i + '" onchange="keeperCheckChange()" style="cursor:pointer;width:14px;height:14px">' +
-        '<span style="font-weight:700;font-size:10px;color:' + color + ';width:24px">' + p.pos + '</span>' +
-        '<span style="flex:1;font-size:12px;color:#e8eaf0">' + p.name + '</span>' +
-        '<span style="font-size:10px;color:#6b7280;width:30px">' + p.team + '</span>' +
-        '<span style="font-size:10px;color:#6b7280;margin-right:2px">Rd</span>' +
-        '<input type="number" id="kpr_' + i + '" min="1" max="18" placeholder="—" disabled ' +
-          'style="width:40px;background:#252836;border:1px solid #374151;color:#fbbf24;border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;outline:none" ' +
-          'data-name="' + p.name + '" data-pos="' + p.pos + '" data-team="' + p.team + '">' +
-      '</div>';
+      return keeperRowHtml(p, i, 'kp');
     }).join('');
     setKeeperMsg('Loaded ' + rosterPlayers.length + ' players — check up to 2 and enter cost round', false);
   } catch(e) {
@@ -3545,27 +4321,31 @@ async function loadTeamRosterForKeepers() {
   }
 }
 
-function keeperCheckChange() {
-  var allChecks = document.querySelectorAll('#keeperRosterList input[type=checkbox]');
-  var checked = Array.from(allChecks).filter(function(c){ return c.checked; });
+function keeperCheckChange(idPrefix) {
+  idPrefix = idPrefix || 'kp';
+  var allChecks = document.querySelectorAll('input[type=checkbox][id^="' + idPrefix + '_"]');
+  var checked = Array.from(allChecks).filter(function(c) { return c.checked; });
   allChecks.forEach(function(c) {
-    var i = c.id.replace('kp_','');
-    var rdInput = document.getElementById('kpr_' + i);
+    var i = c.id.replace(idPrefix + '_', '');
+    var rdInput = document.getElementById(idPrefix + 'r_' + i);
     if (c.checked) {
       c.disabled = false;
-      if (rdInput) { rdInput.disabled = false; rdInput.style.borderColor = '#fbbf24'; }
+      if (rdInput) { rdInput.disabled = false; rdInput.style.borderColor = 'var(--yellow-border)'; }
     } else {
       c.disabled = checked.length >= 2;
-      if (rdInput) { rdInput.disabled = true; rdInput.value = ''; rdInput.style.borderColor = '#374151'; }
+      if (rdInput) { rdInput.disabled = true; rdInput.value = ''; rdInput.style.borderColor = 'var(--border)'; }
     }
   });
 }
 
 function clearKeeperChecks() {
-  var allChecks = document.querySelectorAll('#keeperRosterList input[type=checkbox]');
-  allChecks.forEach(function(c) {
-    c.checked = false; c.disabled = false;
-    var rdInput = document.getElementById('kpr_' + c.id.replace('kp_',''));
+  document.querySelectorAll('input[type=checkbox][id^="kp_"], input[type=checkbox][id^="akp"]').forEach(function(c) {
+    c.checked = false;
+    c.disabled = false;
+    var parts = c.id.split('_');
+    var idPrefix = parts[0].indexOf('akp') === 0 ? parts[0] : 'kp';
+    var i = parts[parts.length - 1];
+    var rdInput = document.getElementById(idPrefix + 'r_' + i);
     if (rdInput) { rdInput.disabled = true; rdInput.value = ''; }
   });
 }
@@ -4050,7 +4830,7 @@ async function sendToAI(userMessage) {
   if (thread) {
     thinking = document.createElement('div');
     thinking.style.cssText = 'display:flex;justify-content:flex-start';
-    thinking.innerHTML = '<div style="background:#21262d;border-radius:8px 8px 8px 2px;padding:6px 10px;font-size:10px;color:#4b5563;font-style:italic">Analyzing…</div>';
+    thinking.innerHTML = '<div style="background:var(--surface2);border-radius:8px 8px 8px 2px;padding:6px 10px;font-size:10px;color:var(--faint);font-style:italic">Analyzing…</div>';
     thread.appendChild(thinking);
     thread.scrollTop = thread.scrollHeight;
   }
@@ -4103,8 +4883,8 @@ async function sendToAI(userMessage) {
     var streamWrap = document.createElement('div');
     streamWrap.style.cssText = 'display:flex;justify-content:flex-start';
     var streamBubble = document.createElement('div');
-    streamBubble.style.cssText = 'background:#21262d;border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:#cdd9e5;line-height:1.55';
-    streamBubble.innerHTML = '<span style="color:#4b5563;font-style:italic">▍</span>';
+    streamBubble.style.cssText = 'background:var(--surface2);border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:var(--text-soft);line-height:1.55';
+    streamBubble.innerHTML = '<span style="color:var(--faint);font-style:italic">▍</span>';
     streamWrap.appendChild(streamBubble);
     if (thread) { thread.appendChild(streamWrap); thread.scrollTop = thread.scrollHeight; }
 
@@ -4174,9 +4954,9 @@ function addChatMessage(role, text) {
   if (isAlert) {
     bubble.style.cssText = 'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);border-radius:7px;padding:7px 10px;font-size:10px;color:#fbbf24;line-height:1.5;width:100%';
   } else if (isUser) {
-    bubble.style.cssText = 'background:rgba(59,130,246,.18);border-radius:10px 10px 2px 10px;padding:6px 10px;max-width:88%;font-size:10px;color:#e6edf3;line-height:1.5';
+    bubble.style.cssText = 'background:rgba(59,130,246,.18);border-radius:10px 10px 2px 10px;padding:6px 10px;max-width:88%;font-size:10px;color:var(--text);line-height:1.5';
   } else {
-    bubble.style.cssText = 'background:#21262d;border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:#cdd9e5;line-height:1.55';
+    bubble.style.cssText = 'background:var(--surface2);border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:94%;font-size:10px;color:var(--text-soft);line-height:1.55';
   }
   // Sanitize then convert newlines to <br>
   var safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
@@ -4190,7 +4970,7 @@ function clearAIChat() {
   aiConversation = [];
   var thread = document.getElementById('aiThread');
   if (thread) {
-    thread.innerHTML = '<div class="ai-empty" style="text-align:center;color:#4b5563;font-size:11px;padding:24px 0">Chat cleared — ask me anything about your draft.</div>';
+    thread.innerHTML = '<div class="ai-empty" style="text-align:center;color:var(--muted);font-size:11px;padding:24px 0">Chat cleared — ask me anything about your draft.</div>';
   }
 }
 
@@ -4415,7 +5195,7 @@ function setPosFilter(pos, btn) {
   if (statusEl) {
     if (pos === 'AISUGGEST') {
       statusEl.style.display = 'inline';
-      statusEl.innerHTML = '<button onclick="refreshAISuggestedBoard(true)" style="font-size:10px;background:transparent;border:1px solid #30363d;color:#7d8590;border-radius:4px;padding:1px 6px;cursor:pointer" title="Re-run AI analysis">↻ Refresh</button>';
+      statusEl.innerHTML = '<button type="button" onclick="refreshAISuggestedBoard(true)" class="pool-btn" style="padding:1px 6px" title="Re-run AI analysis">↻ Refresh</button>';
     } else {
       statusEl.style.display = 'none';
     }
@@ -4461,8 +5241,7 @@ function setPosFilter(pos, btn) {
       } catch (e) {}
     }
     try {
-      var savedWatch = localStorage.getItem('ff26_watchList');
-      if (savedWatch) JSON.parse(savedWatch).forEach(function(r) { watchList.add(r); });
+      loadDraftPrefs();
     } catch (e) {}
     updatePosLimitsTag();
     updateAIPauseBtn();
@@ -4471,6 +5250,9 @@ function setPosFilter(pos, btn) {
     if (currentPick > TOTAL) { var rb=document.getElementById('reportBtn'); if(rb) rb.style.display='inline-block'; }
     initAIPanel();
     initKeyboardShortcuts();
+    document.addEventListener('themechange', function() {
+      try { renderAll(); } catch (e) {}
+    });
     var savedKey = localStorage.getItem('ff26_apiKey');
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
     checkSession();
@@ -4840,6 +5622,7 @@ function closeMockModal() {
   }
   players.forEach(function(p){p.drafted=pickLog.some(function(l){return l.player===p.name;});p.mockDrafted=false;});
   mockState=null;calcVORP();renderAll();
+  updatePreDraftBanner();
   if (sleeperDraftId && currentPick <= TOTAL) startAutoSync(); // resume live sync
 }
 
@@ -4905,6 +5688,7 @@ function startMockDraft() {
   document.getElementById('mockModal').style.display='none';
   var bn=document.getElementById('mockBanner');if(bn)bn.style.display='flex';
   document.body.setAttribute('data-mock','1');
+  updatePreDraftBanner();
   stopAutoSync(); // pause live sync while mock is running
   runMockDraft();
 }
@@ -5016,10 +5800,9 @@ function runMockDraft(){
   while(mockState.currentPick<=mockState.totalPicks&&pickLog.some(function(l){return l.pick===mockState.currentPick&&l.isKeeper;}))mockState.currentPick++;
   if(mockState.currentPick>mockState.totalPicks){showMockResults();return;}
   var ti=mockState.pickOwners[mockState.currentPick-1],rd=Math.ceil(mockState.currentPick/TEAMS),isMe=(ti===mockState.myTi);
-  var clk=document.getElementById('clk');
+  renderClock();
   if(isMe){
     setTimeout(showPickSuggestions,50);
-    if(clk){clk.textContent='MOCK — Pick #'+mockState.currentPick+' · Rd '+rd+' · YOUR PICK';clk.style.background='#1e3a5f';}
     var te=document.getElementById('mockBannerTimer');
     if(mockState.myStrategy!=='manual'){mockState.waiting=true;setTimeout(mockAutoPick,1200);return;}
     mockState.waiting=true;renderBA();renderNextPicksPanel();updateClockNeeds(true);
@@ -5284,14 +6067,13 @@ async function loadLeagueIntelligence() {
                    season: latestWithKeepers.season };
         })
       : [];
-    renderKnownKeepersBanner();
     renderNextPicksPanel();
   } catch(e) { console.error('[loadLeagueIntelligence]', e); }
 }
 
 function renderNextPicksPanel() {
   var el  = document.getElementById('nextPicksList');
-  var hdr = document.getElementById('nextPicksHdr');
+  var tabBtn = document.getElementById('npt-ondeck');
   var roundEl = document.getElementById('roundSummary');
   if (!el) return;
 
@@ -5316,8 +6098,8 @@ function renderNextPicksPanel() {
   }
 
   if (!owners || curPick > total) {
-    if (hdr) { hdr.textContent = '🕐 On Deck'; hdr.style.color = '#e6edf3'; }
-    el.innerHTML = '<div style="color:#7d8590;font-size:11px;text-align:center;padding:16px 0">Draft not started</div>';
+    if (tabBtn) { tabBtn.textContent = '🕐 On Deck'; tabBtn.style.color = ''; }
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px 0">Draft not started</div>';
     return;
   }
 
@@ -5338,9 +6120,9 @@ function renderNextPicksPanel() {
   var isMyTurn    = myIdx === 0;
 
   if (isMyTurn) {
-    if (hdr) { hdr.textContent = '🟢 Your Pick'; hdr.style.color = '#4ade80'; }
+    if (tabBtn) { tabBtn.textContent = '🟢 Your Pick'; tabBtn.style.color = 'var(--green-text)'; }
   } else {
-    if (hdr) { hdr.textContent = '🕐 On Deck'; hdr.style.color = '#e6edf3'; }
+    if (tabBtn) { tabBtn.textContent = '🕐 On Deck'; tabBtn.style.color = ''; }
   }
 
   function buildCard(s, highlight) {
@@ -5354,23 +6136,23 @@ function renderNextPicksPanel() {
     var tParts = t ? tendencyLineForDraft(t, rd).split(' | ') : null;
     var warn   = tParts && tParts.some(function(p) { return p.startsWith('⚠'); });
 
-    var border = highlight ? (warn ? '#f59e0b' : '#388bfd') : '#21262d';
-    var bg     = highlight ? (warn ? 'rgba(245,158,11,.06)' : 'rgba(56,139,253,.06)') : 'transparent';
+    var border = highlight ? (warn ? '#f59e0b' : 'var(--accent)') : 'var(--border-subtle)';
+    var bg     = highlight ? (warn ? 'rgba(245,158,11,.06)' : 'color-mix(in srgb, var(--accent) 8%, transparent)') : 'transparent';
     var dim    = !highlight && !isMyTurn && myIdx >= 0 && seq.indexOf(s) > myIdx;
 
     var html = '<div style="margin-bottom:6px;padding:6px 7px;border-radius:6px;border:1px solid ' + border + ';background:' + bg + ';' + (dim ? 'opacity:0.55;' : '') + '">';
-    html += '<div style="font-size:9px;color:#484f58;margin-bottom:2px">Pk' + s.pk + ' · Rd' + rd + '</div>';
-    html += '<div style="font-size:11px;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px" title="' + name + '">' + name + '</div>';
+    html += '<div style="font-size:9px;color:var(--faint);margin-bottom:2px">Pk' + s.pk + ' · Rd' + rd + '</div>';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px" title="' + name + '">' + name + '</div>';
     html += ['QB','RB','WR','TE'].map(function(pos) {
       return '<span style="font-size:10px;font-weight:700;color:' + posC[pos] + ';margin-right:5px">' + pos + counts[pos] + '</span>';
     }).join('');
     if (tParts) {
       tParts.forEach(function(part) {
         var w = part.startsWith('⚠');
-        html += '<div style="font-size:10px;margin-top:2px;color:' + (w ? '#fbbf24' : '#6b7280') + (w ? ';font-weight:600' : '') + '">' + part + '</div>';
+        html += '<div style="font-size:10px;margin-top:2px;color:' + (w ? 'var(--yellow-text)' : 'var(--muted)') + (w ? ';font-weight:600' : '') + '">' + part + '</div>';
       });
     } else {
-      html += '<div style="font-size:10px;color:#484f58;margin-top:2px">No history</div>';
+      html += '<div style="font-size:10px;color:var(--faint);margin-top:2px">No history</div>';
     }
     return html + '</div>';
   }
@@ -5378,16 +6160,16 @@ function renderNextPicksPanel() {
   var html = '';
 
   if (isMyTurn) {
-    html += '<div style="background:#0e2a1a;border:1px solid #2ea043;border-radius:8px;padding:10px;text-align:center;margin-bottom:10px">'
-      + '<div style="font-size:13px;font-weight:700;color:#4ade80">🏈 Pick #' + curPick + ' — YOU</div>'
-      + '<div style="font-size:10px;color:#7d8590;margin-top:4px">AI Chat → ⚡ My pick</div>'
+    html += '<div class="on-deck-you" style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:10px;text-align:center;margin-bottom:10px">'
+      + '<div class="on-deck-you-txt" style="font-size:13px;font-weight:700;color:var(--green-text)">🏈 Pick #' + curPick + ' — YOU</div>'
+      + '<div style="font-size:10px;color:var(--muted);margin-top:4px">AI Chat → ⚡ My pick</div>'
       + '</div>';
     afterSlice.forEach(function(s) { html += buildCard(s, false); });
   } else {
     beforeSlice.forEach(function(s, i) { html += buildCard(s, i === beforeSlice.length - 1); });
     if (myPickNum !== null) {
-      html += '<div style="background:#0e2a1a;border:1px solid #2ea043;border-radius:6px;padding:5px 8px;margin:6px 0;text-align:center">'
-        + '<div style="font-size:10px;font-weight:700;color:#4ade80">🟢 YOUR PICK — #' + myPickNum + '</div>'
+      html += '<div class="on-deck-you" style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:6px;padding:5px 8px;margin:6px 0;text-align:center">'
+        + '<div class="on-deck-you-txt" style="font-size:10px;font-weight:700;color:var(--green-text)">🟢 YOUR PICK — #' + myPickNum + '</div>'
         + '</div>';
     }
     afterSlice.forEach(function(s) { html += buildCard(s, false); });
