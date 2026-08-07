@@ -4475,11 +4475,7 @@ function setPosFilter(pos, btn) {
     if (savedKey) { apiKey = savedKey; showKeyActive(); }
     checkSession();
     setTimeout(fetchNFLFactors, 2000);
-    setTimeout(async function() {
-      await loadAllPlayersFromSleeper();
-      await fetchSleeperSeasonStats();
-      await fetchFantasyProsRankings(); // runs last so ECR has final say on scores
-    }, 2000);
+    setTimeout(function() { loadPlayerDataPipeline(false); }, 2000);
     // Auto-start live sync if we have a saved draft ID and are not in mock mode
     if (sleeperDraftId && currentPick <= TOTAL) {
       setTimeout(startAutoSync, 3000); // small delay so import/session finish first
@@ -4492,11 +4488,45 @@ function setPosFilter(pos, btn) {
 })();
 
 
+var playerDataLoading = false;
+
+async function loadPlayerDataPipeline(forceRefresh) {
+  if (playerDataLoading) return;
+  playerDataLoading = true;
+  var btn = document.getElementById('refreshPlayersBtn');
+  var fs = document.getElementById('factorStatus');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '↻ …'; }
+  if (fs && forceRefresh) fs.textContent = 'Refreshing players…';
+  try {
+    await loadAllPlayersFromSleeper(forceRefresh);
+    await fetchSleeperSeasonStats(forceRefresh);
+    await fetchFantasyProsRankings(forceRefresh); // runs last so ECR has final say on scores
+    if (forceRefresh && fs) {
+      var injCount = players.filter(function(p) { return p.injuryStatus; }).length;
+      fs.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+        (injCount ? ' · ' + injCount + ' injured' : '');
+    }
+  } catch(e) {
+    console.warn('[Player refresh]', e.message);
+    if (fs) fs.textContent = 'Player refresh failed';
+  } finally {
+    playerDataLoading = false;
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '↻ Players'; }
+  }
+}
+
+async function refreshAllPlayerData() {
+  await loadPlayerDataPipeline(true);
+}
+
 // ── Load All Players from Sleeper (auto on startup, 1-day cache) ──
-async function loadAllPlayersFromSleeper() {
+async function loadAllPlayersFromSleeper(forceRefresh) {
   const CACHE_KEY = 'ff26_sleeperPlayers_v4';
   const TTL = 24 * 60 * 60 * 1000;
   const norm = playerNameNorm;
+  if (forceRefresh) {
+    try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
+  }
   try {
     var cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -4628,10 +4658,13 @@ function _scoreBySleeperRank() {
 }
 
 // ── 2025 Season Stats → customScore (1-day cache) ──
-async function fetchSleeperSeasonStats() {
+async function fetchSleeperSeasonStats(forceRefresh) {
   const CACHE_KEY = 'ff26_stats2025_v1';
   const TTL = 24 * 60 * 60 * 1000;
   var fs = document.getElementById('factorStatus');
+  if (forceRefresh) {
+    try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
+  }
   try {
     var cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -4707,10 +4740,10 @@ function applySleeperStats(statsById) {
 // Drop a fresh Apify export into rankings_2026.json to update for everyone.
 // Format: array of objects from the lulzasaur/fantasypros-scraper actor.
 // The file is cached by date — refresh happens automatically the next calendar day.
-async function fetchFantasyProsRankings() {
+async function fetchFantasyProsRankings(forceRefresh) {
   try {
-    var today = new Date().toISOString().slice(0, 10);
-    var res = await fetch('./rankings_2026.json?v=' + today);
+    var cacheBust = forceRefresh ? Date.now() : new Date().toISOString().slice(0, 10);
+    var res = await fetch('./rankings_2026.json?v=' + cacheBust);
     if (!res.ok) return; // file not in repo yet — silently fall back to Sleeper data
     var data = await res.json();
     if (!Array.isArray(data) || data.length === 0) return;

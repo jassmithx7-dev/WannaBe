@@ -304,6 +304,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
         </select>
         <div id="qbAlert" style="display:none;background:#2d1515;color:#ffa198;font-size:11px;padding:3px 8px;border-radius:4px">⚠ QB run — 8+ gone</div>
         <div id="tradedAlert" style="display:none;background:#241e0e;color:#e3b341;font-size:11px;padding:3px 8px;border-radius:4px" title=""></div>
+        <button id="refreshPlayersBtn" onclick="refreshAllPlayerData()" style="font-size:10px;background:transparent;color:#7d8590;border:1px solid #30363d;border-radius:4px;padding:2px 7px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="Re-fetch Sleeper injuries, ADP, stats, and FantasyPros ECR (bypasses 24h cache)">↻ Players</button>
         <span id="factorStatus" style="font-size:9px;color:#7d8590;flex-shrink:0"></span>
         <div id="probLegend" style="font-size:9px;color:#7d8590;display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;white-space:nowrap" title="Left border = pick prob · Δ = ADP vs current pick (STEAL/REACH)">
           <span style="color:#484f58">⚖ compare · Δ · Border:</span>
@@ -425,7 +426,7 @@ label{font-size:11px;color:#7d8590;white-space:nowrap}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="league_store.js?v=1"></script>
-<script src="draft_app.js?v=injury1"></script>
+<script src="draft_app.js?v=injury2"></script>
 <script>
   // Auto-login: if a Supabase session exists (set from account page), dismiss auth modal silently
   if (supa) {
