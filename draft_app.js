@@ -716,6 +716,74 @@ let olPassMult = {};  // team abbrev → QB/WR/TE OL pass-block multiplier
 let sosMult    = {};  // team abbrev → schedule SOS multiplier
 let nflFactorsLoaded = false;
 var nameToSleeperId = {}; // normalized name -> Sleeper player_id, built during player load
+var sleeperInjuryMap = {}; // normalized name -> { status, bodyPart, sleeperId }
+var sleeperAdpMap = {}; // normalized name -> Sleeper search_rank
+
+const INJURY_CFG = {
+  IR:           { bump: 180, mult: 0.42, short: 'IR',  color: '#f87171' },
+  Out:          { bump: 150, mult: 0.45, short: 'OUT', color: '#f87171' },
+  PUP:          { bump: 120, mult: 0.50, short: 'PUP', color: '#fb923c' },
+  Doubtful:     { bump: 50,  mult: 0.72, short: 'D',   color: '#fbbf24' },
+  Questionable: { bump: 20,  mult: 0.88, short: 'Q',   color: '#fbbf24' },
+};
+
+function playerNameNorm(n) {
+  return n.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').trim()
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function getInjuryCfg(status) {
+  if (!status) return null;
+  return INJURY_CFG[status] || null;
+}
+
+function mergeSleeperInjuries(injuryMap) {
+  if (!injuryMap) return 0;
+  var norm = playerNameNorm;
+  var n = 0;
+  players.forEach(function(p) {
+    var inj = injuryMap[norm(p.name)];
+    if (inj && inj.status) {
+      p.injuryStatus = inj.status;
+      p.injuryBodyPart = inj.bodyPart || '';
+      if (inj.sleeperId && !p.sleeperId) p.sleeperId = inj.sleeperId;
+      if (!p.sleeperAdp && sleeperAdpMap[norm(p.name)]) p.sleeperAdp = sleeperAdpMap[norm(p.name)];
+      n++;
+    } else {
+      p.injuryStatus = null;
+      p.injuryBodyPart = null;
+    }
+  });
+  return n;
+}
+
+function effectiveDraftAdp(p) {
+  var base = p.adp || p.sleeperAdp || sleeperAdpMap[playerNameNorm(p.name)] || 999;
+  if (base >= 900) return base;
+  var cfg = getInjuryCfg(p.injuryStatus);
+  if (!cfg) return base;
+  var bumped = base + cfg.bump;
+  var slAdp = p.sleeperAdp || sleeperAdpMap[playerNameNorm(p.name)];
+  if (slAdp && slAdp < 900) bumped = Math.max(bumped, slAdp);
+  return Math.min(999, bumped);
+}
+
+function applyInjuryScoreAdjustments() {
+  players.forEach(function(p) {
+    var cfg = getInjuryCfg(p.injuryStatus);
+    p.displayAdp = cfg ? effectiveDraftAdp(p) : (p.adp && p.adp < 900 ? p.adp : null);
+    if (!cfg || !(p.customScore > 0)) return;
+    p.customScore = Math.round(p.customScore * cfg.mult);
+  });
+}
+
+function injuryBadgeHtml(p) {
+  var cfg = getInjuryCfg(p.injuryStatus);
+  if (!cfg) return '';
+  var tip = (p.injuryBodyPart || p.injuryStatus).replace(/"/g, '&quot;');
+  return '<span style="font-size:9px;font-weight:700;color:#fff;background:' + cfg.color +
+    ';padding:1px 3px;border-radius:3px;margin-left:4px" title="' + tip + '">' + cfg.short + '</span>';
+}
 
 
 function getNthBest(pos, n) {
@@ -798,6 +866,7 @@ function applyNFLFactors() {
     p.olPct  = Math.round((ol  - 1) * 100);
     p.sosPct = Math.round((sos - 1) * 100);
   });
+  applyInjuryScoreAdjustments();
   calcVORP();
   renderAll();
 }
@@ -1317,8 +1386,9 @@ function showPickSuggestions() {
 
 // ── Player comparison ──
 function getAdpDeltaLabel(p) {
-  if (!p.adp || p.adp >= 900) return { text: '—', color: '#7d8590' };
-  var delta = Math.round(p.adp - currentPick);
+  var adp = p.displayAdp || p.adp;
+  if (!adp || adp >= 900) return { text: '—', color: '#7d8590' };
+  var delta = Math.round(adp - currentPick);
   // delta > 0: ADP later than this pick → drafting early (reach)
   // delta < 0: ADP earlier than this pick → player fell (steal)
   if (delta > 8) return { text: 'REACH +' + delta, color: '#f87171' };
@@ -1801,11 +1871,11 @@ function renderBA(){
       <span style="font-size:10px;color:#7d8590;text-align:right;font-variant-numeric:tabular-nums">${fitInfo ? fitInfo.idx + 1 : (p.customRank<9000?p.customRank:"—")}</span>
       <span class="pos ${p.pos}" style="justify-self:center">${p.pos}</span>
       <div style="overflow:hidden;min-width:0">
-        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
+        <div title="${p.name}" style="font-size:12px;font-weight:600;color:${p.drafted?'#484f58':p.injuryStatus?'#fbbf24':'#e6edf3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${injuryBadgeHtml(p)}${p.bye&&p.bye!=='TBD'?`<span style="font-size:10px;font-weight:400;color:#484f58;margin-left:4px">(Bye ${p.bye})</span>`:''}${p.isKeeper?'<span style="color:#388bfd;font-size:9px;margin-left:3px">[K]</span>':''}</div>
         <div style="font-size:10px;color:#7d8590;white-space:nowrap">${p.team}${statLine?' · <span style="color:#9ca3af">'+statLine+'</span>':''}</div>
         ${fitReasonHtml}
       </div>
-      <span style="font-size:10px;text-align:center;color:#7d8590;font-variant-numeric:tabular-nums;justify-self:center">${p.adp&&p.adp<900?p.adp:'—'}</span>
+      <span style="font-size:10px;text-align:center;color:${p.injuryStatus?'#fb923c':'#7d8590'};font-variant-numeric:tabular-nums;justify-self:center" title="${p.injuryStatus&&p.adp&&p.adp<900?'ECR '+p.adp:''}">${(p.displayAdp||p.adp)&&((p.displayAdp||p.adp)<900)?(p.displayAdp||p.adp):'—'}</span>
       ${adpDeltaCell}
       <span style="font-size:11px;font-weight:600;text-align:center;color:${p.drafted?'#484f58':hasProj?posBarColor:'#484f58'};font-variant-numeric:tabular-nums;justify-self:center">${sc}</span>
       <span style="font-size:11px;font-weight:600;text-align:center;color:${vorpColor};font-variant-numeric:tabular-nums;justify-self:center">${vorpTxt}</span>
@@ -3837,16 +3907,20 @@ function buildDraftContext() {
   }).sort(function(a, b) { return (b.customScore || 0) - (a.customScore || 0); });
 
   var avail = availList.slice(0, 40).map(function(p) {
-    var adpDelta = p.adp ? Math.round(p.adp - currentPick) : null;
+    var adpRef = p.displayAdp || p.adp;
+    var adpDelta = adpRef ? Math.round(adpRef - currentPick) : null;
     var deltaTag = '';
     if (adpDelta !== null) {
       if (adpDelta > 8)  deltaTag = ' [REACH +' + adpDelta + ']';
       else if (adpDelta < -8) deltaTag = ' [STEAL +' + Math.abs(adpDelta) + ']';
     }
     var byeStr = (p.bye && p.bye !== 'TBD') ? ' Bye:Wk' + p.bye : '';
+    var injStr = p.injuryStatus ? ' INJ:' + p.injuryStatus + (p.injuryBodyPart ? '(' + p.injuryBodyPart + ')' : '') : '';
+    var adpShown = p.displayAdp || p.adp;
     return p.pos + ' ' + p.name + ' (' + (p.team || '?') + ', ' +
       (p.customScore || 0).toFixed(0) + 'pts, VORP:' + (p.vorp || 0).toFixed(1) +
-      byeStr + deltaTag + ')';
+      (adpShown && adpShown < 900 ? ', ADP:' + adpShown : '') +
+      byeStr + injStr + deltaTag + ')';
   }).join('\n');
 
   // All team rosters compact (for opponent context)
@@ -4420,9 +4494,9 @@ function setPosFilter(pos, btn) {
 
 // ── Load All Players from Sleeper (auto on startup, 1-day cache) ──
 async function loadAllPlayersFromSleeper() {
-  const CACHE_KEY = 'ff26_sleeperPlayers_v3';
+  const CACHE_KEY = 'ff26_sleeperPlayers_v4';
   const TTL = 24 * 60 * 60 * 1000;
-  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().replace(/\b(jr|sr|ii|iii|iv|v)\b/g,'').replace(/\s+/g,' ').trim();
+  const norm = playerNameNorm;
   try {
     var cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -4432,6 +4506,8 @@ async function loadAllPlayersFromSleeper() {
           nameToSleeperId = obj.nameMap;
           players.forEach(function(p) { if (!p.sleeperId) p.sleeperId = obj.nameMap[norm(p.name)] || null; });
         }
+        if (obj.injuryMap) sleeperInjuryMap = obj.injuryMap;
+        if (obj.adpMap) sleeperAdpMap = obj.adpMap;
         _applySleeperList(obj.list);
         return;
       }
@@ -4443,9 +4519,21 @@ async function loadAllPlayersFromSleeper() {
     let maxId = Math.max(...players.map(p=>p.id||0), 200);
     var toCache = [];
     var nameMap = {};
+    var injuryMap = {};
+    var adpMap = {};
     Object.entries(playerMap).forEach(function([pid, p]) {
       const fn = ((p.first_name||'')+' '+(p.last_name||'')).trim();
-      if (fn) nameMap[norm(fn)] = pid;
+      if (fn) {
+        nameMap[norm(fn)] = pid;
+        if (p.search_rank) adpMap[norm(fn)] = p.search_rank;
+        if (p.injury_status) {
+          injuryMap[norm(fn)] = {
+            sleeperId: pid,
+            status: p.injury_status,
+            bodyPart: p.injury_body_part || ''
+          };
+        }
+      }
       if (!p.active||!p.team||p.team==='FA') return;
       const pos = p.fantasy_positions&&p.fantasy_positions[0];
       if (!VALID_POS.includes(pos)||!p.last_name) return;
@@ -4453,13 +4541,16 @@ async function loadAllPlayersFromSleeper() {
       if (!fn) return;
       maxId++;
       toCache.push({id:maxId,rank:maxId,name:fn,pos:pos,team:p.team,bye:'TBD',
-        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',sleeperId:pid});
+        adp:p.search_rank||999,sf:p.search_rank||999,note:p.college||'Sleeper',fit:'?',sleeperId:pid,
+        injuryStatus:p.injury_status||null,injuryBodyPart:p.injury_body_part||null});
     });
     toCache.sort((a,b)=>(a.adp||999)-(b.adp||999));
     nameToSleeperId = nameMap;
+    sleeperInjuryMap = injuryMap;
+    sleeperAdpMap = adpMap;
     players.forEach(function(p) { if (!p.sleeperId) p.sleeperId = nameMap[norm(p.name)] || null; });
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache,nameMap:nameMap})); } catch(e){
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache})); } catch(e2){}
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache,nameMap:nameMap,injuryMap:injuryMap,adpMap:adpMap})); } catch(e){
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(),list:toCache,injuryMap:injuryMap,adpMap:adpMap})); } catch(e2){}
     }
     _applySleeperList(toCache);
   } catch(e) {
@@ -4468,7 +4559,8 @@ async function loadAllPlayersFromSleeper() {
 }
 
 function _applySleeperList(list) {
-  const norm = n => n.toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim().replace(/\b(jr|sr|ii|iii|iv|v)\b/g,'').replace(/\s+/g,' ').trim();
+  const norm = playerNameNorm;
+  mergeSleeperInjuries(sleeperInjuryMap);
 
   // Build a name→sleeper-entry lookup from the incoming list (sorted by search_rank)
   const sleeperByName = {};
@@ -4478,8 +4570,10 @@ function _applySleeperList(list) {
   players.forEach(function(p) {
     var sl = sleeperByName[norm(p.name)];
     if (!sl) return;
-    p.adp = sl.adp; // live Sleeper search_rank as ADP
+    p.sleeperAdp = sl.adp; // live Sleeper search_rank — kept when ECR overwrites adp
+    p.adp = sl.adp;
     if (sl.sleeperId && !p.sleeperId) p.sleeperId = sl.sleeperId;
+    if (sl.injuryStatus) { p.injuryStatus = sl.injuryStatus; p.injuryBodyPart = sl.injuryBodyPart || ''; }
   });
 
   // 2. Add players Sleeper knows about that aren't in our list yet
@@ -4490,8 +4584,9 @@ function _applySleeperList(list) {
     existing.add(norm(p.name));
   });
 
-  // 3. Score every player by their positional rank from live Sleeper ADP
+  // 3. Score every player by their positional rank (injury-adjusted ADP)
   _scoreBySleeperRank();
+  applyInjuryScoreAdjustments();
 
   calcVORP(); renderBA();
 }
@@ -4510,16 +4605,17 @@ function _scoreBySleeperRank() {
     DEF: [124,122,120,118,116,114,112,110,108,106,104,102,100,98,96,94,92,90,88,86]
   };
 
-  // Group players that have a live ADP by position, sort by ADP
+  // Group players that have a live ADP by position, sort by injury-adjusted ADP
   const byPos = {};
   players.forEach(function(p) {
-    if (!p.adp || p.adp >= 900) return; // no live ADP data
+    var adp = effectiveDraftAdp(p);
+    if (!adp || adp >= 900) return;
     if (!byPos[p.pos]) byPos[p.pos] = [];
     byPos[p.pos].push(p);
   });
 
   Object.keys(byPos).forEach(function(pos) {
-    var grp = byPos[pos].sort(function(a, b) { return (a.adp||999) - (b.adp||999); });
+    var grp = byPos[pos].sort(function(a, b) { return effectiveDraftAdp(a) - effectiveDraftAdp(b); });
     var pts = curves[pos];
     if (!pts) return;
     grp.forEach(function(p, i) {
@@ -4604,7 +4700,7 @@ function applySleeperStats(statsById) {
   var fs = document.getElementById('factorStatus');
   if (fs) fs.textContent = updated ? 'Stats: '+updated+' players' : '';
   if (nflFactorsLoaded) applyNFLFactors();
-  else { calcVORP(); renderAll(); }
+  else { applyInjuryScoreAdjustments(); calcVORP(); renderAll(); }
 }
 
 // ── FantasyPros ECR Rankings (rankings_2026.json) ────────────────────────────
@@ -4636,11 +4732,15 @@ function _applyFantasyProsRankings(fpData) {
   players.forEach(function(p) {
     var fp = byName[norm(p.name)];
     if (!fp) return;
-    p.adp  = fp.ecrRank || fp.averageRank || p.adp;
+    if (fp.ecrRank || fp.averageRank) {
+      p.ecrAdp = fp.ecrRank || fp.averageRank;
+      p.adp = p.ecrAdp;
+    }
     if (fp.tier)    p.tier = fp.tier;
     if (fp.byeWeek && fp.byeWeek !== 'null') p.bye = String(fp.byeWeek);
     matched++;
   });
+  mergeSleeperInjuries(sleeperInjuryMap);
 
   // Add players in FP data not yet in our list (e.g. late-breaking adds)
   const existing = new Set(players.map(p => norm(p.name)));
@@ -4663,16 +4763,18 @@ function _applyFantasyProsRankings(fpData) {
     matched++;
   });
 
-  // Re-score using updated ADPs, then recalc VORP and re-render
+  // Re-score using updated ADPs (injury-adjusted), then recalc VORP and re-render
   _scoreBySleeperRank();
+  applyInjuryScoreAdjustments();
   calcVORP();
   renderAll();
 
   var date = fpData[0] && fpData[0].scrapedAt
     ? new Date(fpData[0].scrapedAt).toLocaleDateString()
     : 'unknown date';
+  var injCount = players.filter(function(p) { return p.injuryStatus; }).length;
   var fs = document.getElementById('factorStatus');
-  if (fs) fs.textContent = 'FP ECR · ' + matched + ' players · ' + date;
+  if (fs) fs.textContent = 'FP ECR · ' + matched + ' players · ' + date + (injCount ? ' · ' + injCount + ' injured' : '');
   console.log('[FP Rankings] Applied', matched, 'players from FantasyPros ECR (' + date + ')');
 }
 
